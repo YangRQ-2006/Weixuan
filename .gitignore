@@ -1,0 +1,28 @@
+# Gradle / Kotlin 构建产物
+.gradle/
+build/
+app/build/
+.kotlin/
+local.properties
+
+# 打包输出
+dist/
+
+# 太墟工具内部目录
+.taixu-subagent/
+
+# IDE
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 系统文件
+.DS_Store
+*.log
+
+# 密钥类敏感文件（如后续引入签名配置）
+*.jks
+*.keystore
+keystore.properties
