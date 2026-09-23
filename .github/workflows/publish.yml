@@ -1,0 +1,109 @@
+name: Publish Python 🐍 distribution 📦 to PyPI and TestPyPI
+on: push
+
+jobs:
+  version-check:
+    name: Check version matches tag and compat shim
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Compare tag to root and compat versions, verify dependency pin
+      run: |
+        TAG="${GITHUB_REF#refs/tags/v}"
+        ROOT_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
+        COMPAT_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' compat/pyproject.toml)
+
+        if [ "$TAG" != "$ROOT_VERSION" ]; then
+          echo "::error::Tag v$TAG does not match pyproject.toml version $ROOT_VERSION"
+          exit 1
+        fi
+        if [ "$ROOT_VERSION" != "$COMPAT_VERSION" ]; then
+          echo "::error::Version mismatch: root=$ROOT_VERSION compat=$COMPAT_VERSION"
+          exit 1
+        fi
+        if ! grep -q "mobilerun==$ROOT_VERSION" compat/pyproject.toml; then
+          echo "::error::compat/pyproject.toml does not pin mobilerun==$ROOT_VERSION"
+          exit 1
+        fi
+        echo "Version check passed: v$ROOT_VERSION (root + compat aligned)"
+
+  build:
+    name: Build mobilerun + droidrun shim 📦
+    needs:
+    - version-check
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+    - name: Install pypa/build
+      run: python3 -m pip install build --user
+    - name: Build mobilerun (root package)
+      run: python3 -m build
+    - name: Build droidrun (compat shim)
+      run: python3 -m build compat/
+    - name: Merge compat artifacts into dist/
+      run: cp compat/dist/* dist/
+    - name: Verify both packages built
+      run: |
+        ls dist/mobilerun-*.whl dist/mobilerun-*.tar.gz
+        ls dist/droidrun-*.whl dist/droidrun-*.tar.gz
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  publish-to-testpypi:
+    name: Publish mobilerun + droidrun shim to TestPyPI
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+    - build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/mobilerun
+    permissions:
+      id-token: write
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish both packages to TestPyPI
+      # Each wheel is routed to its matching PyPI project via OIDC.
+      # Both 'mobilerun' and 'droidrun' projects on TestPyPI must have this
+      # workflow configured as a trusted publisher (environment: testpypi).
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+
+  publish-to-pypi:
+    name: Publish mobilerun + droidrun shim to PyPI
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+    - publish-to-testpypi
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/mobilerun
+    permissions:
+      id-token: write
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish both packages to PyPI
+      # Each wheel is routed to its matching PyPI project via OIDC.
+      # Both 'mobilerun' and 'droidrun' projects on PyPI must have this
+      # workflow configured as a trusted publisher (environment: pypi).
+      uses: pypa/gh-action-pypi-publish@release/v1
