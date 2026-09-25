@@ -139,6 +139,14 @@ internal object ProviderRepository {
         allProviders()
             .filter { it.isBuiltIn && it.id !in keepIds }
             .forEach { deleteProvider(it.id) }
+        // 品牌迁移：本地 Provider 若仍是旧默认提示词（自称 Eta），刷新为微玄人格；
+        // 用户自定义过的提示词不受影响。
+        val legacyDefaultPrompt =
+            "你是 Eta，运行在 Android 设备上的 AI 助手。你可以回答问题、与用户交流，也可以通过当前可用的工具了解设备情况并执行操作。回答使用用户的语言，简洁、直接、自然。"
+        allProviders()
+            .filterIsInstance<OpenAiCompatibleProviderSetting>()
+            .filter { it.systemPrompt == legacyDefaultPrompt }
+            .forEach { updateProvider(it.copy(systemPrompt = BuiltinProviders.DEFAULT_SYSTEM_PROMPT)) }
         val current = allProviders()
         if (current.isEmpty()) {
             insertProviders(BuiltinProviders.PROVIDERS.map(::seedOfficialModelsIfEmpty))
