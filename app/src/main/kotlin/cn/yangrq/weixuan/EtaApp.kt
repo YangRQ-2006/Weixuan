@@ -74,6 +74,14 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
                 } else {
                     AndroidAgentLogger.info("本地推理服务已启动：http://127.0.0.1:$boundPort/v1")
                     LocalServerHost.selfCheck(boundPort)
+                    // 常驻前台租约（2026-09-25）：本地 OpenAI 服务是「随时可调用」的基础设施
+                    // （Agent 后台任务 / 语音唤起 / 外部客户端），MIUI 冻结后台进程会让服务假死。
+                    // 用户启用本地服务即持有（不释放）；关闭服务开关后重启自然解除。
+                    runCatching {
+                        val serverLease = "local-openai-server"
+                        val leased = cn.yangrq.weixuan.agent.runtime.AgentExecutionService.acquire(this@EtaApp, serverLease) { }
+                        AndroidAgentLogger.info("本地服务常驻租约：${if (leased) "已生效（后台随时可调用）" else "未生效（服务仅前台可用）"}")
+                    }.onFailure { AndroidAgentLogger.warn("本地服务常驻租约获取失败：${it.message}") }
                 }
                 // SDK 原生初始化可能耗时数十秒：同样持前台租约防清理，并打耗时日志定位卡点。
                 val initLease = "geniex-sdk-init"
