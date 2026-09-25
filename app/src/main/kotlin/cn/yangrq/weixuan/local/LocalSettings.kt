@@ -67,9 +67,11 @@ object LocalSettings {
         get() = p.getBoolean(KEY_DRAFT_ENABLED, true)
         set(value) = p.edit().putBoolean(KEY_DRAFT_ENABLED, value).apply()
 
-    /** hybrid(GPU+NPU) / npu / cpu。默认 hybrid：窗口死循环修复后 hybrid 推理已可信（2026-09-25）。 */
+    /** hybrid(GPU+NPU) / npu / cpu。默认 npu：实测纯 NPU 比 hybrid 快 2 倍以上
+     *（2026-09-25 同机同模型对比：prefill 254.7 vs 116.8 tok/s，decode 8.8 vs 3.3 tok/s，
+     *  首字 14.4s vs 30.6s——hybrid 的跨设备张量拷贝开销是性能杀手）。 */
     var computeUnit: String
-        get() = p.getString(KEY_COMPUTE_UNIT, "hybrid") ?: "hybrid"
+        get() = p.getString(KEY_COMPUTE_UNIT, "npu") ?: "npu"
         set(value) = p.edit().putString(KEY_COMPUTE_UNIT, value).apply()
 
     /** 思考模式：模型输出思考过程（流式透传到界面思考块）；默认开启。 */

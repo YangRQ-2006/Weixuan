@@ -247,7 +247,11 @@ object GenieXLocalEngine : LocalChatEngine {
         val draftPath = resolveDraftModelPath(target)
         val config = LocalPerfTuner.buildModelConfig(guard, draftPath, estimateMb)
         val units = when (LocalSettings.computeUnit) {
-            LocalPerfTuner.COMPUTE_UNIT_NPU -> listOf(LocalPerfTuner.COMPUTE_UNIT_NPU)
+            // npu 优先（实测最快），失败回退 cpu 保可用
+            LocalPerfTuner.COMPUTE_UNIT_NPU -> listOf(
+                LocalPerfTuner.COMPUTE_UNIT_NPU,
+                LocalPerfTuner.COMPUTE_UNIT_CPU,
+            )
             LocalPerfTuner.COMPUTE_UNIT_CPU -> listOf(LocalPerfTuner.COMPUTE_UNIT_CPU)
             else -> listOf(
                 LocalPerfTuner.COMPUTE_UNIT_HYBRID,
