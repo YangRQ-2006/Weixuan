@@ -20,9 +20,10 @@ object LocalPerfTuner {
 
     const val DRAFT_MODEL_NAME = "Qwen/Qwen3-0.6B"
     const val DRAFT_MODEL_PRECISION = "Q8_0"
-    /** 推测解码类型：GenieX v0.7.0 仅支持 EAGLE 专用 draft 模型；普通 GGUF 传入会 native 崩溃，
-     *  故置空禁用（2026-09-25 实证：`unknown speculative type: draft` → libc++abi 终止）。 */
-    const val SPEC_TYPE = ""
+    /** 推测解码类型：ngram-cache = 免 draft 模型的统计式推测解码（2026-09-25 启用，
+     *  官方 spec_type 支持的 "ngram-map-k4v"/"ngram-mod"/"ngram-cache" 之一）。
+     *  注：eagle/draft 类型需专用 draft 模型，普通 GGUF 传入会 native 崩溃，故不用。 */
+    const val SPEC_TYPE = "ngram-cache"
     const val SPEC_N_MAX = 8
     const val SWA_N_KEEP = 512
     const val BASE_MAX_TOKENS = 1024
@@ -41,7 +42,9 @@ object LocalPerfTuner {
     fun buildModelConfig(guard: LocalResourceGuard, draftModelPath: String?, modelMb: Int = 0): ModelConfig {
         val batch = guard.optimalBatchSize()
         val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 8)
-        val specEnabled = !draftModelPath.isNullOrEmpty()
+        // ngram 类 spec 免 draft 模型（官方 spec_draft_model 传空即可）；eagle/draft 类才需要。
+        val ngramSpec = SPEC_TYPE.startsWith("ngram")
+        val specEnabled = ngramSpec || !draftModelPath.isNullOrEmpty()
         return ModelConfig(
             nCtx = guard.optimalContextWindow(modelMb),
             nThreads = threads,
@@ -52,9 +55,9 @@ object LocalPerfTuner {
             nGpuLayers = 99,
             spec_type = if (specEnabled) SPEC_TYPE else "",
             spec_draft_model = draftModelPath ?: "",
-            spec_n_max = if (specEnabled) ((SPEC_N_MAX * guard.speedFactor()).toInt().coerceAtLeast(1)) else 0,
-            spec_n_min = if (specEnabled) 1 else 0,
-            spec_p_min = if (specEnabled) 0.5f else 0f,
+            spec_n_max = if (specEnabled && !ngramSpec) ((SPEC_N_MAX * guard.speedFactor()).toInt().coerceAtLeast(1)) else 0,
+            spec_n_min = if (specEnabled && !ngramSpec) 1 else 0,
+            spec_p_min = if (specEnabled && !ngramSpec) 0.5f else 0f,
             // HTP 电源模式（2026-09-25）：官方文档明确"未显式设置则零初始化 = LOW_POWER_SAVER(0)
             // = HTP 最低频运行"，必须显式设为 burst（爆发模式=满频）才能发挥 NPU 全部性能。
             power_mode = "burst",
