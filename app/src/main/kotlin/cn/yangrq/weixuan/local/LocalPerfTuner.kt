@@ -55,6 +55,9 @@ object LocalPerfTuner {
             spec_n_max = if (specEnabled) ((SPEC_N_MAX * guard.speedFactor()).toInt().coerceAtLeast(1)) else 0,
             spec_n_min = if (specEnabled) 1 else 0,
             spec_p_min = if (specEnabled) 0.5f else 0f,
+            // HTP 电源模式（2026-09-25）：官方文档明确"未显式设置则零初始化 = LOW_POWER_SAVER(0)
+            // = HTP 最低频运行"，必须显式设为 burst（爆发模式=满频）才能发挥 NPU 全部性能。
+            power_mode = "burst",
         )
     }
 
