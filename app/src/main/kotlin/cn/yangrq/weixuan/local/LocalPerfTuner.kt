@@ -20,10 +20,10 @@ object LocalPerfTuner {
 
     const val DRAFT_MODEL_NAME = "Qwen/Qwen3-0.6B"
     const val DRAFT_MODEL_PRECISION = "Q8_0"
-    /** 推测解码类型：ngram-cache = 免 draft 模型的统计式推测解码（2026-09-25 启用，
-     *  官方 spec_type 支持的 "ngram-map-k4v"/"ngram-mod"/"ngram-cache" 之一）。
-     *  注：eagle/draft 类型需专用 draft 模型，普通 GGUF 传入会 native 崩溃，故不用。 */
-    const val SPEC_TYPE = "ngram-cache"
+    /** 推测解码类型：2026-09-25 实测 ngram-cache 在多轮请求后出现服务线程挂死
+     *  （TCP 可连但无响应、连接排队），已回滚禁用；eagle/draft 类需专用模型（普通 GGUF 崩溃）。
+     *  待 SDK 后续版本修复后再评估。 */
+    const val SPEC_TYPE = ""
     const val SPEC_N_MAX = 8
     const val SWA_N_KEEP = 512
     const val BASE_MAX_TOKENS = 1024

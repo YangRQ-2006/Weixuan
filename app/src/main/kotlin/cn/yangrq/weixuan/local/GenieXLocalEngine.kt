@@ -477,19 +477,32 @@ object GenieXLocalEngine : LocalChatEngine {
      * 2. 否则回退到文本工具协议（system 消息注入 + 工具轮次文本化）。
      */
     /**
-     * 工具集按窗口裁剪（2026-09-25 ggml_abort 崩溃修复）：
-     * 工具 JSON schema 是 prompt 主体（31 工具 ≈ 8k tokens），本地窗口有限
-     * （4B 仅 ~4.5k），超窗触发 llama.cpp context-shifting → ggml_abort 崩溃。
-     * 预算：窗口 55% 给工具（其余留给系统提示/历史/输出），每工具按 ~320 tokens 估。
+     * 工具集【压缩】而非裁剪（2026-09-25 重设计）：
+     * 案发：早期实现按窗口删工具（31→7），导致 Agent 丢失 UI 操作类工具，
+     * 多步任务（打开抖音并搜索）只能完成第一步——删工具 = 删能力。
+     * 现改为程序化压缩 schema：截短工具描述（核心语义保留）+ 删除参数级冗长说明，
+     * 31 工具 token 从 ~8k 降到 ~2k，窗口装得下且能力完整（4B/14B 均受益）。
      */
     private fun limitToolsForWindow(tools: JSONArray, nCtx: Int): JSONArray {
-        if (nCtx <= 0 || tools.length() <= 4) return tools
-        val maxTools = ((nCtx * 0.55).toInt() / 320).coerceIn(4, 31)
-        if (tools.length() <= maxTools) return tools
-        Log.i(TAG, "工具集按窗口裁剪：nCtx=$nCtx → 保留 $maxTools/${tools.length()} 个核心工具")
-        return JSONArray().apply {
-            for (i in 0 until maxTools) put(tools.opt(i))
+        if (nCtx <= 0 || tools.length() == 0) return tools
+        val compacted = JSONArray()
+        for (i in 0 until tools.length()) {
+            val tool = tools.optJSONObject(i) ?: continue
+            val fn = tool.optJSONObject("function")
+            if (fn != null) {
+                val desc = fn.optString("description")
+                if (desc.length > 42) fn.put("description", desc.take(40) + "…")
+                fn.optJSONObject("parameters")?.optJSONObject("properties")?.let { props ->
+                    val keys = props.keys()
+                    while (keys.hasNext()) {
+                        props.optJSONObject(keys.next())?.remove("description")
+                    }
+                }
+            }
+            compacted.put(tool)
         }
+        Log.i(TAG, "工具集压缩：nCtx=$nCtx，${compacted.length()} 个工具 schema 已精简（保留全部能力）")
+        return compacted
     }
 
     private suspend fun buildPrompt(
