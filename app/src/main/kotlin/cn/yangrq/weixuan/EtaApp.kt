@@ -68,6 +68,25 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
         // 而不是连接被拒触发"模型请求暂时中断"重试链（2026-09-24 23:10 故障根因）。
         if (LocalSettings.serverEnabled) {
             applicationScope.launch {
+                // 自建 llama.cpp runtime（2026-09-25）：llama-server 子进程监听同一端口，
+                // 官方 mmap 按需加载（14B 只驻留几百 MB）+ KV 量化 + flash-attn——解决大模型加载崩溃。
+                if (LocalSettings.useSelfBuiltEngine) {
+                    val modelPath = LocalSettings.customModelPath
+                    if (modelPath.isNotBlank() && java.io.File(modelPath).exists()) {
+                        val ok = cn.yangrq.weixuan.local.LlamaServerProcess.start(
+                            this@EtaApp,
+                            modelPath,
+                            cn.yangrq.weixuan.local.LocalSettings.DEFAULT_PORT,
+                        )
+                        AndroidAgentLogger.info(
+                            if (ok) "自建 runtime 已就绪（llama-server :${LocalSettings.port}/v1）"
+                            else "自建 runtime 启动失败（可关闭开关回退 SDK 路径）",
+                        )
+                    } else {
+                        AndroidAgentLogger.warn("自建 runtime：未配置模型文件（customModelPath 为空）")
+                    }
+                    return@launch
+                }
                 val boundPort = LocalServerHost.startAndSync(GenieXLocalEngine, LocalSettings.port)
                 if (boundPort <= 0) {
                     AndroidAgentLogger.warn("本地推理服务启动失败：候选端口全部被占用")
@@ -93,7 +112,17 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
                 } finally {
                     if (initLeased) cn.yangrq.weixuan.agent.runtime.AgentExecutionService.release(initLease)
                 }
-                if (LocalSettings.autoLoad) {
+                // 大模型（>5GB）不自动加载（2026-09-25 安全）：加载峰值可能触发系统级内存压力，
+                // 必须由用户在前台手动触发（可配合内存监控），避免"App 启动即卡死"。
+                val targetModelMb = runCatching {
+                    val p = LocalSettings.customModelPath
+                    if (p.isNotBlank()) (java.io.File(p).length() / 1024 / 1024).toInt() else 0
+                }.getOrDefault(0)
+                if (targetModelMb > 5000) {
+                    AndroidAgentLogger.warn(
+                        "目标模型 ${targetModelMb}MB 属大模型：已跳过自动加载，请在「本地模型」页手动点「加载模型」",
+                    )
+                } else if (LocalSettings.autoLoad) {
                     // 安全边界（2026-09-25 手机卡死事故）：最多自动尝试 2 次，
                     // 内存/温度/冷却类拒绝一律不重试——反复触发大内存分配会把系统压垮。
                     var loaded = false

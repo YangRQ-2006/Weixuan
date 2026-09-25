@@ -84,14 +84,30 @@ class LocalResourceGuard {
      * - 大模型（≥1GB）：mmap 驻留估算（权重按需分页 ≈40% 驻留）+ KV 预算 + 系统余量。
      *   估算仅为预检，真正的保护是 [postLoadAudit] 实测审计（不足即自动卸载）。
      */
-    fun canLoadModel(modelMb: Int): Boolean {
-        val avail = memAvailableMb()
-        val need = if (modelMb < 1024) {
-            modelMb * 6 / 5 + 1024
-        } else {
-            (modelMb * 2 / 5 + 2048 + 1024).toInt()
-        }
-        return avail > need && avail > PRE_LOAD_MIN_AVAIL_MB
+    /**
+     * 大模型低内存加载模式（2026-09-25 用户明确要求尝试 14B）：
+     * 模型 >5GB 且可用内存 <6.5GB 时启用——nCtx 降到 1024（KV 从 ~2GB 降到 ~600MB）、
+     * 小 batch（临时缓冲小）、纯 CPU 后端（免 NPU 的 ION 额外分配）。
+     * 风险明示：加载峰值仍可能触发内存压力，需全程监控并在危险时强制停止。
+     */
+    fun lowMemoryMode(modelMb: Int): Boolean = modelMb > 5000 && memAvailableMb() < 6500
+
+    fun canLoadModel(modelMb: Int): Boolean =
+        memAvailableMb() > loadNeedMb(modelMb) && memAvailableMb() > PRE_LOAD_MIN_AVAIL_MB
+
+    /**
+     * 加载内存需求估算（2026-09-25 按实测 mmap 驻留率校准）：
+     * 实测 4B（文件 2497MB）加载后可用内存仅减少 353MB（≈14%）——mmap 按需分页实证成立。
+     * 故大模型按 15% 驻留 + KV 预算 + 1GB 系统余量估算；小模型保守按全量。
+     * 预检后仍有 [postLoadAudit] 实测审计兜底（余量不足自动卸载）。
+     */
+    fun loadNeedMb(modelMb: Int): Int = if (modelMb < 1024) {
+        modelMb * 6 / 5 + 1024
+    } else if (lowMemoryMode(modelMb)) {
+        // 低内存模式：纯 CPU + 小窗口（KV ~0.6GB），需求 = 驻留 15% + 1GB 余量
+        modelMb * 15 / 100 + 1024
+    } else {
+        modelMb * 15 / 100 + optimalKvCacheMb() + 1024
     }
 
     /** 加载完成后实测审计：返回 null=通过；返回错误消息=余量不足应卸载。 */

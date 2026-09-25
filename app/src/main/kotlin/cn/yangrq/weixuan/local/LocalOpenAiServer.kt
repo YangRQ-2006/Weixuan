@@ -495,6 +495,13 @@ object LocalServerHost {
      * @return 实际绑定的端口；-1 表示全部候选端口都不可用。
      */
     suspend fun startAndSync(engine: LocalChatEngine, preferredPort: Int): Int {
+        // 自建 llama.cpp runtime 模式（2026-09-25）：自有 OpenAI 服务不启动——该端口交给
+        // llama-server 子进程监听（Agent 的 baseUrl 保持 127.0.0.1:<preferredPort> 不变）。
+        // 修复：此前 UI 页（LocalModelScreen）的两处调用会让自有服务抢占端口 → llama-server 绑定失败。
+        if (LocalSettings.useSelfBuiltEngine) {
+            Log.i(TAG, "自建模式：跳过自有 OpenAI 服务（端口 $preferredPort 交给 llama-server）")
+            return preferredPort
+        }
         if (isRunning) return boundPort
         var bound = -1
         for (offset in 0 until PORT_PROBE_RANGE) {

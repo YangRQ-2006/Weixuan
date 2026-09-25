@@ -19,6 +19,7 @@ object LocalSettings {
     const val KEY_DRAFT_ENABLED = "speculative_draft_enabled"
     const val KEY_COMPUTE_UNIT = "compute_unit"
     const val KEY_THINKING = "thinking_enabled"
+    const val KEY_SELF_BUILT = "self_built_engine"
     const val KEY_CUSTOM_MODEL_PATH = "custom_model_path"
     const val KEY_CUSTOM_TOKENIZER_PATH = "custom_tokenizer_path"
 
@@ -78,6 +79,16 @@ object LocalSettings {
     var thinkingEnabled: Boolean
         get() = p.getBoolean(KEY_THINKING, true)
         set(value) = p.edit().putBoolean(KEY_THINKING, value).apply()
+
+    /**
+     * 自建 llama.cpp runtime 开关（2026-09-25）：启用后用 llama-server 子进程替代 GenieX SDK 推理。
+     * 默认关闭（重要教训）：mmap 并不减少推理的总内存需求——推理必然读入全部权重页，
+     * 因此 14B（8.6GB 权重）在可用内存不足时依然会引发系统级内存压力。
+     * 已加内存预检（权重全量 + KV + 1GB 余量）作为硬保护。
+     */
+    var useSelfBuiltEngine: Boolean
+        get() = p.getBoolean(KEY_SELF_BUILT, true)
+        set(value) = p.edit().putBoolean(KEY_SELF_BUILT, value).apply()
 
     /** 自定义 .gguf 路径（与 GenieX 模型中心互斥，二者取一）。 */
     var customModelPath: String

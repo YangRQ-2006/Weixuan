@@ -40,19 +40,21 @@ object LocalPerfTuner {
     const val MODEL_ESTIMATE_MB_27B = 15_000
 
     fun buildModelConfig(guard: LocalResourceGuard, draftModelPath: String?, modelMb: Int = 0): ModelConfig {
-        val batch = guard.optimalBatchSize()
+        // 大模型低内存模式（2026-09-25）：小窗口 + 小 batch + 纯 CPU（免 NPU ION 额外分配）
+        val lowMem = guard.lowMemoryMode(modelMb)
+        val batch = if (lowMem) 64 else guard.optimalBatchSize()
         val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 8)
         // ngram 类 spec 免 draft 模型（官方 spec_draft_model 传空即可）；eagle/draft 类才需要。
         val ngramSpec = SPEC_TYPE.startsWith("ngram")
         val specEnabled = ngramSpec || !draftModelPath.isNullOrEmpty()
         return ModelConfig(
-            nCtx = guard.optimalContextWindow(modelMb),
+            nCtx = if (lowMem) 1024 else guard.optimalContextWindow(modelMb),
             nThreads = threads,
             nThreadsBatch = threads,
             nBatch = batch,
-            nUBatch = minOf(batch, 512),
+            nUBatch = if (lowMem) 64 else minOf(batch, 512),
             nSeqMax = 1,
-            nGpuLayers = 99,
+            nGpuLayers = if (lowMem) 0 else 99,
             spec_type = if (specEnabled) SPEC_TYPE else "",
             spec_draft_model = draftModelPath ?: "",
             spec_n_max = if (specEnabled && !ngramSpec) ((SPEC_N_MAX * guard.speedFactor()).toInt().coerceAtLeast(1)) else 0,

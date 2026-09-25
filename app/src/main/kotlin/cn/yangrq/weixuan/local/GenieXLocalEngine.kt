@@ -185,6 +185,32 @@ object GenieXLocalEngine : LocalChatEngine {
 
     override suspend fun loadModel(name: String?): Result<Unit> {
         val context = appContext ?: return Result.failure(IllegalStateException("引擎未初始化"))
+        // 自建 llama.cpp runtime 模式（2026-09-25）：直接启动 llama-server 子进程（内置内存预检，
+        // 不可承载的模型会被安全拒绝而非拖垮系统）。
+        if (LocalSettings.useSelfBuiltEngine) {
+            val modelPath = LocalSettings.customModelPath
+            if (modelPath.isBlank() || !java.io.File(modelPath).exists()) {
+                val msg = "自建模式：未选择模型文件（请先在「本地模型」页选择 GGUF）"
+                _state.value = _state.value.copy(status = LocalEngineStatus.ERROR, message = msg)
+                return Result.failure(IllegalStateException(msg))
+            }
+            _state.value = _state.value.copy(status = LocalEngineStatus.LOADING, message = "自建 runtime 启动中…")
+            return withContext(Dispatchers.IO) {
+                val ok = LlamaServerProcess.start(context, modelPath, LocalSettings.DEFAULT_PORT, 8192)
+                if (ok) {
+                    loadedKey = modelPath
+                    _state.value = _state.value.copy(
+                        status = LocalEngineStatus.READY,
+                        message = "自建 llama.cpp runtime 已就绪（mmap + KV量化 + flash-attn）",
+                    )
+                    Result.success(Unit)
+                } else {
+                    val msg = "自建 runtime 启动失败或内存不足（已安全拒绝，未影响系统）"
+                    _state.value = _state.value.copy(status = LocalEngineStatus.ERROR, message = msg)
+                    Result.failure(IllegalStateException(msg))
+                }
+            }
+        }
         // 加载全程持前台执行租约：加载 GB 级模型需数十秒，期间用户切出/锁屏时
         // 进程必须免于 MIUI「一键清理」与后台压制（2026-09-25 事故实证：加载中被
         // OneKeyClean SIGKILL，进度归零，反复循环永远加载不完）。
@@ -233,7 +259,7 @@ object GenieXLocalEngine : LocalChatEngine {
         // 安全边界三：内存（SDK 为大块预分配，须留足全量×1.2+1GB，宁可拒绝不可冒险）
         if (!guard.canLoadModel(estimateMb)) {
             val message = "内存不足，拒绝加载（当前可用 ${guard.memAvailableMb()}MB，" +
-                "安全边界需要 ${estimateMb * 6 / 5 + 1024}MB）"
+                "加载需求约 ${guard.loadNeedMb(estimateMb)}MB——请清理后台释放内存后重试）"
             _state.value = _state.value.copy(status = LocalEngineStatus.ERROR, message = message)
             return Result.failure(IllegalStateException(message))
         }
@@ -309,6 +335,10 @@ object GenieXLocalEngine : LocalChatEngine {
     }
 
     override suspend fun unload() {
+        // 自建模式：停止 llama-server 子进程（含其全部内存）
+        if (LocalSettings.useSelfBuiltEngine && LlamaServerProcess.isRunning()) {
+            runCatching { LlamaServerProcess.stop() }
+        }
         withContext(Dispatchers.IO) { unloadInternal() }
         if (_state.value.status != LocalEngineStatus.UNINITIALIZED) {
             _state.value = _state.value.copy(
