@@ -18,6 +18,7 @@ object LocalSettings {
     const val KEY_AUTO_LOAD = "auto_load_model"
     const val KEY_DRAFT_ENABLED = "speculative_draft_enabled"
     const val KEY_COMPUTE_UNIT = "compute_unit"
+    const val KEY_THINKING = "thinking_enabled"
     const val KEY_CUSTOM_MODEL_PATH = "custom_model_path"
     const val KEY_CUSTOM_TOKENIZER_PATH = "custom_tokenizer_path"
 
@@ -70,6 +71,11 @@ object LocalSettings {
     var computeUnit: String
         get() = p.getString(KEY_COMPUTE_UNIT, "hybrid") ?: "hybrid"
         set(value) = p.edit().putString(KEY_COMPUTE_UNIT, value).apply()
+
+    /** 思考模式：模型输出思考过程（流式透传到界面思考块）；默认开启。 */
+    var thinkingEnabled: Boolean
+        get() = p.getBoolean(KEY_THINKING, true)
+        set(value) = p.edit().putBoolean(KEY_THINKING, value).apply()
 
     /** 自定义 .gguf 路径（与 GenieX 模型中心互斥，二者取一）。 */
     var customModelPath: String

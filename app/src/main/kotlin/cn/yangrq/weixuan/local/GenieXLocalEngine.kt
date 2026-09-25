@@ -369,8 +369,11 @@ object GenieXLocalEngine : LocalChatEngine {
                 }
             }
             generationMutex.withLock {
-                val hasTools = tools.length() > 0
-                val prompt = buildPrompt(current, messages, tools, hasTools)
+                // 工具集按窗口裁剪（2026-09-25 ggml_abort 崩溃修复）：工具 schema 是 prompt 主体
+                // （31 工具 ≈ 8k tokens），小窗口模型（4B ≈ 4.5k）装不下 → context-shifting 崩溃。
+                val effectiveTools = limitToolsForWindow(tools, _state.value.nCtx)
+                val hasTools = effectiveTools.length() > 0
+                val prompt = buildPrompt(current, messages, effectiveTools, hasTools)
                 if (prompt.isNullOrBlank()) {
                     send(LocalStreamEvent.Failed("chat template 应用失败，无法构造 prompt", 500))
                     return@withLock
@@ -469,18 +472,58 @@ object GenieXLocalEngine : LocalChatEngine {
      *    仅当格式化结果里确实出现工具定义时才采用；
      * 2. 否则回退到文本工具协议（system 消息注入 + 工具轮次文本化）。
      */
+    /**
+     * 工具集按窗口裁剪（2026-09-25 ggml_abort 崩溃修复）：
+     * 工具 JSON schema 是 prompt 主体（31 工具 ≈ 8k tokens），本地窗口有限
+     * （4B 仅 ~4.5k），超窗触发 llama.cpp context-shifting → ggml_abort 崩溃。
+     * 预算：窗口 55% 给工具（其余留给系统提示/历史/输出），每工具按 ~320 tokens 估。
+     */
+    private fun limitToolsForWindow(tools: JSONArray, nCtx: Int): JSONArray {
+        if (nCtx <= 0 || tools.length() <= 4) return tools
+        val maxTools = ((nCtx * 0.55).toInt() / 320).coerceIn(4, 31)
+        if (tools.length() <= maxTools) return tools
+        Log.i(TAG, "工具集按窗口裁剪：nCtx=$nCtx → 保留 $maxTools/${tools.length()} 个核心工具")
+        return JSONArray().apply {
+            for (i in 0 until maxTools) put(tools.opt(i))
+        }
+    }
+
     private suspend fun buildPrompt(
         current: LlmWrapper,
         messages: JSONArray,
         tools: JSONArray,
         hasTools: Boolean,
     ): String? {
+        // 思考过程诱导注入（纯提示词层）：不注入 /think、不启用 SDK thinking——
+        // GenieX v0.7.0 的 thinking 路径会 ggml_backend_sched_alloc_graph 崩溃（2026-09-25 实证）。
+        // 仅以 system 指令引导模型自愿输出思考标签（FilterSink 原生支持该协议）。
+        if (LocalSettings.thinkingEnabled) {
+            var sysIndex = -1
+            for (i in 0 until messages.length()) {
+                if (messages.optJSONObject(i)?.optString("role") == "system") {
+                    sysIndex = i
+                    break
+                }
+            }
+            if (sysIndex >= 0) {
+                val sys = messages.optJSONObject(sysIndex)
+                sys?.put("content", sys.optString("content") + LocalChatConversion.THINKING_INSTRUCTION)
+            } else {
+                messages.put(
+                    0,
+                    org.json.JSONObject().apply {
+                        put("role", "system")
+                        put("content", LocalChatConversion.THINKING_INSTRUCTION.trimStart())
+                    },
+                )
+            }
+        }
         if (hasTools) {
             val nativeOutput = runCatching {
                 current.applyChatTemplate(
                     messages = toGenieXMessages(messages, fallback = false).toTypedArray(),
                     tools = tools.toString(),
-                    enableThinking = false,
+                    enableThinking = false, // SDK thinking 路径崩溃（ggml_abort），思考改由提示词层诱导
                 )
             }.getOrNull()?.getOrNull()
             val formatted = nativeOutput?.formattedText
@@ -497,7 +540,7 @@ object GenieXLocalEngine : LocalChatEngine {
                 current.applyChatTemplate(
                     messages = fallbackMessages.toTypedArray(),
                     tools = null,
-                    enableThinking = false,
+                    enableThinking = false, // SDK thinking 路径崩溃（ggml_abort），思考改由提示词层诱导
                 )
             }.getOrNull()?.getOrNull()?.formattedText
         }
@@ -505,7 +548,7 @@ object GenieXLocalEngine : LocalChatEngine {
             current.applyChatTemplate(
                 messages = fallbackMessages.toTypedArray(),
                 tools = null,
-                enableThinking = false,
+                enableThinking = false, // SDK thinking 路径崩溃（ggml_abort），思考改由提示词层诱导
             )
         }.getOrNull()?.getOrNull()?.formattedText
         Log.i(TAG, "使用文本工具协议回退，prompt=${output?.length ?: 0} 字符")

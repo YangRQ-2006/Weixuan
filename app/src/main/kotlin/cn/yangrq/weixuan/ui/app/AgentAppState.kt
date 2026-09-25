@@ -2865,6 +2865,8 @@ private fun AgentTokenUsage.toUi(): TokenUsageUi =
         outputTokens = outputTokens,
         reasoningTokens = reasoningTokens,
         cachedTokens = cachedTokens,
+        tokensPerSecond = tokensPerSecond,
+        ttftMs = ttftMs,
     )
 
 private fun isAgentAccessibilityEnabled(context: Context): Boolean {

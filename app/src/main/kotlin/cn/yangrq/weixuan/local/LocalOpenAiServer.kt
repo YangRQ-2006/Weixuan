@@ -383,6 +383,9 @@ class LocalOpenAiServer(
         .put("prompt_tokens", usage.promptTokens.toInt())
         .put("completion_tokens", usage.completionTokens.toInt())
         .put("total_tokens", usage.totalTokens.toInt())
+        // 本地引擎实测性能（非标准扩展字段，OpenAI 客户端会忽略）
+        .put("tokens_per_second", usage.tokensPerSecond)
+        .put("ttft_ms", usage.ttftMs)
 
     private fun toolCallDelta(call: LocalToolCall): JSONObject = JSONObject().put(
         "tool_calls",

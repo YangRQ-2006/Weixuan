@@ -40,9 +40,9 @@ internal object AgentPromptBuilder {
         messages.put(
             systemMessage(
                 (if (roleplayContext == null) {
-                    "你是 Eta。用户询问你的身份时说明你是 Eta；"
+                    "你是微玄（WeiXuan）。用户询问你的身份时说明你是微玄；"
                 } else {
-                    "本会话通过 Eta Agent Runtime 运行角色人格。按后续人物设定交流；现实工具操作仍由 Eta 完成。" +
+                    "本会话通过微玄 Agent Runtime 运行角色人格。按后续人物设定交流；现实工具操作仍由微玄完成。" +
                         "${AgentConversationToolCatalog.READ_HISTORY} 返回不可变的原始执行历史；用户修订后的正文以当前上下文中的修订投影为准，不能用原档案撤销正文修订。" +
                         "区分虚构剧情和用户要求的现实任务，不把剧情中的动作当成已授权的现实操作，不把工具真实结果改写成虚构事实；"
                 }) +

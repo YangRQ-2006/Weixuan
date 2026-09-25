@@ -86,6 +86,18 @@ internal object LocalChatConversion {
         return result
     }
 
+    /** 思考过程格式指令：让模型输出思考标签，由 FilterSink 分离为 Reasoning 流
+     *（SDK 原生 enableThinking 路径会 ggml_abort，故走提示词层诱导；
+     *  标签以拼接方式构造，避免源码出现连续标签字面量）。 */
+    val THINKING_INSTRUCTION: String = run {
+        val open = "<" + "think" + ">"
+        val close = "<" + "/" + "think" + ">"
+        "\n\n【思考格式】回答需要推理的问题时，必须先输出思考块再给答案，严格按示例格式：\n" +
+            "示例——用户：9.11 和 9.8 哪个大？\n" +
+            "回答：$open 9.11 = 9.11，9.8 = 9.80，因此 9.8 更大。$close 9.8 更大。\n" +
+            "简单问候、闲聊、或直接事实性问题无需思考，直接回答。"
+    }
+
     /** 把工具协议说明注入（或新增）system 消息。 */
     fun injectToolProtocol(messages: MutableList<ChatMessage>, tools: JSONArray) {
         val instruction = LocalToolProtocol.buildFallbackInstruction(tools)

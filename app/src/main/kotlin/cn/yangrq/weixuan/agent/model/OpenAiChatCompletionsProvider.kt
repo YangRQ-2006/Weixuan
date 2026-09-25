@@ -369,7 +369,9 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
             cachedTokens = usage.firstNestedInt(
                 "prompt_tokens_details",
                 childKey = "cached_tokens"
-            ) ?: usage.firstInt("cache_read_input_tokens")
+            ) ?: usage.firstInt("cache_read_input_tokens"),
+            tokensPerSecond = usage.optDouble("tokens_per_second").takeIf { it.isFinite() && it > 0 },
+            ttftMs = usage.optDouble("ttft_ms").takeIf { it.isFinite() && it > 0 },
         ).takeUnless { it.isEmpty }
     }
 
