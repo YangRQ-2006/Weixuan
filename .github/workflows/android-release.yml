@@ -1,0 +1,117 @@
+name: Eta Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apks:
+    name: 构建 Debug 与 Release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: 配置 JDK 25
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: 配置 Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+        with:
+          cache-provider: basic
+
+      - name: 配置 Android SDK 工具
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          packages: ""
+          log-accepted-android-sdk-licenses: false
+
+      - name: 安装 Android SDK 37
+        run: sdkmanager --channel=3 "platforms;android-37.0"
+
+      - name: 还原发布证书
+        env:
+          ETA_RELEASE_KEYSTORE_BASE64: ${{ secrets.ETA_RELEASE_KEYSTORE_BASE64 }}
+          ETA_RELEASE_STORE_PASSWORD: ${{ secrets.ETA_RELEASE_STORE_PASSWORD }}
+          ETA_RELEASE_KEY_ALIAS: ${{ secrets.ETA_RELEASE_KEY_ALIAS }}
+          ETA_RELEASE_KEY_PASSWORD: ${{ secrets.ETA_RELEASE_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$ETA_RELEASE_KEYSTORE_BASE64" ||
+                -z "$ETA_RELEASE_STORE_PASSWORD" ||
+                -z "$ETA_RELEASE_KEY_ALIAS" ||
+                -z "$ETA_RELEASE_KEY_PASSWORD" ]]; then
+            echo "::error::缺少 Release 签名 Secrets，请检查仓库的 Actions Secrets。"
+            exit 1
+          fi
+          printf '%s' "$ETA_RELEASE_KEYSTORE_BASE64" \
+            | base64 --decode \
+            > "$RUNNER_TEMP/eta-release.jks"
+
+      - name: 构建 Debug 与 Release APK
+        env:
+          ETA_RELEASE_STORE_FILE: ${{ runner.temp }}/eta-release.jks
+          ETA_RELEASE_STORE_PASSWORD: ${{ secrets.ETA_RELEASE_STORE_PASSWORD }}
+          ETA_RELEASE_KEY_ALIAS: ${{ secrets.ETA_RELEASE_KEY_ALIAS }}
+          ETA_RELEASE_KEY_PASSWORD: ${{ secrets.ETA_RELEASE_KEY_PASSWORD }}
+        run: >-
+          ./gradlew --no-daemon --no-configuration-cache
+          :app:assembleDebug :app:assembleRelease
+
+      - name: 验证并整理 APK
+        id: apk
+        run: |
+          debug_apk="app/build/outputs/apk/debug/app-debug.apk"
+          release_apk="app/build/outputs/apk/release/app-release.apk"
+          output_dir="$RUNNER_TEMP/apks"
+          apksigner_path="$(find "$ANDROID_HOME/build-tools" \
+            -type f -name apksigner | sort -V | tail -n 1)"
+
+          if [[ ! -f "$debug_apk" ]]; then
+            echo "::error::未找到 Debug APK。"
+            exit 1
+          fi
+          if [[ ! -f "$release_apk" ]]; then
+            echo "::error::未找到 Release APK。"
+            exit 1
+          fi
+          if [[ -z "$apksigner_path" ]]; then
+            echo "::error::未找到 apksigner。"
+            exit 1
+          fi
+
+          "$apksigner_path" verify "$release_apk"
+          mkdir -p "$output_dir"
+          cp "$debug_apk" "$output_dir/app-debug.apk"
+          cp "$release_apk" "$output_dir/app-release.apk"
+          echo "debug_path=$output_dir/app-debug.apk" >> "$GITHUB_OUTPUT"
+          echo "release_path=$output_dir/app-release.apk" >> "$GITHUB_OUTPUT"
+
+      - name: 上传 Debug APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          path: ${{ steps.apk.outputs.debug_path }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 上传 Release APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          path: ${{ steps.apk.outputs.release_path }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 14

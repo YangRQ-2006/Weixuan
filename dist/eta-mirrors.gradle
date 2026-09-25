@@ -1,0 +1,43 @@
+// 仅对本次 Eta 构建生效（通过 gradle -I 传入，不写入全局 ~/.gradle/init.gradle）。
+//
+// 背景：沙箱直连 dl.google.com 被阻断、repo1.maven.org 不稳定。全局 init.gradle 虽已前置
+// 阿里云镜像，但仍保留 google()/mavenCentral() 作为回落；一旦某构件在镜像缺失，Gradle 会
+// 落到被墙仓库上长时间等待超时（表现为 CPU 空转、构建停滞）。
+// 本脚本把仓库列表收敛为**只含可达镜像**，从根上消除挂起。
+def txMirrors = [
+    // 腾讯聚合源：同时代理 Maven Central + Google Maven，HEAD 语义正常（实测全部取件 200）
+    'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/',
+    // 阿里云 Google 镜像：AGP / androidx 兜底（dl.google.com 在沙箱被阻断）
+    'https://maven.aliyun.com/repository/google',
+    'https://maven.aliyun.com/repository/central',
+    'https://maven.aliyun.com/repository/public',
+    'https://maven.aliyun.com/repository/gradle-plugin',
+]
+// 注意：不要把 repo1.maven.org / dl.google.com / plugins.gradle.org 放进列表——
+// 沙箱 DNS 对它们不稳定，一旦解析失败 Gradle 会直接判定构建失败（而非"构件缺失"继续下一个源）。
+
+def txApplyMirrors = { handler, label ->
+    try {
+        def existing = new ArrayList(handler)
+        handler.clear()
+        txMirrors.each { u -> handler.maven { url u } }
+        println "[eta-mirror] ${label}: 已替换为 ${txMirrors.size()} 个镜像源（原 ${existing.size()} 个仓库已移除）"
+    } catch (Throwable t) {
+        println "[eta-mirror] ${label}: 跳过（${t.message}）"
+    }
+}
+
+gradle.settingsEvaluated { settings ->
+    txApplyMirrors(settings.pluginManagement.repositories, 'pluginManagement')
+    try {
+        txApplyMirrors(settings.dependencyResolutionManagement.repositories, 'dependencyResolution')
+    } catch (Throwable t) {
+        println "[eta-mirror] dependencyResolution: 跳过（${t.message}）"
+    }
+    txApplyMirrors(settings.buildscript.repositories, 'settings.buildscript')
+}
+
+gradle.beforeProject { project ->
+    txApplyMirrors(project.buildscript.repositories, "buildscript(${project.name})")
+    txApplyMirrors(project.repositories, "repositories(${project.name})")
+}

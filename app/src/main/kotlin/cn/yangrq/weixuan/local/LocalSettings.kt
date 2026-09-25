@@ -1,0 +1,112 @@
+package cn.yangrq.weixuan.local
+
+import android.content.Context
+import android.content.SharedPreferences
+
+/**
+ * 本地模型设置（使用独立 SharedPreferences，避免与 Eta 上游 Prefs/DataStore 相互影响）。
+ *
+ * 注意：这些键只服务「本地回环 Provider」这条路，云端 Provider 的配置完全不受影响。
+ */
+object LocalSettings {
+    private const val FILE = "eta_local_model"
+
+    const val KEY_ENABLED = "server_enabled"
+    const val KEY_PORT = "server_port"
+    const val KEY_MODEL_NAME = "model_name"
+    const val KEY_MODEL_PRECISION = "model_precision"
+    const val KEY_AUTO_LOAD = "auto_load_model"
+    const val KEY_DRAFT_ENABLED = "speculative_draft_enabled"
+    const val KEY_COMPUTE_UNIT = "compute_unit"
+    const val KEY_CUSTOM_MODEL_PATH = "custom_model_path"
+    const val KEY_CUSTOM_TOKENIZER_PATH = "custom_tokenizer_path"
+
+    const val DEFAULT_PORT = 18787
+    const val DEFAULT_MODEL_NAME = "Qwen/Qwen3-8B"
+    const val DEFAULT_PRECISION = "Q4_0"
+    const val COMPUTE_UNIT_HYBRID = "hybrid"
+    const val COMPUTE_UNIT_NPU = "npu"
+
+    @Volatile
+    private var prefs: SharedPreferences? = null
+
+    fun init(context: Context) {
+        if (prefs == null) {
+            prefs = context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        }
+    }
+
+    private val p: SharedPreferences
+        get() = prefs ?: error("LocalSettings 尚未初始化，请先调用 LocalSettings.init(context)")
+
+    /** 回环服务开关（默认开启：本版本只有本地模型，无需用户手动打开）。 */
+    var serverEnabled: Boolean
+        get() = p.getBoolean(KEY_ENABLED, true)
+        set(value) = p.edit().putBoolean(KEY_ENABLED, value).apply()
+
+    var port: Int
+        get() = p.getInt(KEY_PORT, DEFAULT_PORT)
+        set(value) = p.edit().putInt(KEY_PORT, value).apply()
+
+    var modelName: String
+        get() = p.getString(KEY_MODEL_NAME, DEFAULT_MODEL_NAME) ?: DEFAULT_MODEL_NAME
+        set(value) = p.edit().putString(KEY_MODEL_NAME, value).apply()
+
+    var modelPrecision: String
+        get() = p.getString(KEY_MODEL_PRECISION, DEFAULT_PRECISION) ?: DEFAULT_PRECISION
+        set(value) = p.edit().putString(KEY_MODEL_PRECISION, value).apply()
+
+    /** 服务启动后自动加载上一次使用的模型。 */
+    var autoLoad: Boolean
+        get() = p.getBoolean(KEY_AUTO_LOAD, true)
+        set(value) = p.edit().putBoolean(KEY_AUTO_LOAD, value).apply()
+
+    /** 是否尝试启用推测解码（draft 模型，需额外下载 Qwen3-0.6B）。 */
+    var draftEnabled: Boolean
+        get() = p.getBoolean(KEY_DRAFT_ENABLED, true)
+        set(value) = p.edit().putBoolean(KEY_DRAFT_ENABLED, value).apply()
+
+    /** hybrid(GPU+NPU) / npu / cpu。默认 hybrid：窗口死循环修复后 hybrid 推理已可信（2026-09-25）。 */
+    var computeUnit: String
+        get() = p.getString(KEY_COMPUTE_UNIT, "hybrid") ?: "hybrid"
+        set(value) = p.edit().putString(KEY_COMPUTE_UNIT, value).apply()
+
+    /** 自定义 .gguf 路径（与 GenieX 模型中心互斥，二者取一）。 */
+    var customModelPath: String
+        get() = p.getString(KEY_CUSTOM_MODEL_PATH, "") ?: ""
+        set(value) = p.edit().putString(KEY_CUSTOM_MODEL_PATH, value).apply()
+
+    var customTokenizerPath: String
+        get() = p.getString(KEY_CUSTOM_TOKENIZER_PATH, "") ?: ""
+        set(value) = p.edit().putString(KEY_CUSTOM_TOKENIZER_PATH, value).apply()
+
+    const val KEY_DRAFT_MODEL_PATH = "draft_model_path"
+
+    /** 推测解码草稿模型路径（同族小模型，如 DeepSeek-R1-Distill-Qwen-1.5B）。 */
+    var draftModelPath: String
+        get() = p.getString(KEY_DRAFT_MODEL_PATH, "") ?: ""
+        set(value) = p.edit().putString(KEY_DRAFT_MODEL_PATH, value).apply()
+
+    /** 导入的本地模型存放目录：App 专属外部目录（无权限要求，且是真实路径，GenieX 可直接加载）。 */
+    fun modelsDir(context: android.content.Context): java.io.File {
+        val base = context.getExternalFilesDir(null) ?: context.filesDir
+        return java.io.File(base, "models").apply { if (!exists()) mkdirs() }
+    }
+
+    private const val KEY_DOWNLOADS = "catalog_download_ids"
+
+    /** 记录「内置模型 id → DownloadManager 任务 id」，用于重启后继续显示进度。 */
+    fun recordDownload(modelId: String, downloadId: Long) {
+        p.edit().putLong("$KEY_DOWNLOADS.$modelId", downloadId).apply()
+    }
+
+    fun downloadId(modelId: String): Long? =
+        p.getLong("$KEY_DOWNLOADS.$modelId", -1L).takeIf { it > 0 }
+
+    fun clearDownload(modelId: String) {
+        p.edit().remove("$KEY_DOWNLOADS.$modelId").apply()
+    }
+
+    /** 回环服务基地址，供 UI 展示与排障。 */
+    fun baseUrl(): String = "http://127.0.0.1:$port/v1"
+}
