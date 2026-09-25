@@ -48,7 +48,7 @@
 ## 构建
 
 ```bash
-sh dist/eta-build.sh . assembleDebug
+./gradlew assembleDebug
 # 产物：app/build/outputs/apk/debug/app-debug.apk
 ```
 
