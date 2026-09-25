@@ -1,7 +1,7 @@
 package cn.yangrq.weixuan.core
 
 internal object ModuleConfig {
-    const val TAG = "Eta"
+    const val TAG = "WeiXuan"
     const val HOT_PATH_LOG_WINDOW_MS = 60_000L
 
     const val GOOGLE_PACKAGE = "com.google.android.googlequicksearchbox"

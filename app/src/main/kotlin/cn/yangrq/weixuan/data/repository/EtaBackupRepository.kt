@@ -36,7 +36,7 @@ internal data class EtaBackupDocument(
     val roleplay: CharacterBackupData? = null,
 ) {
     companion object {
-        const val FORMAT = "eta-backup"
+        const val FORMAT = "weixuan-backup"
         const val SCHEMA_VERSION = 2
     }
 }
@@ -183,7 +183,7 @@ internal object EtaBackupRepository {
     }
 
     private fun validate(document: EtaBackupDocument) {
-        if (document.format != EtaBackupDocument.FORMAT) {
+        if (document.format != EtaBackupDocument.FORMAT && document.format != "eta-backup") {
             throw EtaBackupException("这不是 Eta 备份文件")
         }
         if (document.schemaVersion !in 1..EtaBackupDocument.SCHEMA_VERSION) {
