@@ -589,15 +589,13 @@ object GenieXLocalEngine : LocalChatEngine {
     }
 
     /** 推测解码 draft 模型：优先用户导入的本地文件，其次本机已存在的 GenieX 模型。 */
-    private suspend fun resolveDraftModelPath(target: String): String? {
-        if (!LocalSettings.draftEnabled) return null
-        if (target.contains("0.6B", ignoreCase = true)) return null
-        val imported = LocalSettings.draftModelPath
-        if (imported.isNotBlank() && File(imported).exists()) return imported
-        return runCatching {
-            ModelManagerWrapper.getPaths(LocalPerfTuner.DRAFT_MODEL_NAME)
-                ?.model_path
-                ?.takeIf { it.isNotBlank() }
-        }.getOrNull()
-    }
+    /**
+     * 【已禁用 2026-09-25】推测解码（draft）不可用：
+     * GenieX v0.7.0 的推测解码是 EAGLE 专用实现（需要含 draft_embed/draft_feat_* 等张量的
+     * EAGLE draft 模型）；普通 GGUF 小模型（如 Qwen3-0.6B）传入会触发 native 异常
+     * `unknown speculative type: draft`（libc++abi 终止 → 进程崩溃）。
+     * 待 SDK 支持通用 draft 或引入 EAGLE 模型后再启用。
+     */
+    @Suppress("UNUSED_PARAMETER")
+    private suspend fun resolveDraftModelPath(target: String): String? = null
 }

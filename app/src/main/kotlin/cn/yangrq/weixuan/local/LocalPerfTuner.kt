@@ -20,7 +20,9 @@ object LocalPerfTuner {
 
     const val DRAFT_MODEL_NAME = "Qwen/Qwen3-0.6B"
     const val DRAFT_MODEL_PRECISION = "Q8_0"
-    const val SPEC_TYPE = "draft"
+    /** 推测解码类型：GenieX v0.7.0 仅支持 EAGLE 专用 draft 模型；普通 GGUF 传入会 native 崩溃，
+     *  故置空禁用（2026-09-25 实证：`unknown speculative type: draft` → libc++abi 终止）。 */
+    const val SPEC_TYPE = ""
     const val SPEC_N_MAX = 8
     const val SWA_N_KEEP = 512
     const val BASE_MAX_TOKENS = 1024
