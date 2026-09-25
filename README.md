@@ -13,7 +13,7 @@
 
 ## 项目简介
 
-微玄是一款**完全离线的端侧 AI 智能体 Android App**。基于 [Eta](https://github.com/Mangi-11/Eta) 系统级助手框架与 Qualcomm GenieX 推理 SDK（llama.cpp + QAIRT），把大语言模型推理下沉到手机的 **Adreno GPU + Hexagon NPU + CPU** 三路混合后端，实现离线、低功耗、低延迟的本地智能。
+微玄是一款**完全离线的端侧 AI 智能体 Android App**。深度定制的系统级助手架构与 Qualcomm GenieX 推理 SDK（llama.cpp + QAIRT）双引擎，把大语言模型推理下沉到手机的 **Adreno GPU + Hexagon NPU + CPU** 三路混合后端，实现离线、低功耗、低延迟的本地智能。
 
 **微玄四要素**：品牌题记 · 完全离线 · NPU 加速 · 技能智能体。
 
@@ -40,7 +40,7 @@
 |------|------|
 | 语言 | Kotlin 2.4.10 |
 | UI | Jetpack Compose |
-| 助手框架 | Eta（系统级 AI 助手骨架：Xposed 集成 / 语音助手 / 技能 / 终端）|
+| 助手框架 | 深度定制系统级助手（Xposed 集成 / 语音助手 / 技能 / 终端）|
 | 推理引擎 | GenieX Android SDK v0.7.0（llama.cpp + QAIRT）|
 | 算力后端 | hybrid：Adreno GPU + Hexagon NPU + CPU |
 | 模型格式 | GGUF（Qwen3 / DeepSeek-R1-Distill 等）|
