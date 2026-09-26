@@ -181,6 +181,8 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
         return JSONObject()
             .put("model", config.model)
             .put("stream", true)
+            // 让 llama.cpp 在流式结束时返回 usage（含 completion_tokens），供计算实际速率
+            .put("stream_options", JSONObject().put("include_usage", true))
             .put("messages", OpenAiRequestMessages.forChatCompletions(applyLocalThinkingSwitch(trimHistory(messages), config)))
             .put("tools", compactTools(tools))
             .put("tool_choice", "auto")
@@ -204,6 +206,9 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
         val reasoningContent = StringBuilder()
         val toolCalls = linkedMapOf<Int, StreamingToolCall>()
         var usage: AgentTokenUsage? = null
+        // 流式响应不含 llama.cpp 的 timings，改为客户端测速（首 token 延迟 + 解码速率）
+        val streamStartMs = System.currentTimeMillis()
+        var firstTokenMs = 0L
         var sawStreamData = false
         var sawDone = false
         var finishReason: String? = null
@@ -224,6 +229,7 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
 
         fun appendVisibleDelta(kind: AssistantBlockKind, delta: String) {
             if (delta.isEmpty()) return
+            if (firstTokenMs == 0L) firstTokenMs = System.currentTimeMillis() - streamStartMs
             var block = activeVisibleBlock
             if (block?.kind != kind) {
                 finishActiveVisibleBlock()
@@ -330,13 +336,24 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
             )
         }
 
+        // 客户端测速：流式响应无 timings，用 usage 的 completion_tokens 与实耗估算解码速率
+        val elapsedTotalMs = (System.currentTimeMillis() - streamStartMs).toDouble()
+        val decodeMs = (elapsedTotalMs - firstTokenMs).coerceAtLeast(1.0)
+        val outTokens = usage?.outputTokens
+        val measuredSpeed = if (outTokens != null && outTokens > 0) outTokens / (decodeMs / 1000.0) else null
+        val measuredTtft = firstTokenMs.takeIf { it > 0 }?.toDouble()
+        val mergedUsage = usage?.copy(
+            tokensPerSecond = usage.tokensPerSecond ?: measuredSpeed,
+            ttftMs = usage.ttftMs ?: measuredTtft,
+        )
+
         return JSONObject()
             .put("role", "assistant")
             .put("content", content.toString())
             .put("reasoning_content", reasoningContent.toString())
             .put("finish_reason", finishReason.orEmpty())
             .also { message ->
-                usage?.let { message.put("usage", it.toJson()) }
+                mergedUsage?.let { message.put("usage", it.toJson()) }
             }
             .also { message ->
                 if (toolCalls.isNotEmpty()) {
