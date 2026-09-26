@@ -425,8 +425,13 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
                 "prompt_tokens_details",
                 childKey = "cached_tokens"
             ) ?: usage.firstInt("cache_read_input_tokens"),
-            tokensPerSecond = usage.optDouble("tokens_per_second").takeIf { it.isFinite() && it > 0 },
-            ttftMs = usage.optDouble("ttft_ms").takeIf { it.isFinite() && it > 0 },
+            tokensPerSecond = usage.optDouble("tokens_per_second").takeIf { it.isFinite() && it > 0 }
+                // 自建 llama.cpp runtime 不返回扩展字段，速度在响应根的 timings 里
+                ?: chunk.optJSONObject("timings")?.optDouble("predicted_per_second")
+                    ?.takeIf { it.isFinite() && it > 0 },
+            ttftMs = usage.optDouble("ttft_ms").takeIf { it.isFinite() && it > 0 }
+                ?: chunk.optJSONObject("timings")?.optDouble("prompt_ms")
+                    ?.takeIf { it.isFinite() && it > 0 },
         ).takeUnless { it.isEmpty }
     }
 
