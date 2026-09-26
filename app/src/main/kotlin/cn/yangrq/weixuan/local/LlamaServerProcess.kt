@@ -31,8 +31,22 @@ object LlamaServerProcess {
      * - `--mmap`（默认）：权重按需分页（14B 只驻留几百 MB —— 解决崩溃的核心）
      * - `-c`：上下文窗口
      */
-    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 4096): Boolean {
+    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 6144): Boolean {
         if (isRunning()) return true
+        // 动态窗口：按当前可用内存自适应——内存充足时给"完整工具 schema"留空间（Agent 多步
+        // 规划依赖完整描述），内存紧张时自动降级以避免请求超窗（HTTP 400）。
+        val preAvailMb = runCatching {
+            File("/proc/meminfo").readLines()
+                .firstOrNull { it.startsWith("MemAvailable") }
+                ?.filter { it.isDigit() }?.toInt()?.div(1024)
+                ?: 0
+        }.getOrDefault(0)
+        val ctx = when {
+            preAvailMb >= 4600 -> 6144
+            preAvailMb >= 3800 -> 4096
+            else -> 2816
+        }
+        Log.i(TAG, "动态窗口：可用 ${preAvailMb}MB → n_ctx=$ctx")
         val bin = File(context.applicationInfo.nativeLibraryDir, "libllama-server.so")
         if (!bin.exists()) {
             Log.e(TAG, "llama-server 二进制不存在：${bin.absolutePath}")
@@ -46,7 +60,7 @@ object LlamaServerProcess {
         val fileMb = (modelFile.length() / 1024 / 1024).toInt()
         val moeActivatedB = Regex("""-A(\d+)B""").find(modelFile.name)?.groupValues?.get(1)?.toIntOrNull()
         val residentMb = if (moeActivatedB != null) moeActivatedB * 600 else fileMb
-        val kvMb = (contextSize * 0.3).toInt()
+        val kvMb = (ctx * 0.3).toInt()
         val needMb = residentMb + kvMb + 32
         val availMb = runCatching {
             File("/proc/meminfo").readLines()
@@ -67,7 +81,7 @@ object LlamaServerProcess {
             "-m", modelPath,
             "--host", "127.0.0.1",
             "--port", port.toString(),
-            "-c", contextSize.toString(),
+            "-c", ctx.toString(),
             "-t", "4",
             "-ctk", "q8_0",
             "-ctv", "q8_0",

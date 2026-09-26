@@ -196,7 +196,7 @@ object GenieXLocalEngine : LocalChatEngine {
             }
             _state.value = _state.value.copy(status = LocalEngineStatus.LOADING, message = "自建 runtime 启动中…")
             return withContext(Dispatchers.IO) {
-                val ok = LlamaServerProcess.start(context, modelPath, LocalSettings.DEFAULT_PORT, 4096)
+                val ok = LlamaServerProcess.start(context, modelPath, LocalSettings.DEFAULT_PORT, 6144)
                 if (ok) {
                     loadedKey = modelPath
                     _state.value = _state.value.copy(

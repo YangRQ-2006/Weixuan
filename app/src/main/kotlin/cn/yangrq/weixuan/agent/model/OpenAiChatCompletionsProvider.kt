@@ -160,14 +160,7 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
             if (tools.length() > 40 && toolName !in coreToolNames) continue
             val fn = tool.optJSONObject("function")
             if (fn != null) {
-                val desc = fn.optString("description")
-                if (desc.length > 48) fn.put("description", desc.take(46) + "…")
-                fn.optJSONObject("parameters")?.optJSONObject("properties")?.let { props ->
-                    val keys = props.keys()
-                    while (keys.hasNext()) {
-                        props.optJSONObject(keys.next())?.remove("description")
-                    }
-                }
+                // 完整保留工具描述与参数说明（Agent 多步规划依赖它们，不做压缩）
             }
             out.put(tool)
         }

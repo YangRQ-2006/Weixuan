@@ -890,6 +890,22 @@ private fun AgentMessageBlock(
                     .padding(top = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // 本地推理实况：解码速度 + 首 token 延迟（llama.cpp timings）
+                message.usage?.let { u ->
+                    val parts = listOfNotNull(
+                        u.tokensPerSecond?.takeIf { it > 0 }?.let { "%.1f tok/s".format(it) },
+                        u.ttftMs?.takeIf { it > 0 }?.let { "首字 %.1fs".format(it / 1000.0) },
+                        "NPU",
+                    )
+                    if (parts.isNotEmpty()) {
+                        Text(
+                            text = parts.joinToString(" · "),
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                    }
+                }
                 IconButton(
                     onClick = {
                         @Suppress("DEPRECATION")
