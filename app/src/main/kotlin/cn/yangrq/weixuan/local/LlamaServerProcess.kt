@@ -47,7 +47,7 @@ object LlamaServerProcess {
         val moeActivatedB = Regex("""-A(\d+)B""").find(modelFile.name)?.groupValues?.get(1)?.toIntOrNull()
         val residentMb = if (moeActivatedB != null) moeActivatedB * 600 else fileMb
         val kvMb = (contextSize * 0.3).toInt()
-        val needMb = residentMb + kvMb + 1024
+        val needMb = residentMb + kvMb + 768
         val availMb = runCatching {
             File("/proc/meminfo").readLines()
                 .firstOrNull { it.startsWith("MemAvailable") }

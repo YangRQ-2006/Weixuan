@@ -73,14 +73,33 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
                 if (LocalSettings.useSelfBuiltEngine) {
                     val modelPath = LocalSettings.customModelPath
                     if (modelPath.isNotBlank() && java.io.File(modelPath).exists()) {
-                        val ok = cn.yangrq.weixuan.local.LlamaServerProcess.start(
+                        // 自动加载 + 内存不足时温和重试（最多 5 次 × 30 秒）：开机/清理后台后系统
+                        // 内存常被缓存占满，稍后释放即可加载成功——免去用户每次手动点击加载。
+                        var ok = cn.yangrq.weixuan.local.LlamaServerProcess.start(
                             this@EtaApp,
                             modelPath,
                             cn.yangrq.weixuan.local.LocalSettings.DEFAULT_PORT,
                         )
+                        var attempt = 0
+                        while (!ok && attempt < 5) {
+                            attempt++
+                            AndroidAgentLogger.info(
+                                "自建 runtime 暂未就绪（多为内存不足），30 秒后自动重试 $attempt/5",
+                            )
+                            kotlinx.coroutines.delay(30_000)
+                            if (cn.yangrq.weixuan.local.LlamaServerProcess.isRunning()) {
+                                ok = true
+                                break
+                            }
+                            ok = cn.yangrq.weixuan.local.LlamaServerProcess.start(
+                                this@EtaApp,
+                                modelPath,
+                                cn.yangrq.weixuan.local.LocalSettings.DEFAULT_PORT,
+                            )
+                        }
                         AndroidAgentLogger.info(
                             if (ok) "自建 runtime 已就绪（llama-server :${LocalSettings.port}/v1）"
-                            else "自建 runtime 启动失败（可关闭开关回退 SDK 路径）",
+                            else "自建 runtime 多次重试仍未就绪：请清理后台后打开「本地模型」页手动加载",
                         )
                     } else {
                         AndroidAgentLogger.warn("自建 runtime：未配置模型文件（customModelPath 为空）")
