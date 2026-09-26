@@ -31,7 +31,7 @@ object LlamaServerProcess {
      * - `--mmap`（默认）：权重按需分页（14B 只驻留几百 MB —— 解决崩溃的核心）
      * - `-c`：上下文窗口
      */
-    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 6144): Boolean {
+    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 3072): Boolean {
         if (isRunning()) return true
         val bin = File(context.applicationInfo.nativeLibraryDir, "libllama-server.so")
         if (!bin.exists()) {
@@ -47,7 +47,7 @@ object LlamaServerProcess {
         val moeActivatedB = Regex("""-A(\d+)B""").find(modelFile.name)?.groupValues?.get(1)?.toIntOrNull()
         val residentMb = if (moeActivatedB != null) moeActivatedB * 600 else fileMb
         val kvMb = (contextSize * 0.3).toInt()
-        val needMb = residentMb + kvMb + 768
+        val needMb = residentMb + kvMb + 512
         val availMb = runCatching {
             File("/proc/meminfo").readLines()
                 .firstOrNull { it.startsWith("MemAvailable") }

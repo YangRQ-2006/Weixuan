@@ -100,11 +100,40 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
      * （保留核心语义），移除参数级 description（保留参数名与类型，模型可从名字推断）。
      * 压缩后 ~2500 tokens，工具能力完整保留。
      */
+    /**
+     * 历史裁剪（本地小窗口优化）：只保留最近 maxCount 条消息，并保证 tool 消息与其
+     * 前置 assistant（含 tool_calls）配对完整——否则 llama.cpp 会以 400 拒绝请求。
+     * 云端大窗口模型不受影响（消息数未超限时原样返回）。
+     */
+    private fun trimHistory(messages: JSONArray, maxCount: Int = 14): JSONArray {
+        if (messages.length() <= maxCount) return messages
+        var start = messages.length() - maxCount
+        while (start > 0 && messages.optJSONObject(start)?.optString("role") == "tool") {
+            start--
+        }
+        val out = JSONArray()
+        for (i in start until messages.length()) {
+            messages.optJSONObject(i)?.let { out.put(it) }
+        }
+        return out
+    }
+
+    /** 核心工具白名单：本地模型窗口/内存紧张时只保留高频工具（工具数 >20 时启用过滤）。 */
+    private val coreToolNames = setOf(
+        "get_current_context", "launch_app", "search_apps", "tap", "tap_element",
+        "input_text", "press_key", "swipe", "scroll", "observe_screen",
+        "wait", "wait_for_text", "browser_use", "run_command", "terminal",
+        "memory_get", "memory_write", "skills_list", "skills_read",
+    )
+
     private fun compactTools(tools: JSONArray): JSONArray {
         if (tools.length() == 0) return tools
         val out = JSONArray()
         for (i in 0 until tools.length()) {
             val tool = tools.optJSONObject(i) ?: continue
+            val toolName = tool.optJSONObject("function")?.optString("name").orEmpty()
+            // 工具数 >20 时启用白名单过滤：本地小窗口模型装不下全部 schema，保留高频工具即可
+            if (tools.length() > 20 && toolName !in coreToolNames) continue
             val fn = tool.optJSONObject("function")
             if (fn != null) {
                 val desc = fn.optString("description")
@@ -135,7 +164,7 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
         return JSONObject()
             .put("model", config.model)
             .put("stream", true)
-            .put("messages", OpenAiRequestMessages.forChatCompletions(messages))
+            .put("messages", OpenAiRequestMessages.forChatCompletions(trimHistory(messages)))
             .put("tools", compactTools(tools))
             .put("tool_choice", "auto")
             .also { request ->
