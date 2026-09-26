@@ -94,6 +94,33 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
         }
     }
 
+    /**
+     * 工具 schema 压缩（2026-09-26）：本地模型上下文窗口有限（8192），31 个工具的完整
+     * schema（含参数级 description）约 7900 tokens → prefill 极慢。压缩策略：截短工具描述
+     * （保留核心语义），移除参数级 description（保留参数名与类型，模型可从名字推断）。
+     * 压缩后 ~2500 tokens，工具能力完整保留。
+     */
+    private fun compactTools(tools: JSONArray): JSONArray {
+        if (tools.length() == 0) return tools
+        val out = JSONArray()
+        for (i in 0 until tools.length()) {
+            val tool = tools.optJSONObject(i) ?: continue
+            val fn = tool.optJSONObject("function")
+            if (fn != null) {
+                val desc = fn.optString("description")
+                if (desc.length > 48) fn.put("description", desc.take(46) + "…")
+                fn.optJSONObject("parameters")?.optJSONObject("properties")?.let { props ->
+                    val keys = props.keys()
+                    while (keys.hasNext()) {
+                        props.optJSONObject(keys.next())?.remove("description")
+                    }
+                }
+            }
+            out.put(tool)
+        }
+        return out
+    }
+
     private fun buildRequestJson(
         config: AgentModelClient.ModelConfig,
         messages: JSONArray,
@@ -109,7 +136,7 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
             .put("model", config.model)
             .put("stream", true)
             .put("messages", OpenAiRequestMessages.forChatCompletions(messages))
-            .put("tools", tools)
+            .put("tools", compactTools(tools))
             .put("tool_choice", "auto")
             .also { request ->
                 if (sourceType != ProviderSourceTypes.OPENROUTER) {

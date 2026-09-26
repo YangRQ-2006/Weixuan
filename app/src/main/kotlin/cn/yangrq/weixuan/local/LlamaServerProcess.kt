@@ -31,7 +31,7 @@ object LlamaServerProcess {
      * - `--mmap`（默认）：权重按需分页（14B 只驻留几百 MB —— 解决崩溃的核心）
      * - `-c`：上下文窗口
      */
-    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 8192): Boolean {
+    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 6144): Boolean {
         if (isRunning()) return true
         val bin = File(context.applicationInfo.nativeLibraryDir, "libllama-server.so")
         if (!bin.exists()) {
@@ -84,10 +84,12 @@ object LlamaServerProcess {
             // 否则会 no backends are loaded → 模型加载失败）
             pb.environment()["GGML_BACKEND_PATH"] =
                 File(context.applicationInfo.nativeLibraryDir, "libggml-cpu-arm64.so").absolutePath
-            // NPU（Hexagon/HTP）后端：存在则传入（插件入口适配完成后即可真正启用）
-            val hexBackend = File(context.applicationInfo.nativeLibraryDir, "libggml-hexagon-htp.so")
-            if (hexBackend.exists()) {
-                pb.environment()["WEIXUAN_HEXAGON_BACKEND"] = hexBackend.absolutePath
+            // 加速后端（GPU/NPU）：优先 OpenCL（Adreno GPU，已验证可加载）；Hexagon 待插件入口适配
+            val extraBackend = listOf("libggml-opencl-adreno.so", "libggml-hexagon-htp.so")
+                .map { File(context.applicationInfo.nativeLibraryDir, it) }
+                .firstOrNull { it.exists() }
+            if (extraBackend != null) {
+                pb.environment()["WEIXUAN_HEXAGON_BACKEND"] = extraBackend.absolutePath
             }
             val p = pb.start()
             process = p
