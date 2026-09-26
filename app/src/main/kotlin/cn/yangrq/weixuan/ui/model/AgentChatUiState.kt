@@ -108,6 +108,8 @@ data class ThinkingMessageUi(
     val content: String,
     val isStreaming: Boolean,
     val elapsedSeconds: Int? = null,
+    /** 推理速度（tok/s，来自 llama.cpp timings；仅自建 runtime 有值）。 */
+    val tokensPerSecond: Double? = null,
     val collapsed: Boolean = false,
 ) : AgentChatMessageUi
 

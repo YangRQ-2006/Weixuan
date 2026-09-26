@@ -3,6 +3,7 @@ package cn.yangrq.weixuan.agent.model
 import cn.yangrq.weixuan.agent.runtime.AgentRunController
 import cn.yangrq.weixuan.agent.runtime.AgentTokenUsage
 import cn.yangrq.weixuan.data.model.OpenAiEndpointMode
+import cn.yangrq.weixuan.local.LocalSettings
 import cn.yangrq.weixuan.data.model.ProviderSourceTypes
 import cn.yangrq.weixuan.data.provider.ProviderSourceRegistry
 import okhttp3.MediaType.Companion.toMediaType
@@ -101,6 +102,25 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
      * 压缩后 ~2500 tokens，工具能力完整保留。
      */
     /**
+     * 本地模型思考开关：llama-server 不支持 reasoning_effort 参数，改用 Qwen3 原生的
+     * `/no_think` 软开关（追加到 system 消息末尾）。关闭思考后本地推理显著加速
+     * （思考 token 常占生成量的大头）。云端模型走标准 reasoning_effort，不受影响。
+     */
+    private fun applyLocalThinkingSwitch(
+        messages: JSONArray,
+        config: AgentModelClient.ModelConfig,
+    ): JSONArray {
+        if (LocalSettings.thinkingEnabled) return messages
+        val url = config.baseUrl
+        if (!url.contains("127.0.0.1") && !url.contains("localhost")) return messages
+        if (messages.length() == 0) return messages
+        val first = messages.optJSONObject(0) ?: return messages
+        if (first.optString("role") != "system") return messages
+        first.put("content", first.optString("content") + " /no_think")
+        return messages
+    }
+
+    /**
      * 历史裁剪（本地小窗口优化）：只保留最近 maxCount 条消息，并保证 tool 消息与其
      * 前置 assistant（含 tool_calls）配对完整——否则 llama.cpp 会以 400 拒绝请求。
      * 云端大窗口模型不受影响（消息数未超限时原样返回）。
@@ -163,7 +183,7 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
         return JSONObject()
             .put("model", config.model)
             .put("stream", true)
-            .put("messages", OpenAiRequestMessages.forChatCompletions(trimHistory(messages)))
+            .put("messages", OpenAiRequestMessages.forChatCompletions(applyLocalThinkingSwitch(trimHistory(messages), config)))
             .put("tools", compactTools(tools))
             .put("tool_choice", "auto")
             .also { request ->

@@ -72,6 +72,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
     var draftPath by remember { mutableStateOf(LocalSettings.draftModelPath) }
     var draftOn by remember { mutableStateOf(LocalSettings.draftEnabled) }
     var centerModel by remember { mutableStateOf(LocalSettings.modelName) }
+    var thinkingOn by remember { mutableStateOf(LocalSettings.thinkingEnabled) }
     var models by remember { mutableStateOf<List<LocalModelEntry>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
@@ -358,6 +359,16 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                             LocalServerHost.stop()
                             message = ""
                         }
+                    },
+                )
+                EtaPreferenceDivider()
+                EtaSwitchPreference(
+                    title = "思考模式",
+                    summary = "关闭后本地模型直接作答，速度大幅提升（复杂推理质量略降）",
+                    checked = thinkingOn,
+                    onCheckedChange = { enabled ->
+                        thinkingOn = enabled
+                        LocalSettings.thinkingEnabled = enabled
                     },
                 )
                 EtaPreferenceDivider()
