@@ -72,6 +72,7 @@ object LlamaServerProcess {
             "-ctk", "q8_0",
             "-ctv", "q8_0",
             "-fa", "on",
+            "-ngl", "99",
             "--no-warmup",
             "-np", "1",
         )
@@ -80,12 +81,17 @@ object LlamaServerProcess {
             val pb = ProcessBuilder(cmd).redirectErrorStream(true)
             // 交叉编译产物无 RPATH：显式指定依赖库搜索路径（nativeLibraryDir 内含全部依赖 .so）
             pb.environment()["LD_LIBRARY_PATH"] = context.applicationInfo.nativeLibraryDir
+            // HTP(NPU) 的 DSP 端库搜索路径（Qualcomm 标准变量——缺它 HTP session 打不开：
+            // "HTP0 failed to open session ... libggml-htp-v81.so not found"）
+            pb.environment()["ADSP_LIBRARY_PATH"] = context.applicationInfo.nativeLibraryDir
+            pb.environment()["DSP_LIBRARY_PATH"] = context.applicationInfo.nativeLibraryDir
             // ggml 后端插件必须显式指定（本环境下 llama.cpp 的"可执行文件目录扫描"不生效，
             // 否则会 no backends are loaded → 模型加载失败）
             pb.environment()["GGML_BACKEND_PATH"] =
                 File(context.applicationInfo.nativeLibraryDir, "libggml-cpu-arm64.so").absolutePath
-            // 加速后端（GPU/NPU）：优先 OpenCL（Adreno GPU，已验证可加载）；Hexagon 待插件入口适配
-            val extraBackend = listOf("libggml-opencl-adreno.so", "libggml-hexagon-htp.so")
+            // 加速后端：优先 NPU（Hexagon adapter 桥接 GenieX 预编译后端）；Vulkan(GPU) 因 Adreno 840
+            // 精度问题暂不启用
+            val extraBackend = listOf("libggml-hexagon-adapter.so")
                 .map { File(context.applicationInfo.nativeLibraryDir, it) }
                 .firstOrNull { it.exists() }
             if (extraBackend != null) {
