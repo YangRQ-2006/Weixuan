@@ -105,7 +105,7 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
      * 前置 assistant（含 tool_calls）配对完整——否则 llama.cpp 会以 400 拒绝请求。
      * 云端大窗口模型不受影响（消息数未超限时原样返回）。
      */
-    private fun trimHistory(messages: JSONArray, maxCount: Int = 5): JSONArray {
+    private fun trimHistory(messages: JSONArray, maxCount: Int = 12): JSONArray {
         if (messages.length() <= maxCount) return messages
         var start = messages.length() - maxCount
         while (start > 0 && messages.optJSONObject(start)?.optString("role") == "tool") {
@@ -132,7 +132,7 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
             val tool = tools.optJSONObject(i) ?: continue
             val toolName = tool.optJSONObject("function")?.optString("name").orEmpty()
             // 工具数 >20 时启用白名单过滤：本地小窗口模型装不下全部 schema，保留高频工具即可
-            if (tools.length() > 20 && toolName !in coreToolNames) continue
+            if (tools.length() > 40 && toolName !in coreToolNames) continue
             val fn = tool.optJSONObject("function")
             if (fn != null) {
                 val desc = fn.optString("description")

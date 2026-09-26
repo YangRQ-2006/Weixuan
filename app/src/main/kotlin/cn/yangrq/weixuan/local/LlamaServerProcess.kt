@@ -31,7 +31,7 @@ object LlamaServerProcess {
      * - `--mmap`（默认）：权重按需分页（14B 只驻留几百 MB —— 解决崩溃的核心）
      * - `-c`：上下文窗口
      */
-    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 2304): Boolean {
+    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 4096): Boolean {
         if (isRunning()) return true
         val bin = File(context.applicationInfo.nativeLibraryDir, "libllama-server.so")
         if (!bin.exists()) {
