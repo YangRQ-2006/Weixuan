@@ -196,12 +196,12 @@ object GenieXLocalEngine : LocalChatEngine {
             }
             _state.value = _state.value.copy(status = LocalEngineStatus.LOADING, message = "自建 runtime 启动中…")
             return withContext(Dispatchers.IO) {
-                val ok = LlamaServerProcess.start(context, modelPath, LocalSettings.DEFAULT_PORT, 2048)
+                val ok = LlamaServerProcess.start(context, modelPath, LocalSettings.DEFAULT_PORT, 2304)
                 if (ok) {
                     loadedKey = modelPath
                     _state.value = _state.value.copy(
                         status = LocalEngineStatus.READY,
-                        message = "自建 llama.cpp runtime 已就绪（mmap + KV量化 + flash-attn）",
+                        message = "自建 llama.cpp runtime 已就绪（NPU: Hexagon HTP + mmap + KV量化）",
                     )
                     Result.success(Unit)
                 } else {
