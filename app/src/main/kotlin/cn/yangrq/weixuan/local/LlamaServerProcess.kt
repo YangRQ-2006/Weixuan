@@ -31,7 +31,7 @@ object LlamaServerProcess {
      * - `--mmap`（默认）：权重按需分页（14B 只驻留几百 MB —— 解决崩溃的核心）
      * - `-c`：上下文窗口
      */
-    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 3072): Boolean {
+    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 2048): Boolean {
         if (isRunning()) return true
         val bin = File(context.applicationInfo.nativeLibraryDir, "libllama-server.so")
         if (!bin.exists()) {
@@ -47,7 +47,7 @@ object LlamaServerProcess {
         val moeActivatedB = Regex("""-A(\d+)B""").find(modelFile.name)?.groupValues?.get(1)?.toIntOrNull()
         val residentMb = if (moeActivatedB != null) moeActivatedB * 600 else fileMb
         val kvMb = (contextSize * 0.3).toInt()
-        val needMb = residentMb + kvMb + 512
+        val needMb = residentMb + kvMb + 128
         val availMb = runCatching {
             File("/proc/meminfo").readLines()
                 .firstOrNull { it.startsWith("MemAvailable") }
@@ -58,7 +58,7 @@ object LlamaServerProcess {
         val kind = if (moeActivatedB != null) "MoE(激活 ${moeActivatedB}B->${residentMb}MB)" else "dense(全量 ${fileMb}MB)"
         System.gc()
         if (availMb in 1 until needMb) {
-            Log.e(TAG, "内存不足拒绝加载：需要 ${needMb}MB [$kind + KV ${kvMb} + 余量 1024]，当前可用 ${availMb}MB")
+            Log.e(TAG, "内存不足拒绝加载：需要 ${needMb}MB [$kind + KV ${kvMb} + 余量 128]，当前可用 ${availMb}MB")
             return false
         }
         Log.i(TAG, "内存预检通过：需要 ${needMb}MB [$kind/可用 ${availMb}MB]")
