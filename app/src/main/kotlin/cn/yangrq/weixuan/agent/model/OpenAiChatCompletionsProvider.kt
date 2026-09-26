@@ -114,9 +114,14 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
         val url = config.baseUrl
         if (!url.contains("127.0.0.1") && !url.contains("localhost")) return messages
         if (messages.length() == 0) return messages
-        val first = messages.optJSONObject(0) ?: return messages
-        if (first.optString("role") != "system") return messages
-        first.put("content", first.optString("content") + " /no_think")
+        // Qwen3 官方软开关须落在"最后一条 user 消息"末尾（放 system 中不生效）
+        for (i in messages.length() - 1 downTo 0) {
+            val m = messages.optJSONObject(i) ?: continue
+            if (m.optString("role") == "user") {
+                m.put("content", m.optString("content") + " /no_think")
+                return messages
+            }
+        }
         return messages
     }
 
