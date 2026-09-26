@@ -125,7 +125,7 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
      * 前置 assistant（含 tool_calls）配对完整——否则 llama.cpp 会以 400 拒绝请求。
      * 云端大窗口模型不受影响（消息数未超限时原样返回）。
      */
-    private fun trimHistory(messages: JSONArray, maxCount: Int = 12): JSONArray {
+    private fun trimHistory(messages: JSONArray, maxCount: Int = 9): JSONArray {
         if (messages.length() <= maxCount) return messages
         var start = messages.length() - maxCount
         while (start > 0 && messages.optJSONObject(start)?.optString("role") == "tool") {
