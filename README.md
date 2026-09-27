@@ -19,7 +19,11 @@
 
 ## 功能特性
 
-- 🧠 **GPU+NPU 混合推理**：prefill 走 GPU、decode 走 NPU、调度走 CPU（hybrid 后端），实测 4B 模型 prefill ≈ 280 tok/s
+- 🧠 **NPU 优先推理**：Hexagon NPU（HTP）承载全部层，CPU 自动回退；实测 4B 模型简单对话 1–2 秒
+- 🗜️ **KV 量化 + flash-attn**：自建运行时完整开放（KV q8_0 量化、flash-attention 等）
+- 🌊 **超内存 MoE 流式**：MoE 模型按当前 token 激活的专家懒加载 + 热专家缓存，突破可用内存上限
+- 💭 **思考模式开关**：可关闭思考直接作答（显著提速），或保留完整思考过程
+- 📊 **推理实况**：回复下方显示解码速率（tok/s）与首 token 延迟
 - 📦 **本地模型管理**：GGUF 模型一键下载 / 本地导入、加载 / 卸载、推测解码草稿模型
 - 🤖 **技能智能体**：31 个内置工具（读文件、执行命令、屏幕操作…），模型可直接输出工具调用
 - 🔒 **完全离线**：无任何联网模型提供商，推理全程在手机端完成，数据不出设备
@@ -31,8 +35,9 @@
 
 | 模型 | 场景 | 结果 |
 |------|------|------|
-| Qwen3-0.6B-Q4_K_M | 全链路验证 | ✅ 流式回复 |
-| Qwen3-4B-Q4_K_M | 8k tokens 智能体 prompt | ✅ 正常回复 + 工具调用（read_file / run_command）|
+| Qwen3-0.6B-Q4_K_M | 全链路验证 | ✅ 流式回复（NPU，瞬时）|
+| Qwen3-4B-Q4_K_M | 智能体多步任务（打开应用 → 观察 → 点击 → 输入 → 搜索）| ✅ 工具调用完整执行（NPU 后端，1–2 秒）|
+| Qwen3-30B-A3B（MoE）| 超内存流式推理（模型 13–17GB > 可用内存）| 🔬 验证中（BigMoeOnEdge）|
 
 ## 技术栈
 
@@ -41,9 +46,10 @@
 | 语言 | Kotlin 2.4.10 |
 | UI | Jetpack Compose |
 | 助手框架 | 深度定制系统级助手（Xposed 集成 / 语音助手 / 技能 / 终端）|
-| 推理引擎 | GenieX Android SDK v0.7.0（llama.cpp + QAIRT）|
-| 算力后端 | hybrid：Adreno GPU + Hexagon NPU + CPU |
-| 模型格式 | GGUF（Qwen3 / DeepSeek-R1-Distill 等）|
+| 推理引擎 | 自建 [llama.cpp](https://github.com/ggml-org/llama.cpp) 运行时（Android NDK 交叉编译为 lib*.so，独立进程托管 + OpenAI 兼容本地 API）|
+| 算力后端 | Hexagon NPU（HTP，经 Hexagon 后端动态库接入）优先，CPU 回退 |
+| 大模型流式 | [BigMoeOnEdge](https://github.com/Helldez/BigMoeOnEdge) —— MoE 专家按需加载 + 热专家缓存（模型体积超可用内存时启用）|
+| 模型格式 | GGUF（Qwen3 系列，含 MoE）|
 
 ## 构建
 
@@ -56,8 +62,23 @@
 
 ## 致谢
 
-- [Eta](https://github.com/Mangi-11/Eta) —— 系统级 AI 助手框架（Apache-2.0）
-- [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery) —— 模型管理 UI 基础
-- Qualcomm GenieX —— 端侧大模型推理 SDK
+微玄站在众多优秀开源项目的肩膀上，谨按依赖层级致谢：
+
+### 推理引擎与运行时
+
+- [llama.cpp](https://github.com/ggml-org/llama.cpp)（MIT）—— 端侧 LLM 推理引擎；本项目自建运行时由其源码经 Android NDK 交叉编译而来
+- [BigMoeOnEdge](https://github.com/Helldez/BigMoeOnEdge)（Apache-2.0）—— MoE 超内存流式推理引擎：模型大于可用内存时，按当前 token 实际激活的专家从存储懒加载，并以热专家缓存 + 预读实现 I/O 与计算重叠
+- [Helldez/llama.cpp](https://github.com/Helldez/llama.cpp)（MIT）—— BigMoeOnEdge 所依赖的 llama.cpp 分支（提供 expert-ready 回调）
+- Qualcomm GenieX —— 端侧大模型推理 SDK（QAIRT / Hexagon NPU 运行时）；本项目复用其 Hexagon 后端动态库接入 HTP
+
+### 助手框架与界面
+
+- [Eta](https://github.com/Mangi-11/Eta)（Apache-2.0）—— 系统级 AI 助手框架
+- [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery)（Apache-2.0）—— 模型管理 UI 基础
+
+### 模型与量化
+
+- [Qwen3](https://github.com/QwenLM/Qwen3)（Apache-2.0）—— 通义千问 Qwen3 系列模型（Alibaba）
+- [Unsloth](https://github.com/unslothai/unsloth)（Apache-2.0）—— GGUF 动态量化（UD-Q3_K_XL 等）
 
 License: [Apache-2.0](LICENSE)
