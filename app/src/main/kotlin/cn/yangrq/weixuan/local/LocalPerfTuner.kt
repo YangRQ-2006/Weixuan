@@ -32,6 +32,8 @@ object LocalPerfTuner {
     /** 纯 CPU 后端：hybrid 在部分设备推理挂死（2026-09-25），CPU 保底可通链路。 */
     const val COMPUTE_UNIT_CPU = "cpu"
     const val RUNTIME_LLAMA_CPP = "llama_cpp"
+    /** Qualcomm AI Engine Direct（NPU-only，吃 AI Hub 预编译 bundle，峰值性能）。 */
+    const val RUNTIME_QAIRT = "qairt"
 
     /** 主模型规模估算（MB），用于加载前内存预检（Qwen3-8B Q4_0 ≈ 4.7GB）。 */
     const val MODEL_ESTIMATE_MB_8B = 4800

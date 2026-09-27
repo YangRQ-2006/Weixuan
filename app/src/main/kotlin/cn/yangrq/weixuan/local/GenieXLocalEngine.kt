@@ -145,10 +145,14 @@ object GenieXLocalEngine : LocalChatEngine {
         val context = appContext ?: return Result.failure(IllegalStateException("引擎未初始化"))
         initialize(context).onFailure { return Result.failure(it) }
         return try {
+            // Hub 自动路由（2026-09-27）：Qualcomm AI Hub 提供"按芯片预编译"的 bundle
+            // （精度形如 w4a16/w8a16，走 NPU-only 的 QAIRT 路径，追求峰值性能）；
+            // 其余精度（q4_0/q8_0 等 GGUF）走 HuggingFace。据此自动选源。
+            val isPrecompiled = Regex("^w\\d+a\\d+$").matches(precision.lowercase())
             val input = ModelPullInput(
                 model_name = name,
                 precision = precision,
-                hub = HubSource.HUGGINGFACE,
+                hub = if (isPrecompiled) HubSource.AIHUB else HubSource.HUGGINGFACE,
                 model_type = ModelType.LLM,
             )
             ModelManagerWrapper.pullFlow(input).collect { event ->
@@ -287,11 +291,21 @@ object GenieXLocalEngine : LocalChatEngine {
         }
         var lastError: Throwable? = null
         for (unit in units) {
+            // runtime 自动路由（2026-09-27）：Qualcomm AI Hub 的预编译 bundle
+            // （含 genie_config.json / part*_of_*.bin，精度 w4a16）以 QAIRT 在 NPU 上
+            // NPU-only 执行——这是官方峰值性能路径；GGUF 仍走 llama.cpp（通用路径）。
+            val isPrecompiledBundle = resolved.modelPath.contains("genie_config", true) ||
+                resolved.modelPath.contains("w4a16", true) ||
+                resolved.key.contains("w4a16", true)
             val input = LlmCreateInput(
                 model_path = resolved.modelPath,
                 tokenizer_path = resolved.tokenizerPath,
                 config = config,
-                runtime_id = LocalPerfTuner.RUNTIME_LLAMA_CPP,
+                runtime_id = if (isPrecompiledBundle) {
+                    LocalPerfTuner.RUNTIME_QAIRT
+                } else {
+                    LocalPerfTuner.RUNTIME_LLAMA_CPP
+                },
                 compute_unit = unit,
             )
             val result = runCatching {
