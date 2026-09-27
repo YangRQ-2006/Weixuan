@@ -182,6 +182,9 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
     val fileOptions = catalogFiles.map { "${it.nameWithoutExtension}（${it.length() / 1048576}MB）" }
     // 选项布局：[0] GenieX 模型中心 · X  [1] QAIRT 预编译 bundle  [2..] 本地 .gguf
     val qairtOption = "QAIRT · Qwen3-4B w4a16（AI Hub 预编译 · NPU 峰值）"
+    // 已部署的 AI Hub bundle 目录名。GenieX 的 ModelManagerWrapper 按「模型名」查找，
+    // 名字必须与 files/models/ 下的实际目录名一致，否则报「模型未安装」。
+    val qairtBundleDir = "qwen3_4b-genie-w4a16-qualcomm_snapdragon_8_elite_gen5_for_galaxy"
     val mainItems = listOf("GenieX 模型中心 · $centerModel", qairtOption) + fileOptions
     val mainIndex = when {
         LocalSettings.qairtBundleEnabled -> 1
@@ -227,6 +230,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                             selfBuiltOn = false
                             mainPath = ""
                             LocalSettings.customModelPath = ""
+                            LocalSettings.modelName = qairtBundleDir
                             message = "已切到 QAIRT（Qwen3-4B w4a16 · NPU 峰值），点「加载模型」生效"
                         } else {
                             val picked = catalogFiles.getOrNull(idx - 2)
