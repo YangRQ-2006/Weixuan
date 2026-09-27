@@ -275,14 +275,19 @@ object GenieXLocalEngine : LocalChatEngine {
             message = "正在加载模型（首次加载较慢）…",
         )
         val draftPath = resolveDraftModelPath(target)
-        val config = LocalPerfTuner.buildModelConfig(guard, draftPath, estimateMb)
-        // 预编译 bundle（AI Hub QAIRT）：其 genie_config.json 写死 QnnHtp 后端，插件只接受
-        // NPU 计算单元——传 HYBRID/CPU 会直接报 "Parameter not supported by this plugin"。
-        // 故此处提前判定，并让 units 只含 NPU。GGUF 仍按 hybrid→npu→cpu 逐级回退。
         val isQairtBundleEarly = LocalSettings.qairtBundleEnabled ||
             resolved.modelPath.contains("genie_config", true) ||
             resolved.modelPath.contains("w4a16", true) ||
             resolved.key.contains("w4a16", true)
+        val config = LocalPerfTuner.buildModelConfig(
+            guard,
+            draftPath,
+            estimateMb,
+            qairtBundle = isQairtBundleEarly,
+        )
+        // 预编译 bundle（AI Hub QAIRT）：其 genie_config.json 写死 QnnHtp 后端，插件只接受
+        // NPU 计算单元——传 HYBRID/CPU 会直接报 "Parameter not supported by this plugin"。
+        // 故此处提前判定，并让 units 只含 NPU。GGUF 仍按 hybrid→npu→cpu 逐级回退。
         val units = if (isQairtBundleEarly) {
             listOf(LocalPerfTuner.COMPUTE_UNIT_NPU)
         } else {
@@ -304,9 +309,7 @@ object GenieXLocalEngine : LocalChatEngine {
             // runtime 自动路由（2026-09-27）：Qualcomm AI Hub 的预编译 bundle
             // （含 genie_config.json / part*_of_*.bin，精度 w4a16）以 QAIRT 在 NPU 上
             // NPU-only 执行——这是官方峰值性能路径；GGUF 仍走 llama.cpp（通用路径）。
-            val isPrecompiledBundle = resolved.modelPath.contains("genie_config", true) ||
-                resolved.modelPath.contains("w4a16", true) ||
-                resolved.key.contains("w4a16", true)
+            val isPrecompiledBundle = isQairtBundleEarly
             val input = LlmCreateInput(
                 model_path = resolved.modelPath,
                 tokenizer_path = resolved.tokenizerPath,

@@ -41,7 +41,22 @@ object LocalPerfTuner {
     /** 27B Q4_0 约 15GB，用于预检时给出明确拒绝理由。 */
     const val MODEL_ESTIMATE_MB_27B = 15_000
 
-    fun buildModelConfig(guard: LocalResourceGuard, draftModelPath: String?, modelMb: Int = 0): ModelConfig {
+    fun buildModelConfig(
+        guard: LocalResourceGuard,
+        draftModelPath: String?,
+        modelMb: Int = 0,
+        qairtBundle: Boolean = false,
+    ): ModelConfig {
+        // QAIRT 预编译 bundle（2026-09-27）：模型已是编译好的 HTP 图，插件不接受
+        // llama.cpp 的运行期参数（nThreads/nBatch/nGpuLayers/spec_* 等）——传了会直接报
+        // "Llm create failed: Parameter not supported by this plugin"（实测定案）。
+        // 故只保留最小集：上下文长度 + HTP 电源模式。
+        if (qairtBundle) {
+            return ModelConfig(
+                nCtx = 4096,          // 与 bundle 的 genie_config.json（context.size=4096）一致
+                power_mode = "burst", // HTP 满频（官方文档：不设置会以最低频运行）
+            )
+        }
         // 大模型低内存模式（2026-09-25）：小窗口 + 小 batch + 纯 CPU（免 NPU ION 额外分配）
         val lowMem = guard.lowMemoryMode(modelMb)
         val batch = if (lowMem) 64 else guard.optimalBatchSize()
