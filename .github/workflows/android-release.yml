@@ -40,10 +40,12 @@ jobs:
           packages: ""
           log-accepted-android-sdk-licenses: false
 
-      - name: 安装 Android SDK 37
+      - name: 安装 Android SDK 37（可选，失败不阻塞 Debug 构建）
+        continue-on-error: true
         run: sdkmanager --channel=3 "platforms;android-37.0"
 
-      - name: 还原发布证书
+      - name: 还原发布证书（未配置 Secrets 时降级为仅构建 Debug）
+        id: signing
         env:
           ETA_RELEASE_KEYSTORE_BASE64: ${{ secrets.ETA_RELEASE_KEYSTORE_BASE64 }}
           ETA_RELEASE_STORE_PASSWORD: ${{ secrets.ETA_RELEASE_STORE_PASSWORD }}
@@ -54,12 +56,14 @@ jobs:
                 -z "$ETA_RELEASE_STORE_PASSWORD" ||
                 -z "$ETA_RELEASE_KEY_ALIAS" ||
                 -z "$ETA_RELEASE_KEY_PASSWORD" ]]; then
-            echo "::error::缺少 Release 签名 Secrets，请检查仓库的 Actions Secrets。"
-            exit 1
+            echo "::warning::未配置 Release 签名 Secrets，本次仅构建 Debug APK（配置后自动恢复双包发布）。"
+            echo "has_signing=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           printf '%s' "$ETA_RELEASE_KEYSTORE_BASE64" \
             | base64 --decode \
             > "$RUNNER_TEMP/eta-release.jks"
+          echo "has_signing=true" >> "$GITHUB_OUTPUT"
 
       - name: 构建 Debug 与 Release APK
         env:
@@ -67,9 +71,12 @@ jobs:
           ETA_RELEASE_STORE_PASSWORD: ${{ secrets.ETA_RELEASE_STORE_PASSWORD }}
           ETA_RELEASE_KEY_ALIAS: ${{ secrets.ETA_RELEASE_KEY_ALIAS }}
           ETA_RELEASE_KEY_PASSWORD: ${{ secrets.ETA_RELEASE_KEY_PASSWORD }}
-        run: >-
-          ./gradlew --no-daemon --no-configuration-cache
-          :app:assembleDebug :app:assembleRelease
+        run: |
+          if [[ "${{ steps.signing.outputs.has_signing }}" == "true" ]]; then
+            ./gradlew --no-daemon --no-configuration-cache :app:assembleDebug :app:assembleRelease
+          else
+            ./gradlew --no-daemon --no-configuration-cache :app:assembleDebug
+          fi
 
       - name: 验证并整理 APK
         id: apk
@@ -84,21 +91,23 @@ jobs:
             echo "::error::未找到 Debug APK。"
             exit 1
           fi
-          if [[ ! -f "$release_apk" ]]; then
-            echo "::error::未找到 Release APK。"
-            exit 1
-          fi
           if [[ -z "$apksigner_path" ]]; then
             echo "::error::未找到 apksigner。"
             exit 1
           fi
 
-          "$apksigner_path" verify "$release_apk"
           mkdir -p "$output_dir"
           cp "$debug_apk" "$output_dir/app-debug.apk"
-          cp "$release_apk" "$output_dir/app-release.apk"
           echo "debug_path=$output_dir/app-debug.apk" >> "$GITHUB_OUTPUT"
-          echo "release_path=$output_dir/app-release.apk" >> "$GITHUB_OUTPUT"
+
+          # Release 仅在配置了签名 Secrets 时构建与校验
+          if [[ -f "$release_apk" ]]; then
+            "$apksigner_path" verify "$release_apk"
+            cp "$release_apk" "$output_dir/app-release.apk"
+            echo "release_path=$output_dir/app-release.apk" >> "$GITHUB_OUTPUT"
+          else
+            echo "本次未构建 Release APK（未配置签名 Secrets），跳过。"
+          fi
 
       - name: 上传 Debug APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -109,6 +118,7 @@ jobs:
           retention-days: 14
 
       - name: 上传 Release APK
+        if: ${{ steps.apk.outputs.release_path != '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           path: ${{ steps.apk.outputs.release_path }}
