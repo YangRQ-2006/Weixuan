@@ -276,18 +276,28 @@ object GenieXLocalEngine : LocalChatEngine {
         )
         val draftPath = resolveDraftModelPath(target)
         val config = LocalPerfTuner.buildModelConfig(guard, draftPath, estimateMb)
-        val units = when (LocalSettings.computeUnit) {
-            // npu 优先（实测最快），失败回退 cpu 保可用
-            LocalPerfTuner.COMPUTE_UNIT_NPU -> listOf(
-                LocalPerfTuner.COMPUTE_UNIT_NPU,
-                LocalPerfTuner.COMPUTE_UNIT_CPU,
-            )
-            LocalPerfTuner.COMPUTE_UNIT_CPU -> listOf(LocalPerfTuner.COMPUTE_UNIT_CPU)
-            else -> listOf(
-                LocalPerfTuner.COMPUTE_UNIT_HYBRID,
-                LocalPerfTuner.COMPUTE_UNIT_NPU,
-                LocalPerfTuner.COMPUTE_UNIT_CPU,
-            )
+        // 预编译 bundle（AI Hub QAIRT）：其 genie_config.json 写死 QnnHtp 后端，插件只接受
+        // NPU 计算单元——传 HYBRID/CPU 会直接报 "Parameter not supported by this plugin"。
+        // 故此处提前判定，并让 units 只含 NPU。GGUF 仍按 hybrid→npu→cpu 逐级回退。
+        val isQairtBundleEarly = LocalSettings.qairtBundleEnabled ||
+            resolved.modelPath.contains("genie_config", true) ||
+            resolved.modelPath.contains("w4a16", true) ||
+            resolved.key.contains("w4a16", true)
+        val units = if (isQairtBundleEarly) {
+            listOf(LocalPerfTuner.COMPUTE_UNIT_NPU)
+        } else {
+            when (LocalSettings.computeUnit) {
+                LocalPerfTuner.COMPUTE_UNIT_NPU -> listOf(
+                    LocalPerfTuner.COMPUTE_UNIT_NPU,
+                    LocalPerfTuner.COMPUTE_UNIT_CPU,
+                )
+                LocalPerfTuner.COMPUTE_UNIT_CPU -> listOf(LocalPerfTuner.COMPUTE_UNIT_CPU)
+                else -> listOf(
+                    LocalPerfTuner.COMPUTE_UNIT_HYBRID,
+                    LocalPerfTuner.COMPUTE_UNIT_NPU,
+                    LocalPerfTuner.COMPUTE_UNIT_CPU,
+                )
+            }
         }
         var lastError: Throwable? = null
         for (unit in units) {
