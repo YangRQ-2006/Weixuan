@@ -342,10 +342,13 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
         val outTokens = usage?.outputTokens
         val measuredSpeed = if (outTokens != null && outTokens > 0) outTokens / (decodeMs / 1000.0) else null
         val measuredTtft = firstTokenMs.takeIf { it > 0 }?.toDouble()
-        val mergedUsage = usage?.copy(
-            tokensPerSecond = usage.tokensPerSecond ?: measuredSpeed,
-            ttftMs = usage.ttftMs ?: measuredTtft,
-        )
+        // 客户端测速（流式无 timings 时兜底）：usage 可能整体为 null，若直接 usage?.copy(...)
+        // 会把测出来的速度一起丢掉，导致界面永远看不到 tok/s。
+        val baseUsage = usage ?: AgentTokenUsage()
+        val mergedUsage = baseUsage.copy(
+            tokensPerSecond = usage?.tokensPerSecond ?: measuredSpeed,
+            ttftMs = usage?.ttftMs ?: measuredTtft,
+        ).takeUnless { it.isEmpty }
 
         return JSONObject()
             .put("role", "assistant")

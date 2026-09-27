@@ -892,6 +892,10 @@ private fun AgentMessageBlock(
             ) {
                 // 本地推理实况：解码速度 + 首 token 延迟（llama.cpp timings）
                 message.usage?.let { u ->
+                    android.util.Log.d(
+                        "WeiXuan",
+                        "UI usage: speed=${u.tokensPerSecond} ttft=${u.ttftMs} out=${u.outputTokens}",
+                    )
                     val parts = listOfNotNull(
                         u.tokensPerSecond?.takeIf { it > 0 }?.let { "%.1f tok/s".format(it) },
                         u.ttftMs?.takeIf { it > 0 }?.let { "首字 %.1fs".format(it / 1000.0) },
