@@ -60,19 +60,24 @@ object LlamaServerProcess {
         val fileMb = (modelFile.length() / 1024 / 1024).toInt()
         val moeActivatedB = Regex("""-A(\d+)B""").find(modelFile.name)?.groupValues?.get(1)?.toIntOrNull()
         val residentMb = if (moeActivatedB != null) moeActivatedB * 600 else fileMb
-        // f16 KV：每 token 每层 2*head_dim*n_kv_heads*2byte（q8_0 时的系数是 0.3）
-        val kvMb = (ctx * 0.6).toInt()
-        // 投机解码的 draft 模型额外内存（0.6B Q4_K_M ≈ 380MB；仅启用时计入）
-        val hasDraft = File(modelPath).parentFile
-            ?.let { File(it, "Qwen3-0.6B-Q4_K_M.gguf").exists() } == true &&
-            !modelPath.contains("0.6B")
-        val needMb = residentMb + kvMb + (if (hasDraft) 380 else 0) + 32
         val availMb = runCatching {
             File("/proc/meminfo").readLines()
                 .firstOrNull { it.startsWith("MemAvailable") }
                 ?.filter { it.isDigit() }?.toInt()?.div(1024)
                 ?: 0
         }.getOrDefault(0)
+        // KV 类型自适应（2026-09-27 实测）：f16 消除 HTP 上 q8_0 KV 的逐行反量化开销
+        // （长上下文 decode 4.4→11.2 tok/s），但 KV 内存 ×2。按可用内存自动取舍——内存
+        // 不足时退回 q8_0，避免加载被拒 → Agent 反复"模型请求重试"（2026-09-27 案例：
+        // 可用 2193MB 时 f16 需 4.9GB 加载失败）。
+        val kvType = if (availMb >= 5000) "f16" else "q8_0"
+        val kvMb = (ctx * (if (kvType == "f16") 0.6 else 0.3)).toInt()
+        // 投机解码的 draft 模型额外内存（0.6B Q4_K_M ≈ 380MB；仅启用时计入）
+        val hasDraft = File(modelPath).parentFile
+            ?.let { File(it, "Qwen3-0.6B-Q4_K_M.gguf").exists() } == true &&
+            !modelPath.contains("0.6B")
+        val needMb = residentMb + kvMb + (if (hasDraft) 380 else 0) + 32
+        Log.i(TAG, "KV 自适应：可用 ${availMb}MB → $kvType（KV ${kvMb}MB）")
         // 先尽力释放自家资源（System.gc；不触碰用户后台应用）
         val kind = if (moeActivatedB != null) "MoE(激活 ${moeActivatedB}B->${residentMb}MB)" else "dense(全量 ${fileMb}MB)"
         System.gc()
@@ -97,12 +102,9 @@ object LlamaServerProcess {
             "--port", port.toString(),
             "-c", ctx.toString(),
             "-t", "4",
-            // KV 用 f16（2026-09-27 实测突破）：HTP 的 flash-attn 对 q8_0 KV 需要逐行
-            // 反量化（每 token 数百万行），长上下文下成为 decode 主瓶颈。改 f16 后实测：
-            // 长 prompt（3.1k tok）decode 4.4 → 11.2 tok/s（+155%），短 prompt 12 → 18.7。
-            // 代价仅为 KV 内存 ×2（不削模型、不缩上下文、不减工具）。
-            "-ctk", "f16",
-            "-ctv", "f16",
+            // KV 类型由上面的自适应逻辑决定（可用内存 ≥5GB 用 f16，否则 q8_0）
+            "-ctk", kvType,
+            "-ctv", kvType,
             "-fa", "on",
             "-ngl", "99",
             "--no-warmup",
