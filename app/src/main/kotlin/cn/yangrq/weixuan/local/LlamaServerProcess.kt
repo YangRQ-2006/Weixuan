@@ -32,32 +32,53 @@ object LlamaServerProcess {
      * - `-c`：上下文窗口
      */
     /**
-     * 加载前的温和内存整理（2026-09-27 实测定案）。
+     * 加载前的分层温和内存整理（2026-09-27）。
      *
-     * 只结束「附属进程」：小程序运行时（:appbrand/:miniapp）与 WebView/浏览器内核
-     * （:xweb/:sandbox）。这些进程承载可随时重建的缓存式工作负载，结束它们不会影响
-     * 任何 App 的主体进程——微信聊天、前台任务、登录态均不受影响。
+     * L1 —— 附属进程（零影响）：小程序运行时（:appbrand/:miniapp）、WebView/浏览器内核
+     *       （:xweb/:sandbox）、可重建的后台服务进程（:service/:push/:remote/:daemon）。
+     *       这些进程承载的都是"随时可重建"的缓存式负载。
+     * L2 —— 无关 App 的后台进程（`am kill <pkg>`，Android 官方语义：只结束后台、绝不碰
+     *       前台/可见进程；被结束的 App 下次使用时正常冷启动）。
+     * L3 —— 清 page cache（兜底，无副作用）。
      *
-     * 实测（小米 16GB）：微信 :appbrand0/1 + :xweb 组合释放 ~768MB。
-     * 为何不用其它方式：drop_caches=3 仅 +32MB（MemAvailable 本就含可回收页缓存）；
-     * send-trim-memory 让进程让出后立即重新加载，净效果为负；force-stop 整个应用
-     * 过于粗暴（会打断用户前台任务），不符合「温和」要求。
+     * **白名单保护**（绝不触碰）：微玄自身、系统关键进程（system_server/systemui/桌面/
+     * 输入法/电话/蓝牙/安全中心）。实测：微信 :appbrand0/1 + :xweb 组合释放 ~768MB。
      */
     private fun releaseExpendableProcesses(): Int {
         val before = readAvailMb()
-        runCatching {
-            val script = "for p in /proc/[0-9]*; do " +
-                "n=\$(tr '\\0' '\\n' < \$p/cmdline 2>/dev/null | head -1); " +
-                "case \"\$n\" in *:appbrand*|*:miniapp*|*:xweb*|*:sandbox*) kill \${p#/proc/} 2>/dev/null;; esac; " +
-                "done"
-            ProcessBuilder("/system/bin/su", "-c", script)
-                .redirectErrorStream(true)
-                .start()
-                .waitFor()
+        val protected = buildString {
+            append("android|com.android.systemui|com.miui.home|com.android.settings|")
+            append("cn.yangrq.weixuan|com.android.phone|com.android.server.telecom|")
+            append("com.android.bluetooth|com.miui.securitycenter|com.miui.powerkeeper|")
+            append("com.android.inputmethod|com.baidu.input|com.sohu.inputmethod|")
+            append("com.miui.wallpaper|com.android.providers|com.miui.contentcatcher")
         }
-        Thread.sleep(600)
+        runCatching {
+            // L1：精确结束附属进程（不碰任何主体进程）
+            val l1 = "for p in /proc/[0-9]*; do " +
+                "n=\$(tr '\\0' '\\n' < \$p/cmdline 2>/dev/null | head -1); " +
+                "case \"\$n\" in " +
+                "*:appbrand*|*:miniapp*|*:xweb*|*:sandbox*|*:service*|*:push*|*:remote*|*:daemon*" +
+                ") kill \${p#/proc/} 2>/dev/null;; esac; " +
+                "done"
+            ProcessBuilder("/system/bin/su", "-c", l1)
+                .redirectErrorStream(true).start().waitFor()
+
+            // L2：结束无关 App 的后台（am kill 只杀后台；白名单跳过）
+            val l2 = "for pkg in \$(pm list packages -3 2>/dev/null | sed 's/package://'); do " +
+                "case \"\$pkg\" in $protected) continue;; esac; " +
+                "am kill \"\$pkg\" >/dev/null 2>&1; " +
+                "done"
+            ProcessBuilder("/system/bin/su", "-c", l2)
+                .redirectErrorStream(true).start().waitFor()
+
+            // L3：丢弃页缓存兜底
+            ProcessBuilder("/system/bin/su", "-c", "sync; echo 1 > /proc/sys/vm/drop_caches")
+                .redirectErrorStream(true).start().waitFor()
+        }
+        Thread.sleep(1000)
         val after = readAvailMb()
-        Log.i(TAG, "温和内存整理：${before}MB → ${after}MB（+${after - before}MB）")
+        Log.i(TAG, "分层内存整理：${before}MB → ${after}MB（+${after - before}MB）")
         return after - before
     }
 
@@ -109,11 +130,10 @@ object LlamaServerProcess {
         // 可用 2193MB 时 f16 需 4.9GB 加载失败）。
         val kvType = if (availMb >= 5000) "f16" else "q8_0"
         val kvMb = (ctx * (if (kvType == "f16") 0.6 else 0.3)).toInt()
-        // 投机解码的 draft 模型额外内存（0.6B Q4_K_M ≈ 380MB；仅启用时计入）
-        val hasDraft = File(modelPath).parentFile
-            ?.let { File(it, "Qwen3-0.6B-Q4_K_M.gguf").exists() } == true &&
-            !modelPath.contains("0.6B")
-        val needMb = residentMb + kvMb + (if (hasDraft) 380 else 0) + 32
+        // 注：投机解码实测在 Hexagon NPU 上无收益（decode 11.0 vs 12.0 持平、prefill 腰斩），
+        // 已禁用；故不再计入 draft 模型内存。此前残留的 +380MB 会让预检虚高，
+        // 在可用 3.1-3.5GB 时错误地拒绝加载（2026-09-27 实测案例）。
+        val needMb = residentMb + kvMb + 32
         Log.i(TAG, "KV 自适应：可用 ${availMb}MB → $kvType（KV ${kvMb}MB）")
         // 先尽力释放自家资源（System.gc；不触碰用户后台应用）
         val kind = if (moeActivatedB != null) "MoE(激活 ${moeActivatedB}B->${residentMb}MB)" else "dense(全量 ${fileMb}MB)"
