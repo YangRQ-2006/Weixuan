@@ -31,6 +31,43 @@ object LlamaServerProcess {
      * - `--mmap`（默认）：权重按需分页（14B 只驻留几百 MB —— 解决崩溃的核心）
      * - `-c`：上下文窗口
      */
+    /**
+     * 加载前的温和内存整理（2026-09-27 实测定案）。
+     *
+     * 只结束「附属进程」：小程序运行时（:appbrand/:miniapp）与 WebView/浏览器内核
+     * （:xweb/:sandbox）。这些进程承载可随时重建的缓存式工作负载，结束它们不会影响
+     * 任何 App 的主体进程——微信聊天、前台任务、登录态均不受影响。
+     *
+     * 实测（小米 16GB）：微信 :appbrand0/1 + :xweb 组合释放 ~768MB。
+     * 为何不用其它方式：drop_caches=3 仅 +32MB（MemAvailable 本就含可回收页缓存）；
+     * send-trim-memory 让进程让出后立即重新加载，净效果为负；force-stop 整个应用
+     * 过于粗暴（会打断用户前台任务），不符合「温和」要求。
+     */
+    private fun releaseExpendableProcesses(): Int {
+        val before = readAvailMb()
+        runCatching {
+            val script = "for p in /proc/[0-9]*; do " +
+                "n=\$(tr '\\0' '\\n' < \$p/cmdline 2>/dev/null | head -1); " +
+                "case \"\$n\" in *:appbrand*|*:miniapp*|*:xweb*|*:sandbox*) kill \${p#/proc/} 2>/dev/null;; esac; " +
+                "done"
+            ProcessBuilder("/system/bin/su", "-c", script)
+                .redirectErrorStream(true)
+                .start()
+                .waitFor()
+        }
+        Thread.sleep(600)
+        val after = readAvailMb()
+        Log.i(TAG, "温和内存整理：${before}MB → ${after}MB（+${after - before}MB）")
+        return after - before
+    }
+
+    private fun readAvailMb(): Int = runCatching {
+        File("/proc/meminfo").readLines()
+            .firstOrNull { it.startsWith("MemAvailable") }
+            ?.filter { it.isDigit() }?.toInt()?.div(1024)
+            ?: 0
+    }.getOrDefault(0)
+
     fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 6144): Boolean {
         if (isRunning()) return true
         // 动态窗口：按当前可用内存自适应——内存充足时给"完整工具 schema"留空间（Agent 多步
@@ -82,8 +119,18 @@ object LlamaServerProcess {
         val kind = if (moeActivatedB != null) "MoE(激活 ${moeActivatedB}B->${residentMb}MB)" else "dense(全量 ${fileMb}MB)"
         System.gc()
         if (availMb in 1 until needMb) {
-            Log.e(TAG, "内存不足拒绝加载：需要 ${needMb}MB [$kind + KV ${kvMb} + 余量 128]，当前可用 ${availMb}MB")
-            return false
+            // 温和内存整理（2026-09-27 实测定案）：只结束「附属进程」——小程序运行时
+            // （:appbrand/:miniapp）与 WebView/浏览器内核（:xweb/:sandbox）。这些是随时
+            // 可重建的缓存式负载，不触碰任何 App 主体（微信聊天/前台任务/登录态不受影响）。
+            // 实测微信 :appbrand0/1 + :xweb 组合释放 ~768MB。
+            // 对比实测：drop_caches 仅 +32MB；send-trim-memory 净效果为负；force-stop 整应用过于粗暴。
+            val freed = releaseExpendableProcesses()
+            val availAfter = readAvailMb()
+            if (availAfter < needMb) {
+                Log.e(TAG, "内存不足拒绝加载：需要 ${needMb}MB [$kind + KV ${kvMb}]，当前 ${availAfter}MB（已温和整理 +${freed}MB）")
+                return false
+            }
+            Log.i(TAG, "温和整理释放 ${freed}MB（${availMb}→${availAfter}MB），继续加载")
         }
         Log.i(TAG, "内存预检通过：需要 ${needMb}MB [$kind/可用 ${availMb}MB]")
         // 投机解码（draft 0.6B，2026-09-27）：同词表小模型草拟 → 4B 并行验证，
