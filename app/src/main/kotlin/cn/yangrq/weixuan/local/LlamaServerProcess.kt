@@ -99,10 +99,16 @@ object LlamaServerProcess {
                 ?.filter { it.isDigit() }?.toInt()?.div(1024)
                 ?: 0
         }.getOrDefault(0)
+        // 动态窗口（2026-09-27 修订）：首要目标是「装得下 Agent 的完整 prompt」——system +
+        // 31 工具 schema + 历史，实测 3.2k–6k tokens。窗口小于 prompt 会直接 HTTP 400
+        // 「request exceeds the available context size」（2026-09-27 实测：窗口 2816 时
+        // 3213 tokens 的请求被拒）。因此按可用内存给尽量大的窗口，内存缺口交给后续
+        // 「分层内存整理 + 预检」处理，而不是靠压缩窗口。
         val ctx = when {
-            preAvailMb >= 4600 -> 6144
-            preAvailMb >= 3800 -> 4096
-            else -> 2816
+            preAvailMb >= 5200 -> 6144   // 完整 Agent（含长历史）
+            preAvailMb >= 4000 -> 5120
+            preAvailMb >= 3100 -> 4096   // Agent 常规 prompt 的最小安全值
+            else -> 3584                 // 极端紧张时才降级
         }
         Log.i(TAG, "动态窗口：可用 ${preAvailMb}MB → n_ctx=$ctx")
         val bin = File(context.applicationInfo.nativeLibraryDir, "libllama-server.so")
@@ -138,6 +144,12 @@ object LlamaServerProcess {
         // 先尽力释放自家资源（System.gc；不触碰用户后台应用）
         val kind = if (moeActivatedB != null) "MoE(激活 ${moeActivatedB}B->${residentMb}MB)" else "dense(全量 ${fileMb}MB)"
         System.gc()
+        // 加载前总是先做一次温和整理（2026-09-27 实测定案）：即便预检通过，后台 App 的
+        // 附属进程也会让模型加载后可用内存骤降、系统换页变卡（实测释放后 1292→4318MB）。
+        // 只结束可重建的附属进程，不触碰任何 App 主体。
+        if (availMb in 1 until 4500) {
+            releaseExpendableProcesses()
+        }
         if (availMb in 1 until needMb) {
             // 温和内存整理（2026-09-27 实测定案）：只结束「附属进程」——小程序运行时
             // （:appbrand/:miniapp）与 WebView/浏览器内核（:xweb/:sandbox）。这些是随时
