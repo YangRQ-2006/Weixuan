@@ -21,6 +21,7 @@ object LocalSettings {
     const val KEY_THINKING = "thinking_enabled"
     const val KEY_SELF_BUILT = "self_built_engine"
     const val KEY_BMOE_ENGINE = "bmoe_moe_engine"
+    const val KEY_QAIRT_BUNDLE = "qairt_bundle_enabled"
     const val KEY_CUSTOM_MODEL_PATH = "custom_model_path"
     const val KEY_CUSTOM_TOKENIZER_PATH = "custom_tokenizer_path"
 
@@ -99,6 +100,14 @@ object LocalSettings {
     var useBmoeEngine: Boolean
         get() = p.getBoolean(KEY_BMOE_ENGINE, false)
         set(value) = p.edit().putBoolean(KEY_BMOE_ENGINE, value).apply()
+
+    /**
+     * QAIRT 预编译 bundle 模式（2026-09-27）：主模型选中 AI Hub 的 Qwen3-4B w4a16 时置真，
+     * 表示走 GenieX 的 QAIRT（NPU-only）路径，而非自建 llama.cpp。
+     */
+    var qairtBundleEnabled: Boolean
+        get() = p.getBoolean(KEY_QAIRT_BUNDLE, false)
+        set(value) = p.edit().putBoolean(KEY_QAIRT_BUNDLE, value).apply()
 
     /** 自定义 .gguf 路径（与 GenieX 模型中心互斥，二者取一）。 */
     var customModelPath: String

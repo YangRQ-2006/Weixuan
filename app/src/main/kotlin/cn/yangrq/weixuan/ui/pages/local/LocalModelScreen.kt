@@ -180,8 +180,15 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
 
     // ── 选择器数据：主模型 / 草稿模型 ─────────────────────────────────
     val fileOptions = catalogFiles.map { "${it.nameWithoutExtension}（${it.length() / 1048576}MB）" }
-    val mainItems = listOf("GenieX 模型中心 · $centerModel") + fileOptions
-    val mainIndex = (catalogFiles.indexOfFirst { it.absolutePath == mainPath } + 1).coerceAtLeast(0)
+    // 选项布局：[0] GenieX 模型中心 · X  [1] QAIRT 预编译 bundle  [2..] 本地 .gguf
+    val qairtOption = "QAIRT · Qwen3-4B w4a16（AI Hub 预编译 · NPU 峰值）"
+    val mainItems = listOf("GenieX 模型中心 · $centerModel", qairtOption) + fileOptions
+    val mainIndex = when {
+        LocalSettings.qairtBundleEnabled -> 1
+        mainPath.isNotBlank() ->
+            (catalogFiles.indexOfFirst { it.absolutePath == mainPath } + 2).coerceAtLeast(0)
+        else -> 0
+    }
     val draftItems = listOf(
         "不使用草稿模型",
         "自动 · ${LocalPerfTuner.DRAFT_MODEL_NAME}（模型中心）",
@@ -213,13 +220,24 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                         EtaPreferenceIcon(icon = Icons.Rounded.Memory, tint = EtaPreferenceColors.Blue)
                     },
                     onSelectedIndexChange = { idx ->
-                        val picked = catalogFiles.getOrNull(idx - 1)
-                        mainPath = picked?.absolutePath ?: ""
-                        LocalSettings.customModelPath = mainPath
-                        message = if (picked != null) {
-                            "主模型已设为 ${picked.name}，点「加载模型」生效"
+                        if (idx == 1) {
+                            // QAIRT 预编译 bundle：关自建引擎，交给 GenieX 走 NPU 峰值路径
+                            LocalSettings.qairtBundleEnabled = true
+                            LocalSettings.useSelfBuiltEngine = false
+                            selfBuiltOn = false
+                            mainPath = ""
+                            LocalSettings.customModelPath = ""
+                            message = "已切到 QAIRT（Qwen3-4B w4a16 · NPU 峰值），点「加载模型」生效"
                         } else {
-                            "主模型改用 GenieX 模型中心（$centerModel）"
+                            val picked = catalogFiles.getOrNull(idx - 2)
+                            LocalSettings.qairtBundleEnabled = false
+                            mainPath = picked?.absolutePath ?: ""
+                            LocalSettings.customModelPath = mainPath
+                            message = if (picked != null) {
+                                "主模型已设为 ${picked.name}，点「加载模型」生效"
+                            } else {
+                                "主模型改用 GenieX 模型中心（$centerModel）"
+                            }
                         }
                     },
                 )
