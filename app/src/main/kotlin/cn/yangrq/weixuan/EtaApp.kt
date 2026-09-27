@@ -70,6 +70,43 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
             applicationScope.launch {
                 // 自建 llama.cpp runtime（2026-09-25）：llama-server 子进程监听同一端口，
                 // 官方 mmap 按需加载（14B 只驻留几百 MB）+ KV 量化 + flash-attn——解决大模型加载崩溃。
+                // MoE 流式引擎（BigMoeOnEdge，2026-09-27）：模型远大于可用内存时（如
+                // Qwen3-30B-A3B 13–18GB），由常驻 bmoe-cli 按 token 懒加载激活专家 +
+                // 热专家缓存承接，BmoeOpenAiServer 对外提供 OpenAI 兼容接口（Agent 零改动）。
+                if (LocalSettings.useBmoeEngine) {
+                    val modelPath = LocalSettings.customModelPath
+                    if (modelPath.isNotBlank() && java.io.File(modelPath).exists()) {
+                        val ok = cn.yangrq.weixuan.local.BmoeCliProcess.start(
+                            this@EtaApp,
+                            modelPath,
+                            ctxSize = 4096,
+                            cacheMb = "auto",
+                        )
+                        if (ok) {
+                            AndroidAgentLogger.info("MoE 引擎已启动（bmoe-cli session），等待模型加载…")
+                            val ready = cn.yangrq.weixuan.local.BmoeCliProcess.awaitReady(180_000)
+                            val bridge = cn.yangrq.weixuan.local.BmoeOpenAiServer(
+                                cn.yangrq.weixuan.local.LocalSettings.DEFAULT_PORT,
+                            )
+                            if (bridge.start()) {
+                                AndroidAgentLogger.info(
+                                    if (ready) {
+                                        "MoE 推理服务已就绪：http://127.0.0.1:${LocalSettings.port}/v1（缓存 auto）"
+                                    } else {
+                                        "MoE 桥已启动，模型仍在加载，稍后可用"
+                                    },
+                                )
+                            } else {
+                                AndroidAgentLogger.warn("MoE 桥启动失败（端口被占用）")
+                            }
+                        } else {
+                            AndroidAgentLogger.warn("MoE 引擎启动失败：请检查模型文件")
+                        }
+                    } else {
+                        AndroidAgentLogger.warn("MoE 引擎：未配置模型文件（customModelPath 为空）")
+                    }
+                    return@launch
+                }
                 if (LocalSettings.useSelfBuiltEngine) {
                     val modelPath = LocalSettings.customModelPath
                     if (modelPath.isNotBlank() && java.io.File(modelPath).exists()) {

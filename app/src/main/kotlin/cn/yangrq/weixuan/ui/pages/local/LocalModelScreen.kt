@@ -73,6 +73,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
     var draftOn by remember { mutableStateOf(LocalSettings.draftEnabled) }
     var centerModel by remember { mutableStateOf(LocalSettings.modelName) }
     var thinkingOn by remember { mutableStateOf(LocalSettings.thinkingEnabled) }
+    var bmoeOn by remember { mutableStateOf(LocalSettings.useBmoeEngine) }
     var models by remember { mutableStateOf<List<LocalModelEntry>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
@@ -359,6 +360,16 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                             LocalServerHost.stop()
                             message = ""
                         }
+                    },
+                )
+                EtaPreferenceDivider()
+                EtaSwitchPreference(
+                    title = "MoE 流式引擎（30B 等超大模型）",
+                    summary = "模型体积远超可用内存时启用：按 token 懒加载专家 + 热专家缓存，无损且不拖垮系统",
+                    checked = bmoeOn,
+                    onCheckedChange = { enabled ->
+                        bmoeOn = enabled
+                        LocalSettings.useBmoeEngine = enabled
                     },
                 )
                 EtaPreferenceDivider()

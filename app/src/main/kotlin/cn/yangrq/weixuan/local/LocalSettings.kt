@@ -20,6 +20,7 @@ object LocalSettings {
     const val KEY_COMPUTE_UNIT = "compute_unit"
     const val KEY_THINKING = "thinking_enabled"
     const val KEY_SELF_BUILT = "self_built_engine"
+    const val KEY_BMOE_ENGINE = "bmoe_moe_engine"
     const val KEY_CUSTOM_MODEL_PATH = "custom_model_path"
     const val KEY_CUSTOM_TOKENIZER_PATH = "custom_tokenizer_path"
 
@@ -89,6 +90,15 @@ object LocalSettings {
     var useSelfBuiltEngine: Boolean
         get() = p.getBoolean(KEY_SELF_BUILT, true)
         set(value) = p.edit().putBoolean(KEY_SELF_BUILT, value).apply()
+
+    /**
+     * MoE 流式引擎（BigMoeOnEdge）：模型体积远超可用内存时启用（如 Qwen3-30B-A3B，
+     * 13–18GB）。每 token 只从闪存读当前激活的专家 + 热专家缓存，无损，且不会因
+     * page cache 膨胀触发 lowmemorykiller。开启后 Agent 与 UI 无需任何改动。
+     */
+    var useBmoeEngine: Boolean
+        get() = p.getBoolean(KEY_BMOE_ENGINE, false)
+        set(value) = p.edit().putBoolean(KEY_BMOE_ENGINE, value).apply()
 
     /** 自定义 .gguf 路径（与 GenieX 模型中心互斥，二者取一）。 */
     var customModelPath: String

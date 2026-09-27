@@ -498,6 +498,10 @@ object LocalServerHost {
         // 自建 llama.cpp runtime 模式（2026-09-25）：自有 OpenAI 服务不启动——该端口交给
         // llama-server 子进程监听（Agent 的 baseUrl 保持 127.0.0.1:<preferredPort> 不变）。
         // 修复：此前 UI 页（LocalModelScreen）的两处调用会让自有服务抢占端口 → llama-server 绑定失败。
+        if (LocalSettings.useBmoeEngine) {
+            Log.i(TAG, "MoE 模式：跳过自有 OpenAI 服务（端口 $preferredPort 由 MoE 桥监听）")
+            return preferredPort
+        }
         if (LocalSettings.useSelfBuiltEngine) {
             Log.i(TAG, "自建模式：跳过自有 OpenAI 服务（端口 $preferredPort 交给 llama-server）")
             return preferredPort
