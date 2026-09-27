@@ -52,9 +52,15 @@ object LocalPerfTuner {
         // "Llm create failed: Parameter not supported by this plugin"（实测定案）。
         // 故只保留最小集：上下文长度 + HTP 电源模式。
         if (qairtBundle) {
+            // 源码级硬约束（sdk/plugins/qairt/src/llm.cpp:45-59）：
+            //   if (config.n_gpu_layers != 0) -> PARAM_NOT_SUPPORTED ("--ngl ...")
+            //   if (config.n_ctx        != 0) -> PARAM_NOT_SUPPORTED ("--nctx ...")
+            // QAIRT 的上下文长度/后端/采样器全部取自 bundle 的 genie_config.json
+            // （context.size=4096），故 nCtx 与 nGpuLayers 必须保持 0，传任何非零值都直接失败。
             return ModelConfig(
-                nCtx = 4096,          // 与 bundle 的 genie_config.json（context.size=4096）一致
-                power_mode = "burst", // HTP 满频（官方文档：不设置会以最低频运行）
+                nCtx = 0,
+                nGpuLayers = 0,
+                power_mode = "burst", // 保 HTP 满频
             )
         }
         // 大模型低内存模式（2026-09-25）：小窗口 + 小 batch + 纯 CPU（免 NPU ION 额外分配）
