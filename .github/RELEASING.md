@@ -1,28 +1,28 @@
-# Eta 发布流程
+# 微玄 发布流程
 
 ## 配置签名 Secrets
 
 发布证书和密码不得提交到 Git。首次使用前，在仓库的
 `Settings > Secrets and variables > Actions` 中添加：
 
-- `ETA_RELEASE_KEYSTORE_BASE64`：发布证书的 Base64 文本
-- `ETA_RELEASE_STORE_PASSWORD`：KeyStore 密码
-- `ETA_RELEASE_KEY_ALIAS`：Key alias
-- `ETA_RELEASE_KEY_PASSWORD`：Key 密码
+- `WEIXUAN_RELEASE_KEYSTORE_BASE64`：发布证书的 Base64 文本
+- `WEIXUAN_RELEASE_STORE_PASSWORD`：KeyStore 密码
+- `WEIXUAN_RELEASE_KEY_ALIAS`：Key alias
+- `WEIXUAN_RELEASE_KEY_PASSWORD`：Key 密码
 
 macOS 可以用下面的命令复制证书的 Base64 文本：
 
 ```bash
-base64 < /path/to/Eta-release.jks | tr -d '\n' | pbcopy
+base64 < /path/to/WeiXuan-release.jks | tr -d '\n' | pbcopy
 ```
 
 也可以使用 GitHub CLI。密码类 Secret 不要直接写在命令参数中，运行命令后按提示输入：
 
 ```bash
-base64 < /path/to/Eta-release.jks | gh secret set ETA_RELEASE_KEYSTORE_BASE64
-gh secret set ETA_RELEASE_STORE_PASSWORD
-gh secret set ETA_RELEASE_KEY_ALIAS
-gh secret set ETA_RELEASE_KEY_PASSWORD
+base64 < /path/to/WeiXuan-release.jks | gh secret set WEIXUAN_RELEASE_KEYSTORE_BASE64
+gh secret set WEIXUAN_RELEASE_STORE_PASSWORD
+gh secret set WEIXUAN_RELEASE_KEY_ALIAS
+gh secret set WEIXUAN_RELEASE_KEY_PASSWORD
 ```
 
 ## 构建与发布
@@ -32,7 +32,7 @@ gh secret set ETA_RELEASE_KEY_PASSWORD
 
 - 向 `main` 推送提交
 - 推送 `v*` 标签
-- 在 GitHub 的 `Actions > Eta Build` 中手动运行
+- 在 GitHub 的 `Actions > 微玄 Build` 中手动运行
 
 工作流不会创建、修改或发布 GitHub Release。
 
@@ -44,7 +44,7 @@ git tag v2.2.2
 git push origin v2.2.2
 ```
 
-标签推送后，等待 `Eta Build` 工作流完成，然后：
+标签推送后，等待 `WeiXuan Build` 工作流完成，然后：
 
 1. 从该次工作流的 `Artifacts` 下载 `app-release.apk`。
 2. 在仓库的 `Releases > Draft a new release` 中选择已有标签。

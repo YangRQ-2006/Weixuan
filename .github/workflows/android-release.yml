@@ -1,4 +1,4 @@
-name: Eta Build
+name: WeiXuan Build
 
 on:
   push:
@@ -47,30 +47,30 @@ jobs:
       - name: 还原发布证书（未配置 Secrets 时降级为仅构建 Debug）
         id: signing
         env:
-          ETA_RELEASE_KEYSTORE_BASE64: ${{ secrets.ETA_RELEASE_KEYSTORE_BASE64 }}
-          ETA_RELEASE_STORE_PASSWORD: ${{ secrets.ETA_RELEASE_STORE_PASSWORD }}
-          ETA_RELEASE_KEY_ALIAS: ${{ secrets.ETA_RELEASE_KEY_ALIAS }}
-          ETA_RELEASE_KEY_PASSWORD: ${{ secrets.ETA_RELEASE_KEY_PASSWORD }}
+          WEIXUAN_RELEASE_KEYSTORE_BASE64: ${{ secrets.WEIXUAN_RELEASE_KEYSTORE_BASE64 }}
+          WEIXUAN_RELEASE_STORE_PASSWORD: ${{ secrets.WEIXUAN_RELEASE_STORE_PASSWORD }}
+          WEIXUAN_RELEASE_KEY_ALIAS: ${{ secrets.WEIXUAN_RELEASE_KEY_ALIAS }}
+          WEIXUAN_RELEASE_KEY_PASSWORD: ${{ secrets.WEIXUAN_RELEASE_KEY_PASSWORD }}
         run: |
-          if [[ -z "$ETA_RELEASE_KEYSTORE_BASE64" ||
-                -z "$ETA_RELEASE_STORE_PASSWORD" ||
-                -z "$ETA_RELEASE_KEY_ALIAS" ||
-                -z "$ETA_RELEASE_KEY_PASSWORD" ]]; then
+          if [[ -z "$WEIXUAN_RELEASE_KEYSTORE_BASE64" ||
+                -z "$WEIXUAN_RELEASE_STORE_PASSWORD" ||
+                -z "$WEIXUAN_RELEASE_KEY_ALIAS" ||
+                -z "$WEIXUAN_RELEASE_KEY_PASSWORD" ]]; then
             echo "::warning::未配置 Release 签名 Secrets，本次仅构建 Debug APK（配置后自动恢复双包发布）。"
             echo "has_signing=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          printf '%s' "$ETA_RELEASE_KEYSTORE_BASE64" \
+          printf '%s' "$WEIXUAN_RELEASE_KEYSTORE_BASE64" \
             | base64 --decode \
-            > "$RUNNER_TEMP/eta-release.jks"
+            > "$RUNNER_TEMP/weixuan-release.jks"
           echo "has_signing=true" >> "$GITHUB_OUTPUT"
 
       - name: 构建 Debug 与 Release APK
         env:
-          ETA_RELEASE_STORE_FILE: ${{ runner.temp }}/eta-release.jks
-          ETA_RELEASE_STORE_PASSWORD: ${{ secrets.ETA_RELEASE_STORE_PASSWORD }}
-          ETA_RELEASE_KEY_ALIAS: ${{ secrets.ETA_RELEASE_KEY_ALIAS }}
-          ETA_RELEASE_KEY_PASSWORD: ${{ secrets.ETA_RELEASE_KEY_PASSWORD }}
+          WEIXUAN_RELEASE_STORE_FILE: ${{ runner.temp }}/weixuan-release.jks
+          WEIXUAN_RELEASE_STORE_PASSWORD: ${{ secrets.WEIXUAN_RELEASE_STORE_PASSWORD }}
+          WEIXUAN_RELEASE_KEY_ALIAS: ${{ secrets.WEIXUAN_RELEASE_KEY_ALIAS }}
+          WEIXUAN_RELEASE_KEY_PASSWORD: ${{ secrets.WEIXUAN_RELEASE_KEY_PASSWORD }}
         run: |
           if [[ "${{ steps.signing.outputs.has_signing }}" == "true" ]]; then
             ./gradlew --no-daemon --no-configuration-cache :app:assembleDebug :app:assembleRelease
