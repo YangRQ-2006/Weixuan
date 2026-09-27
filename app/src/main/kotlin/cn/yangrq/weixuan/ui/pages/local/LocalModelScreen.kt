@@ -74,6 +74,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
     var centerModel by remember { mutableStateOf(LocalSettings.modelName) }
     var thinkingOn by remember { mutableStateOf(LocalSettings.thinkingEnabled) }
     var bmoeOn by remember { mutableStateOf(LocalSettings.useBmoeEngine) }
+    var selfBuiltOn by remember { mutableStateOf(LocalSettings.useSelfBuiltEngine) }
     var models by remember { mutableStateOf<List<LocalModelEntry>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
@@ -337,6 +338,17 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
         }
         item {
             EtaPreferenceGroup {
+                EtaSwitchPreference(
+                    title = "用自建 llama.cpp 引擎",
+                    summary = "开＝自建 runtime（GGUF，KV 量化/前缀复用等参数完全可控）；" +
+                        "关＝GenieX/QAIRT（AI Hub 预编译 bundle，NPU-only 峰值路径）",
+                    checked = selfBuiltOn,
+                    onCheckedChange = { enabled ->
+                        selfBuiltOn = enabled
+                        LocalSettings.useSelfBuiltEngine = enabled
+                    },
+                )
+                EtaPreferenceDivider()
                 EtaSwitchPreference(
                     title = "启用本地回环服务",
                     summary = "开启后 Agent 可通过 127.0.0.1:${LocalSettings.port} 调用本地模型",
