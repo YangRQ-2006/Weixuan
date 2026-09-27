@@ -60,7 +60,8 @@ object LlamaServerProcess {
         val fileMb = (modelFile.length() / 1024 / 1024).toInt()
         val moeActivatedB = Regex("""-A(\d+)B""").find(modelFile.name)?.groupValues?.get(1)?.toIntOrNull()
         val residentMb = if (moeActivatedB != null) moeActivatedB * 600 else fileMb
-        val kvMb = (ctx * 0.3).toInt()
+        // f16 KV：每 token 每层 2*head_dim*n_kv_heads*2byte（q8_0 时的系数是 0.3）
+        val kvMb = (ctx * 0.6).toInt()
         // 投机解码的 draft 模型额外内存（0.6B Q4_K_M ≈ 380MB；仅启用时计入）
         val hasDraft = File(modelPath).parentFile
             ?.let { File(it, "Qwen3-0.6B-Q4_K_M.gguf").exists() } == true &&
@@ -96,8 +97,12 @@ object LlamaServerProcess {
             "--port", port.toString(),
             "-c", ctx.toString(),
             "-t", "4",
-            "-ctk", "q8_0",
-            "-ctv", "q8_0",
+            // KV 用 f16（2026-09-27 实测突破）：HTP 的 flash-attn 对 q8_0 KV 需要逐行
+            // 反量化（每 token 数百万行），长上下文下成为 decode 主瓶颈。改 f16 后实测：
+            // 长 prompt（3.1k tok）decode 4.4 → 11.2 tok/s（+155%），短 prompt 12 → 18.7。
+            // 代价仅为 KV 内存 ×2（不削模型、不缩上下文、不减工具）。
+            "-ctk", "f16",
+            "-ctv", "f16",
             "-fa", "on",
             "-ngl", "99",
             "--no-warmup",
@@ -127,6 +132,10 @@ object LlamaServerProcess {
                 .firstOrNull { it.exists() }
             if (extraBackend != null) {
                 pb.environment()["WEIXUAN_HEXAGON_BACKEND"] = extraBackend.absolutePath
+                // Hexagon 忙轮询（2026-09-27 实测）：阻塞等待 DSP 响应存在唤醒延迟，
+                // 改用忙轮询（timeo=0）可去掉这部分固定开销；与 f16 KV 配合实测
+                // 长上下文 decode 4.4 → 11.2 tok/s。
+                pb.environment()["GGML_HEXAGON_OPPOLL"] = "1"
             }
             val p = pb.start()
             process = p
