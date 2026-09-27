@@ -641,6 +641,11 @@ internal class AgentLocalTools(
         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
         context.startActivity(launchIntent)
         logger.info("Agent local tool action=launch_app outcome=started")
+
+        // launch 是异步的：立即返回会让后续依赖焦点的工具（input_text/tap_element）落在
+        // 目标应用尚未前台时执行而静默失败（表现为"只打开应用、不继续操作"）。等待其亮相。
+        Thread.sleep(2000)
+
         return JSONObject()
             .put("ok", true)
             .put("tool", "launch_app")

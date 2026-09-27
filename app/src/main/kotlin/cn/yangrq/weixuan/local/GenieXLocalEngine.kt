@@ -514,25 +514,10 @@ object GenieXLocalEngine : LocalChatEngine {
      * 31 工具 token 从 ~8k 降到 ~2k，窗口装得下且能力完整（4B/14B 均受益）。
      */
     private fun limitToolsForWindow(tools: JSONArray, nCtx: Int): JSONArray {
-        if (nCtx <= 0 || tools.length() == 0) return tools
-        val compacted = JSONArray()
-        for (i in 0 until tools.length()) {
-            val tool = tools.optJSONObject(i) ?: continue
-            val fn = tool.optJSONObject("function")
-            if (fn != null) {
-                val desc = fn.optString("description")
-                if (desc.length > 42) fn.put("description", desc.take(40) + "…")
-                fn.optJSONObject("parameters")?.optJSONObject("properties")?.let { props ->
-                    val keys = props.keys()
-                    while (keys.hasNext()) {
-                        props.optJSONObject(keys.next())?.remove("description")
-                    }
-                }
-            }
-            compacted.put(tool)
-        }
-        Log.i(TAG, "工具集压缩：nCtx=$nCtx，${compacted.length()} 个工具 schema 已精简（保留全部能力）")
-        return compacted
+        // 关键修复（2026-09-27）：此前把工具描述截到 40 字符并删除全部参数级 description，
+        // 这恰恰删掉了小模型填参数所需的唯一线索 → Agent 多步任务只完成第一步
+        // （"打开抖音"之后不再搜索）。工具契约必须完整保留。
+        return tools
     }
 
     private suspend fun buildPrompt(

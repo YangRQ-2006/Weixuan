@@ -32,7 +32,7 @@ android {
         minSdk = 34
         targetSdk = 36
         // versionCode 规则：yyyyMMdd + 两位当日序号（01 起），发版时随 versionName 一起手动递增。
-        versionCode = 2026092301
+        versionCode = 2026092701
         versionName = "3.0.5"
 
         // GenieX 本地推理 SDK 仅提供 arm64-v8a 原生库，同时收敛 APK 体积。

@@ -28,7 +28,7 @@ internal object AccessibilityProtectionProtocol {
     const val RESULT_REJECTED = 2
 
     const val SETTING_NAME = "eta_accessibility_protection_enabled"
-    const val DEFAULT_ENABLED = false
+    const val DEFAULT_ENABLED = true
 
     const val HEALTH_AUTHORITY = "cn.yangrq.weixuan.accessibility.health"
     const val HEALTH_METHOD = "accessibility_health"
