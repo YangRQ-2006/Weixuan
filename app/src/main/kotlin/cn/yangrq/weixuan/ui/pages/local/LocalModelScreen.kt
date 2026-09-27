@@ -229,9 +229,20 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                             LocalSettings.useSelfBuiltEngine = false
                             selfBuiltOn = false
                             mainPath = ""
-                            LocalSettings.customModelPath = ""
+                            // 关键：改走 resolveModel 的「自定义路径」分支（直接给路径，
+                            // 不经 ModelManagerWrapper 的注册表）。native 库支持"含
+                            // metadata.json + *.bin 的目录"这一布局，正是 AI Hub bundle 的形态；
+                            // 而模型名注册链路要求先经 pullFlow 下载，手动放置的 bundle 不在
+                            // 注册表中 → 因此报「模型未安装」。
                             LocalSettings.modelName = qairtBundleDir
-                            message = "已切到 QAIRT（Qwen3-4B w4a16 · NPU 峰值），点「加载模型」生效"
+                            val dir = java.io.File(LocalSettings.modelsDir(appContext), qairtBundleDir)
+                            LocalSettings.customModelPath =
+                                if (dir.isDirectory) dir.absolutePath else ""
+                            message = if (dir.isDirectory) {
+                                "已切到 QAIRT（Qwen3-4B w4a16 · NPU 峰值），点「加载模型」生效"
+                            } else {
+                                "未找到已部署的 QAIRT bundle（请先完成一次 AI Hub 拉取）"
+                            }
                         } else {
                             val picked = catalogFiles.getOrNull(idx - 2)
                             LocalSettings.qairtBundleEnabled = false
