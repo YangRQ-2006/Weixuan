@@ -213,10 +213,9 @@ object LlamaServerProcess {
                 .firstOrNull { it.exists() }
             if (extraBackend != null) {
                 pb.environment()["WEIXUAN_HEXAGON_BACKEND"] = extraBackend.absolutePath
-                // Hexagon 忙轮询（2026-09-27 实测）：阻塞等待 DSP 响应存在唤醒延迟，
-                // 改用忙轮询（timeo=0）可去掉这部分固定开销；与 f16 KV 配合实测
-                // 长上下文 decode 4.4 → 11.2 tok/s。
-                pb.environment()["GGML_HEXAGON_OPPOLL"] = "1"
+                // 注：曾启用 GGML_HEXAGON_OPPOLL=1（忙轮询）。2026-09-27 A/B 实测发现它
+                // 反而拖慢整体（decode 10.7 vs 13.8、prefill 65 vs 109）——忙轮询占用 CPU
+                // 并干扰 NPU 调度。故不再启用。
             }
             val p = pb.start()
             process = p
