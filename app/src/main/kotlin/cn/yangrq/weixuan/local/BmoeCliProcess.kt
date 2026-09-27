@@ -81,6 +81,19 @@ object BmoeCliProcess {
             Log.e(TAG, "模型不存在：$modelPath")
             return false
         }
+
+        // 内存预检：MoE 流式虽按需读取，但 mmap 页缓存仍会随访问增长；可用内存过低时
+        // 直接拒绝，避免 2026-09-27 那类 lowmemorykiller 连锁杀进程（设置/相机/桌面被杀）。
+        val availMb = runCatching {
+            File("/proc/meminfo").readLines()
+                .firstOrNull { it.startsWith("MemAvailable") }
+                ?.filter { it.isDigit() }?.toInt()?.div(1024)
+                ?: 0
+        }.getOrDefault(0)
+        if (availMb in 1..1500) {
+            Log.e(TAG, "内存不足拒绝启动 MoE：可用 ${availMb}MB < 1500MB")
+            return false
+        }
         return try {
             val pb = ProcessBuilder(
                 bin.absolutePath,

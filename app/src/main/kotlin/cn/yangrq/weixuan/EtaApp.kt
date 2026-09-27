@@ -73,37 +73,17 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
                 // MoE 流式引擎（BigMoeOnEdge，2026-09-27）：模型远大于可用内存时（如
                 // Qwen3-30B-A3B 13–18GB），由常驻 bmoe-cli 按 token 懒加载激活专家 +
                 // 热专家缓存承接，BmoeOpenAiServer 对外提供 OpenAI 兼容接口（Agent 零改动）。
+                // 注意：30B 加载需 20+ 秒且 I/O 密集，**不在 App 启动时加载**，避免启动卡顿；
+                // 只启动桥，模型在首次对话请求（或手动加载）时才拉起。
                 if (LocalSettings.useBmoeEngine) {
-                    val modelPath = LocalSettings.customModelPath
-                    if (modelPath.isNotBlank() && java.io.File(modelPath).exists()) {
-                        val ok = cn.yangrq.weixuan.local.BmoeCliProcess.start(
-                            this@EtaApp,
-                            modelPath,
-                            ctxSize = 4096,
-                            cacheMb = "auto",
-                        )
-                        if (ok) {
-                            AndroidAgentLogger.info("MoE 引擎已启动（bmoe-cli session），等待模型加载…")
-                            val ready = cn.yangrq.weixuan.local.BmoeCliProcess.awaitReady(180_000)
-                            val bridge = cn.yangrq.weixuan.local.BmoeOpenAiServer(
-                                cn.yangrq.weixuan.local.LocalSettings.DEFAULT_PORT,
-                            )
-                            if (bridge.start()) {
-                                AndroidAgentLogger.info(
-                                    if (ready) {
-                                        "MoE 推理服务已就绪：http://127.0.0.1:${LocalSettings.port}/v1（缓存 auto）"
-                                    } else {
-                                        "MoE 桥已启动，模型仍在加载，稍后可用"
-                                    },
-                                )
-                            } else {
-                                AndroidAgentLogger.warn("MoE 桥启动失败（端口被占用）")
-                            }
-                        } else {
-                            AndroidAgentLogger.warn("MoE 引擎启动失败：请检查模型文件")
-                        }
+                    val bridge = cn.yangrq.weixuan.local.BmoeOpenAiServer(
+                        cn.yangrq.weixuan.local.LocalSettings.DEFAULT_PORT,
+                        applicationContext,
+                    )
+                    if (bridge.start()) {
+                        AndroidAgentLogger.info("MoE 桥已就绪（懒加载模式）：首次对话时载入模型")
                     } else {
-                        AndroidAgentLogger.warn("MoE 引擎：未配置模型文件（customModelPath 为空）")
+                        AndroidAgentLogger.warn("MoE 桥启动失败（端口被占用）")
                     }
                     return@launch
                 }

@@ -25,7 +25,10 @@ import org.json.JSONObject
  *
  * 这样 Agent、工具、UI 全部零改动，只切换本地引擎即可用上 30B MoE。
  */
-class BmoeOpenAiServer(private val port: Int) {
+class BmoeOpenAiServer(
+    private val port: Int,
+    private val appContext: android.content.Context? = null,
+) {
 
     companion object {
         private const val TAG = "BmoeOpenAiServer"
@@ -156,6 +159,30 @@ class BmoeOpenAiServer(private val port: Int) {
             writeJson(out, """{"error":{"message":"invalid json"}}""", 400)
             return
         }
+        // 懒加载：30B 加载需 20+ 秒且 I/O 密集，绝不能在 App 启动时做（会卡住启动）。
+        // 首次对话请求时才拉起 bmoe-cli，之后就常驻复用（expert cache + KV 前缀）。
+        if (!BmoeCliProcess.isReady()) {
+            val modelPath = LocalSettings.customModelPath
+            if (modelPath.isBlank() || !java.io.File(modelPath).exists()) {
+                writeJson(out, """{"error":{"message":"MoE 模型未配置（请在本地模型页选择 .gguf）"}}""", 503)
+                return
+            }
+            val ctx = appContext
+            if (ctx == null) {
+                writeJson(out, """{"error":{"message":"缺少应用上下文"}}""", 500)
+                return
+            }
+            Log.i(TAG, "首次请求：懒加载 MoE 模型（约 20-30 秒）…")
+            if (!BmoeCliProcess.start(ctx, modelPath, ctxSize = 4096, cacheMb = "auto")) {
+                writeJson(out, """{"error":{"message":"MoE 引擎启动失败"}}""", 503)
+                return
+            }
+            if (!BmoeCliProcess.awaitReady(180_000)) {
+                writeJson(out, """{"error":{"message":"MoE 模型加载超时"}}""", 504)
+                return
+            }
+        }
+
         val messages = req.optJSONArray("messages") ?: JSONArray()
         val prompt = buildPrompt(messages)
         val nPredict = req.optInt("max_tokens", 512).coerceIn(16, 2048)
