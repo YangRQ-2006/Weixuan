@@ -446,7 +446,9 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
     }
 
     private fun parseUsage(chunk: JSONObject): AgentTokenUsage? {
-        val usage = chunk.optJSONObject("usage") ?: return null
+        // 注意：usage 缺失时不能直接返回 null —— 自建 llama.cpp 的流式若未携带 usage，
+        // 仍需从响应根的 timings 读取速度（否则界面永远看不到 tok/s）。
+        val usage = chunk.optJSONObject("usage") ?: JSONObject()
         return AgentTokenUsage(
             contextTokens = usage.firstInt("total_tokens"),
             inputTokens = usage.firstInt("prompt_tokens", "input_tokens"),

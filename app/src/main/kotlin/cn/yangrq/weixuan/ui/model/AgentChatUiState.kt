@@ -99,7 +99,9 @@ data class TokenUsageUi(
             inputTokens == null &&
             outputTokens == null &&
             reasoningTokens == null &&
-            cachedTokens == null
+            cachedTokens == null &&
+            tokensPerSecond == null &&
+            ttftMs == null
 }
 
 @Immutable

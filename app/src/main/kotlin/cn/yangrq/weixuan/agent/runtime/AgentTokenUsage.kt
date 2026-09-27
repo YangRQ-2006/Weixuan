@@ -16,5 +16,7 @@ internal data class AgentTokenUsage(
             inputTokens == null &&
             outputTokens == null &&
             reasoningTokens == null &&
-            cachedTokens == null
+            cachedTokens == null &&
+            tokensPerSecond == null &&
+            ttftMs == null
 }

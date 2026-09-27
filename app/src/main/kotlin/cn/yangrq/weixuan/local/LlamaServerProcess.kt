@@ -61,7 +61,11 @@ object LlamaServerProcess {
         val moeActivatedB = Regex("""-A(\d+)B""").find(modelFile.name)?.groupValues?.get(1)?.toIntOrNull()
         val residentMb = if (moeActivatedB != null) moeActivatedB * 600 else fileMb
         val kvMb = (ctx * 0.3).toInt()
-        val needMb = residentMb + kvMb + 32
+        // 投机解码的 draft 模型额外内存（0.6B Q4_K_M ≈ 380MB；仅启用时计入）
+        val hasDraft = File(modelPath).parentFile
+            ?.let { File(it, "Qwen3-0.6B-Q4_K_M.gguf").exists() } == true &&
+            !modelPath.contains("0.6B")
+        val needMb = residentMb + kvMb + (if (hasDraft) 380 else 0) + 32
         val availMb = runCatching {
             File("/proc/meminfo").readLines()
                 .firstOrNull { it.startsWith("MemAvailable") }
@@ -76,6 +80,15 @@ object LlamaServerProcess {
             return false
         }
         Log.i(TAG, "内存预检通过：需要 ${needMb}MB [$kind/可用 ${availMb}MB]")
+        // 投机解码（draft 0.6B，2026-09-27）：同词表小模型草拟 → 4B 并行验证，
+        // decode 吞吐可提升 2-3x，且输出与目标模型一致（无损）。draft 与 target 同为
+        // Qwen3 系列，词表相同（都是 151936）。
+        val draftFile = File(modelPath).parentFile?.let { File(it, "Qwen3-0.6B-Q4_K_M.gguf") }
+        // 实测（2026-09-27）：在 Hexagon NPU 后端上投机解码**无收益**——
+        // decode 11.0 vs 12.0 tok/s（持平），prefill 107.8 vs 254 tok/s（腰斩，draft 抢占
+        // NPU 算力），且多占 380MB 内存。故默认禁用；代码保留以备 CPU 后端场景启用。
+        val speculativeArgs = emptyList<String>()
+
         val cmd = listOf(
             bin.absolutePath,
             "-m", modelPath,
@@ -88,8 +101,12 @@ object LlamaServerProcess {
             "-fa", "on",
             "-ngl", "99",
             "--no-warmup",
+            // KV 前缀复用（2026-09-27，关键优化）：Agent 每轮请求的 system + 31 个工具
+            // schema（约 5941 tokens）完全不变，只有历史增量。默认实测 cache_n=1 即全量重算
+            // （NPU 254 tok/s 下约 23 秒/轮）。开启后复用公共前缀 KV，让 prefill 只算增量。
+            "--cache-reuse", "256",
             "-np", "1",
-        )
+        ) + speculativeArgs
         Log.i(TAG, "启动 llama-server：${cmd.joinToString(" ")}")
         return runCatching {
             val pb = ProcessBuilder(cmd).redirectErrorStream(true)
