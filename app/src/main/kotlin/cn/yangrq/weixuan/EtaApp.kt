@@ -88,7 +88,24 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
                     return@launch
                 }
                 if (LocalSettings.useSelfBuiltEngine) {
-                    val modelPath = LocalSettings.customModelPath
+                    // 模型兜底（2026-09-27）：用户删除/换模型后旧路径会指向不存在的文件，
+                    // 导致自动加载直接失败。这里回落到模型目录下的默认 4B（日常最快最稳）。
+                    val configured = LocalSettings.customModelPath
+                    val modelPath = if (configured.isNotBlank() && java.io.File(configured).exists()) {
+                        configured
+                    } else {
+                        val fallback = java.io.File(
+                            LocalSettings.modelsDir(this@EtaApp),
+                            LocalSettings.DEFAULT_GGUF_NAME,
+                        )
+                        if (fallback.exists()) {
+                            LocalSettings.customModelPath = fallback.absolutePath
+                            AndroidAgentLogger.info("原模型不可用，已回落到默认 4B：${fallback.name}")
+                            fallback.absolutePath
+                        } else {
+                            configured
+                        }
+                    }
                     if (modelPath.isNotBlank() && java.io.File(modelPath).exists()) {
                         // 自动加载 + 内存不足时温和重试（最多 5 次 × 30 秒）：开机/清理后台后系统
                         // 内存常被缓存占满，稍后释放即可加载成功——免去用户每次手动点击加载。

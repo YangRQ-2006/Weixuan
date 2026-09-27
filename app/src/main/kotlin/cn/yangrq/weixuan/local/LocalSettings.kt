@@ -105,6 +105,9 @@ object LocalSettings {
         get() = p.getString(KEY_CUSTOM_MODEL_PATH, "") ?: ""
         set(value) = p.edit().putString(KEY_CUSTOM_MODEL_PATH, value).apply()
 
+    /** 默认 GGUF 文件名：4B 在 NPU 上 1–2 秒响应，作为日常默认与失效兜底。 */
+    const val DEFAULT_GGUF_NAME = "Qwen3-4B-Q4_K_M.gguf"
+
     var customTokenizerPath: String
         get() = p.getString(KEY_CUSTOM_TOKENIZER_PATH, "") ?: ""
         set(value) = p.edit().putString(KEY_CUSTOM_TOKENIZER_PATH, value).apply()
