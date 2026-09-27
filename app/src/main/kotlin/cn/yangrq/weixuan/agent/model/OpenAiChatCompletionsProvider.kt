@@ -505,6 +505,10 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
             outputTokens?.let { json.put("output_tokens", it) }
             reasoningTokens?.let { json.put("reasoning_tokens", it) }
             cachedTokens?.let { json.put("cached_tokens", it) }
+            // 速度与首字延迟必须一并序列化：下游（AgentLoop → UI）正是从这里取值，
+            // 漏掉这两个字段会让界面永远显示不出 tok/s（2026-09-27 日志实证定位）。
+            tokensPerSecond?.let { json.put("tokens_per_second", it) }
+            ttftMs?.let { json.put("ttft_ms", it) }
         }
 
     private fun String.compactError(): String =

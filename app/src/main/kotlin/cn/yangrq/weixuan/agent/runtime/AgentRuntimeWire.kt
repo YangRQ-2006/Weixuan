@@ -906,12 +906,19 @@ internal object AgentRuntimeWire {
     private fun Bundle.optionalInt(key: String): Int? =
         if (containsKey(key)) getInt(key) else null
 
+    private fun Bundle.optionalDouble(key: String): Double? =
+        if (containsKey(key)) getDouble(key) else null
+
     private fun Bundle.putTokenUsage(usage: AgentTokenUsage) {
         usage.contextTokens?.let { putInt("usage_context", it) }
         usage.inputTokens?.let { putInt("usage_input", it) }
         usage.outputTokens?.let { putInt("usage_output", it) }
         usage.reasoningTokens?.let { putInt("usage_reasoning", it) }
         usage.cachedTokens?.let { putInt("usage_cache", it) }
+        // 速度与首字延迟：Agent 事件经 Bundle 跨进程传递，漏传则 UI 永远看不到 tok/s
+        //（2026-09-27 日志 "UI usage: speed=null" 即由此而来）
+        usage.tokensPerSecond?.let { putDouble("usage_speed", it) }
+        usage.ttftMs?.let { putDouble("usage_ttft", it) }
     }
 
     private fun Bundle.getTokenUsage(): AgentTokenUsage =
@@ -921,6 +928,8 @@ internal object AgentRuntimeWire {
             outputTokens = optionalInt("usage_output"),
             reasoningTokens = optionalInt("usage_reasoning"),
             cachedTokens = optionalInt("usage_cache"),
+            tokensPerSecond = optionalDouble("usage_speed"),
+            ttftMs = optionalDouble("usage_ttft"),
         )
 
     private fun decodeCustomHeaders(raw: String?): List<CustomHeader> =
