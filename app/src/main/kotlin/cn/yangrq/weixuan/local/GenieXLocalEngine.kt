@@ -89,8 +89,23 @@ object GenieXLocalEngine : LocalChatEngine {
                 runCatching {
                     val libDir = app.applicationInfo.nativeLibraryDir
                     val old = System.getenv("ADSP_LIBRARY_PATH").orEmpty()
-                    val merged = if (old.isBlank()) libDir else "$libDir:$old"
+                    // 同时并入 /vendor/lib64：QNN 的 DSP/HIDL 依赖（如
+                    // vendor.qti.hardware.dsp@1.0.so）应由系统提供，不能由 App 自带副本
+                    // （自带副本会因 libc++ ABI 差异报 cannot locate symbol）。
+                    val merged = if (old.isBlank()) {
+                        "$libDir:/vendor/lib64"
+                    } else {
+                        "$libDir:/vendor/lib64:$old"
+                    }
                     android.system.Os.setenv("ADSP_LIBRARY_PATH", merged, true)
+                }
+                // 预加载 Qualcomm DSP HIDL 库（2026-09-28 实测定案）：
+                // 系统原始文件名是 vendor.qti.hardware.dsp@1.0.so（不以 lib 开头），
+                // AGP 不会把它打进 APK；故以 lib 名打包（libqti_dsp_v1.so）并用 patchelf
+                // 把 SONAME 改回原名，这里显式 loadLibrary 让 bionic 记住该 SONAME——
+                // 之后 QNN 内部 dlopen("vendor.qti.hardware.dsp@1.0.so") 才能按 soname 命中。
+                listOf("qti_dsp_v1", "qti_dsp_v1_ndk").forEach { n ->
+                    runCatching { System.loadLibrary(n) }
                 }
                 GenieXSdk.getInstance().init(
                     app,
