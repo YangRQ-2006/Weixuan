@@ -91,65 +91,43 @@ object LlamaServerProcess {
 
     fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 6144): Boolean {
         if (isRunning()) return true
-        // 动态窗口：按当前可用内存自适应——内存充足时给"完整工具 schema"留空间（Agent 多步
-        // 规划依赖完整描述），内存紧张时自动降级以避免请求超窗（HTTP 400）。
-        val preAvailMb = runCatching {
-            File("/proc/meminfo").readLines()
-                .firstOrNull { it.startsWith("MemAvailable") }
-                ?.filter { it.isDigit() }?.toInt()?.div(1024)
-                ?: 0
-        }.getOrDefault(0)
-        // 动态窗口（2026-09-27 修订）：首要目标是「装得下 Agent 的完整 prompt」——system +
-        // 31 工具 schema + 历史，实测 3.2k–6k tokens。窗口小于 prompt 会直接 HTTP 400
-        // 「request exceeds the available context size」（2026-09-27 实测：窗口 2816 时
-        // 3213 tokens 的请求被拒）。因此按可用内存给尽量大的窗口，内存缺口交给后续
-        // 「分层内存整理 + 预检」处理，而不是靠压缩窗口。
-        val ctx = when {
-            preAvailMb >= 5200 -> 6144   // 完整 Agent（含长历史）
-            preAvailMb >= 4000 -> 5120
-            preAvailMb >= 3100 -> 4096   // Agent 常规 prompt 的最小安全值
-            else -> 3584                 // 极端紧张时才降级
+        // ── 顺序修正（2026-09-28）───────────────────────────────────────────────
+        // 原先先按"整理前"的可用内存决定 KV 类型，导致明明能通过温和整理腾出内存、
+        // 却误选 q8_0 —— 而 HTP 上 q8_0 KV 的逐行反量化正是长上下文 decode 的主要瓶颈
+        // （实测 3.1k 上下文：q8_0 4.4 tok/s vs f16 11.2 tok/s）。
+        // 现改为：先 System.gc + 温和整理，再用整理后的真实可用内存做决策。
+        System.gc()
+        if (readAvailMb() in 1 until 6200) {
+            releaseExpendableProcesses()
         }
-        Log.i(TAG, "动态窗口：可用 ${preAvailMb}MB → n_ctx=$ctx")
+        val availMb = readAvailMb()
+
         val bin = File(context.applicationInfo.nativeLibraryDir, "libllama-server.so")
         if (!bin.exists()) {
             Log.e(TAG, "llama-server 二进制不存在：${bin.absolutePath}")
             return false
         }
-        // 内存预检（2026-09-25 事故教训 + MoE 支持）：
-        // - dense 模型：mmap 不减少推理总内存需求——推理必然读入全部权重页 → 按文件全量估算；
-        // - MoE 模型（文件名含 "-A#B"，如 Qwen3-30B-A3B）：每 token 仅激活少数专家，
-        //   推理只读激活专家的权重页 → 按激活参数量估算（而非 17GB 文件全量）。
+        // 内存估算：dense 按文件全量（mmap 不减少推理总需求）；MoE（文件名含 -A#B）按激活参数量。
         val modelFile = File(modelPath)
         val fileMb = (modelFile.length() / 1024 / 1024).toInt()
         val moeActivatedB = Regex("""-A(\d+)B""").find(modelFile.name)?.groupValues?.get(1)?.toIntOrNull()
         val residentMb = if (moeActivatedB != null) moeActivatedB * 600 else fileMb
-        val availMb = runCatching {
-            File("/proc/meminfo").readLines()
-                .firstOrNull { it.startsWith("MemAvailable") }
-                ?.filter { it.isDigit() }?.toInt()?.div(1024)
-                ?: 0
-        }.getOrDefault(0)
-        // KV 类型自适应（2026-09-27 实测）：f16 消除 HTP 上 q8_0 KV 的逐行反量化开销
-        // （长上下文 decode 4.4→11.2 tok/s），但 KV 内存 ×2。按可用内存自动取舍——内存
-        // 不足时退回 q8_0，避免加载被拒 → Agent 反复"模型请求重试"（2026-09-27 案例：
-        // 可用 2193MB 时 f16 需 4.9GB 加载失败）。
-        val kvType = if (availMb >= 5000) "f16" else "q8_0"
-        val kvMb = (ctx * (if (kvType == "f16") 0.6 else 0.3)).toInt()
-        // 注：投机解码实测在 Hexagon NPU 上无收益（decode 11.0 vs 12.0 持平、prefill 腰斩），
-        // 已禁用；故不再计入 draft 模型内存。此前残留的 +380MB 会让预检虚高，
-        // 在可用 3.1-3.5GB 时错误地拒绝加载（2026-09-27 实测案例）。
-        val needMb = residentMb + kvMb + 32
-        Log.i(TAG, "KV 自适应：可用 ${availMb}MB → $kvType（KV ${kvMb}MB）")
-        // 先尽力释放自家资源（System.gc；不触碰用户后台应用）
-        val kind = if (moeActivatedB != null) "MoE(激活 ${moeActivatedB}B->${residentMb}MB)" else "dense(全量 ${fileMb}MB)"
-        System.gc()
-        // 加载前总是先做一次温和整理（2026-09-27 实测定案）：即便预检通过，后台 App 的
-        // 附属进程也会让模型加载后可用内存骤降、系统换页变卡（实测释放后 1292→4318MB）。
-        // 只结束可重建的附属进程，不触碰任何 App 主体。
-        if (availMb in 1 until 4500) {
-            releaseExpendableProcesses()
+
+        // 窗口 + KV 联合决策：**优先 f16 KV（速度优先）**，在满足内存前提下尽量给大窗口。
+        // 窗口需装得下 Agent prompt（system + 工具 schema + 历史，实测 3.2k~6k tokens）。
+        val ctx: Int
+        val kvType: String
+        when {
+            availMb >= 6200 -> { ctx = 6144; kvType = "f16" }  // KV ~3686MB
+            availMb >= 5000 -> { ctx = 4096; kvType = "f16" }  // KV ~2458MB
+            availMb >= 4000 -> { ctx = 4096; kvType = "q8_0" } // KV ~1229MB
+            else            -> { ctx = 3584; kvType = "q8_0" } // KV ~1075MB
         }
+        val kvMb = (ctx * (if (kvType == "f16") 0.6 else 0.3)).toInt()
+        val needMb = residentMb + kvMb + 32
+        val kind = if (moeActivatedB != null) "MoE(激活 ${moeActivatedB}B->${residentMb}MB)" else "dense(全量 ${fileMb}MB)"
+        Log.i(TAG, "窗口/KV 决策：可用 ${availMb}MB → n_ctx=$ctx, kv=$kvType（KV ${kvMb}MB, 需 ${needMb}MB）")
+
         if (availMb in 1 until needMb) {
             // 温和内存整理（2026-09-27 实测定案）：只结束「附属进程」——小程序运行时
             // （:appbrand/:miniapp）与 WebView/浏览器内核（:xweb/:sandbox）。这些是随时
