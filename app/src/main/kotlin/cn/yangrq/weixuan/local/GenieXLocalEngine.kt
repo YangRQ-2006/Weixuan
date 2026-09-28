@@ -82,6 +82,16 @@ object GenieXLocalEngine : LocalChatEngine {
         val app = context.applicationContext
         return suspendCancellableCoroutine { continuation ->
             try {
+                // QNN/FastRPC 的 DSP 侧库（libQnnHtpV81Skel.so）需要由 ADSP_LIBRARY_PATH
+                // 指定搜索路径；App 的 native 库都在 nativeLibraryDir，故并入其中。
+                // 未设置时 QnnDevice_create 会失败（status 0x36b1），表现为
+                // "LLMPipeline: model initialize() failed"（2026-09-28 实测定案）。
+                runCatching {
+                    val libDir = app.applicationInfo.nativeLibraryDir
+                    val old = System.getenv("ADSP_LIBRARY_PATH").orEmpty()
+                    val merged = if (old.isBlank()) libDir else "$libDir:$old"
+                    android.system.Os.setenv("ADSP_LIBRARY_PATH", merged, true)
+                }
                 GenieXSdk.getInstance().init(
                     app,
                     object : GenieXSdk.InitCallback {
