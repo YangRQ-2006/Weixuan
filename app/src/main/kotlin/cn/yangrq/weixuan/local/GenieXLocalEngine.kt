@@ -252,12 +252,14 @@ object GenieXLocalEngine : LocalChatEngine {
         // 温控按用户要求解除拦截（2026-09-25）：仅记录温度供观测，不再拒绝加载。
         // 防卡死核心防线保留：内存边界、重试上限、冷却期、前台租约。
         Log.i(TAG, "加载前热状态：电池 ${guard.batteryTempC(context)}°C（温控仅提示，不拦截）")
-        // 安全边界二：冷却期（加载失败后 3 分钟内禁止重试，防反复大分配压垮系统）
+        // 冷却期（2026-09-28 调整）：调试期需频繁重试，从 180s 收敛到 3s——
+        // 只保留"防连点"的最小间隔，不再有分钟级等待。
+        // 内存边界（安全边界三）保持不变：它是防系统卡死的物理保护，去掉会重演卡死事故。
         val nowMs = android.os.SystemClock.elapsedRealtime()
         val lastFail = lastLoadFailureAt
-        if (lastFail > 0 && nowMs - lastFail < 180_000) {
-            val waitSec = (180_000 - (nowMs - lastFail)) / 1000
-            val message = "上次加载失败，冷却中（${waitSec}s 后可再试；安全边界防反复分配）"
+        if (lastFail > 0 && nowMs - lastFail < 3_000) {
+            val waitSec = (3_000 - (nowMs - lastFail)) / 1000 + 1
+            val message = "刚刚加载失败，请稍候 ${waitSec}s 再试"
             return Result.failure(IllegalStateException(message))
         }
         // 安全边界三：内存（SDK 为大块预分配，须留足全量×1.2+1GB，宁可拒绝不可冒险）

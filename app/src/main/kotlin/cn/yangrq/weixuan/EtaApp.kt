@@ -107,20 +107,21 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
                         }
                     }
                     if (modelPath.isNotBlank() && java.io.File(modelPath).exists()) {
-                        // 自动加载 + 内存不足时温和重试（最多 5 次 × 30 秒）：开机/清理后台后系统
-                        // 内存常被缓存占满，稍后释放即可加载成功——免去用户每次手动点击加载。
+                        // 自动加载重试（2026-09-28 调整）：从 5 次 × 30 秒收敛到 3 次 × 5 秒。
+                        // 原设计为"等系统回收内存后自行成功"，但 150 秒的等待对调试/日常都太久；
+                        // 内存不足时应由用户清理后台（日志仍会明确提示）。
                         var ok = cn.yangrq.weixuan.local.LlamaServerProcess.start(
                             this@EtaApp,
                             modelPath,
                             cn.yangrq.weixuan.local.LocalSettings.DEFAULT_PORT,
                         )
                         var attempt = 0
-                        while (!ok && attempt < 5) {
+                        while (!ok && attempt < 3) {
                             attempt++
                             AndroidAgentLogger.info(
-                                "自建 runtime 暂未就绪（多为内存不足），30 秒后自动重试 $attempt/5",
+                                "自建 runtime 暂未就绪（多为内存不足），5 秒后自动重试 $attempt/3",
                             )
-                            kotlinx.coroutines.delay(30_000)
+                            kotlinx.coroutines.delay(5_000)
                             if (cn.yangrq.weixuan.local.LlamaServerProcess.isRunning()) {
                                 ok = true
                                 break
