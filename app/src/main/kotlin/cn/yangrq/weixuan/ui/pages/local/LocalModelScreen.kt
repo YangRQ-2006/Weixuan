@@ -235,9 +235,14 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                             // 而模型名注册链路要求先经 pullFlow 下载，手动放置的 bundle 不在
                             // 注册表中 → 因此报「模型未安装」。
                             LocalSettings.modelName = qairtBundleDir
+                            // 关键（源码级，2026-09-27）：QAIRT 插件把 model_path 当「文件」处理，
+                            // 随后取 parent_path() 作为模型目录（sdk/plugins/qairt/src/llm.cpp:59-61）。
+                            // 因此必须传入 bundle 目录内的真实文件（这里用 genie_config.json），
+                            // 否则 parent_path() 会落到上一层目录 → File not found or inaccessible。
                             val dir = java.io.File(LocalSettings.modelsDir(appContext), qairtBundleDir)
+                            val cfg = java.io.File(dir, "genie_config.json")
                             LocalSettings.customModelPath =
-                                if (dir.isDirectory) dir.absolutePath else ""
+                                if (cfg.isFile) cfg.absolutePath else ""
                             message = if (dir.isDirectory) {
                                 "已切到 QAIRT（Qwen3-4B w4a16 · NPU 峰值），点「加载模型」生效"
                             } else {
