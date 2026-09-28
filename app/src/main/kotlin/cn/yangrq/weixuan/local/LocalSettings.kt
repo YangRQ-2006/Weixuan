@@ -22,6 +22,7 @@ object LocalSettings {
     const val KEY_SELF_BUILT = "self_built_engine"
     const val KEY_BMOE_ENGINE = "bmoe_moe_engine"
     const val KEY_QAIRT_BUNDLE = "qairt_bundle_enabled"
+    const val KEY_GENIEX_LLAMA = "geniex_llama_enabled"
     const val KEY_CUSTOM_MODEL_PATH = "custom_model_path"
     const val KEY_CUSTOM_TOKENIZER_PATH = "custom_tokenizer_path"
 
@@ -105,6 +106,11 @@ object LocalSettings {
      * QAIRT 预编译 bundle 模式（2026-09-27）：主模型选中 AI Hub 的 Qwen3-4B w4a16 时置真，
      * 表示走 GenieX 的 QAIRT（NPU-only）路径，而非自建 llama.cpp。
      */
+    /** GenieX llama.cpp 模式（2026-09-28）：本地 GGUF 走 GenieX 的 llama.cpp 插件。 */
+    var geniexLlamaEnabled: Boolean
+        get() = p.getBoolean(KEY_GENIEX_LLAMA, false)
+        set(value) = p.edit().putBoolean(KEY_GENIEX_LLAMA, value).apply()
+
     var qairtBundleEnabled: Boolean
         get() = p.getBoolean(KEY_QAIRT_BUNDLE, false)
         set(value) = p.edit().putBoolean(KEY_QAIRT_BUNDLE, value).apply()

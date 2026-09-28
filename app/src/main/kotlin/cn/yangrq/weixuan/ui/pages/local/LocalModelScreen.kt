@@ -182,14 +182,19 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
     val fileOptions = catalogFiles.map { "${it.nameWithoutExtension}（${it.length() / 1048576}MB）" }
     // 选项布局：[0] GenieX 模型中心 · X  [1] QAIRT 预编译 bundle  [2..] 本地 .gguf
     val qairtOption = "QAIRT · Qwen3-4B w4a16（AI Hub 预编译 · NPU 峰值）"
+    // GenieX 的 llama.cpp 插件：吃 GGUF，无 QAIRT 那套 HIDL/DSP 依赖链，
+    // 但同样跑在 GenieX 的优化 runtime 上（可作为速度备选路径）。
+    val geniexLlamaOption = "GenieX llama.cpp · GGUF 通用路径"
     // 已部署的 AI Hub bundle 目录名。GenieX 的 ModelManagerWrapper 按「模型名」查找，
     // 名字必须与 files/models/ 下的实际目录名一致，否则报「模型未安装」。
     val qairtBundleDir = "qwen3_4b-genie-w4a16-qualcomm_snapdragon_8_elite_gen5_for_galaxy"
-    val mainItems = listOf("GenieX 模型中心 · $centerModel", qairtOption) + fileOptions
+    // 布局：[0] GenieX 模型中心 [1] QAIRT bundle [2] GenieX llama.cpp(GGUF) [3..] 本地文件
+    val mainItems = listOf("GenieX 模型中心 · $centerModel", qairtOption, geniexLlamaOption) + fileOptions
     val mainIndex = when {
         LocalSettings.qairtBundleEnabled -> 1
+        LocalSettings.geniexLlamaEnabled -> 2
         mainPath.isNotBlank() ->
-            (catalogFiles.indexOfFirst { it.absolutePath == mainPath } + 2).coerceAtLeast(0)
+            (catalogFiles.indexOfFirst { it.absolutePath == mainPath } + 3).coerceAtLeast(0)
         else -> 0
     }
     val draftItems = listOf(
@@ -248,9 +253,24 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                             } else {
                                 "未找到已部署的 QAIRT bundle（请先完成一次 AI Hub 拉取）"
                             }
-                        } else {
-                            val picked = catalogFiles.getOrNull(idx - 2)
+                        } else if (idx == 2) {
+                            // GenieX llama.cpp：本地 GGUF 走 GenieX 的 llama.cpp 插件
                             LocalSettings.qairtBundleEnabled = false
+                            LocalSettings.geniexLlamaEnabled = true
+                            LocalSettings.useSelfBuiltEngine = false
+                            selfBuiltOn = false
+                            if (mainPath.isBlank()) {
+                                val g = catalogFiles.firstOrNull { it.name.contains("4B", true) }
+                                    ?: catalogFiles.firstOrNull()
+                                mainPath = g?.absolutePath ?: ""
+                                LocalSettings.customModelPath = mainPath
+                            }
+                            val n = if (mainPath.isBlank()) "未选文件" else java.io.File(mainPath).name
+                            message = "已切到 GenieX llama.cpp（GGUF：$n），点「加载模型」生效"
+                        } else {
+                            val picked = catalogFiles.getOrNull(idx - 3)
+                            LocalSettings.qairtBundleEnabled = false
+                            LocalSettings.geniexLlamaEnabled = false
                             mainPath = picked?.absolutePath ?: ""
                             LocalSettings.customModelPath = mainPath
                             message = if (picked != null) {

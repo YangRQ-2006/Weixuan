@@ -302,7 +302,7 @@ object GenieXLocalEngine : LocalChatEngine {
             message = "正在加载模型（首次加载较慢）…",
         )
         val draftPath = resolveDraftModelPath(target)
-        val isQairtBundleEarly = LocalSettings.qairtBundleEnabled ||
+        val isQairtBundleEarly = (LocalSettings.qairtBundleEnabled && !LocalSettings.geniexLlamaEnabled) ||
             resolved.modelPath.contains("genie_config", true) ||
             resolved.modelPath.contains("w4a16", true) ||
             resolved.key.contains("w4a16", true)
@@ -336,7 +336,9 @@ object GenieXLocalEngine : LocalChatEngine {
             // runtime 自动路由（2026-09-27）：Qualcomm AI Hub 的预编译 bundle
             // （含 genie_config.json / part*_of_*.bin，精度 w4a16）以 QAIRT 在 NPU 上
             // NPU-only 执行——这是官方峰值性能路径；GGUF 仍走 llama.cpp（通用路径）。
-            val isPrecompiledBundle = isQairtBundleEarly
+            // GenieX llama.cpp 模式（geniexLlamaEnabled）时强制走 llama_cpp 插件，
+            // 即使模型路径看起来像 bundle。
+            val isPrecompiledBundle = isQairtBundleEarly && !LocalSettings.geniexLlamaEnabled
             val input = LlmCreateInput(
                 model_path = resolved.modelPath,
                 tokenizer_path = resolved.tokenizerPath,
