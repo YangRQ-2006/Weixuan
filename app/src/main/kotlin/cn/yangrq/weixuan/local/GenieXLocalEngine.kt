@@ -628,8 +628,16 @@ object GenieXLocalEngine : LocalChatEngine {
     private suspend fun resolveModel(target: String): ResolvedModel? {
         val customPath = LocalSettings.customModelPath
         if (customPath.isNotBlank()) {
-            val file = File(customPath)
+            var file = File(customPath)
             if (!file.exists()) return null
+            // QAIRT bundle 兼容（2026-09-28，源码级）：qairt 插件把 model_path 当「文件」处理，
+            // 再取 parent_path() 作为模型目录（sdk/plugins/qairt/src/llm.cpp:59-61）。若配置给的是
+            // 目录（旧配置或用户手选），这里自动改指目录内的 genie_config.json，
+            // 使 parent_path() 恰好等于 bundle 目录 → 不再报 File not found。
+            if (file.isDirectory) {
+                val cfg = File(file, "genie_config.json")
+                if (cfg.isFile) file = cfg
+            }
             val tokenizer = LocalSettings.customTokenizerPath.takeIf { it.isNotBlank() }
             return ResolvedModel(
                 modelPath = file.absolutePath,
