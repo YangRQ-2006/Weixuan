@@ -23,7 +23,7 @@ object LocalSettings {
     const val KEY_BMOE_ENGINE = "bmoe_moe_engine"
     const val KEY_QAIRT_BUNDLE = "qairt_bundle_enabled"
     const val KEY_GENIEX_LLAMA = "geniex_llama_enabled"
-    const val KEY_QAIRT_REVERTED = "qairt_reverted_v1"
+    const val KEY_QAIRT_REVERTED = "qairt_reverted_v2"
     const val KEY_CUSTOM_MODEL_PATH = "custom_model_path"
     const val KEY_CUSTOM_TOKENIZER_PATH = "custom_tokenizer_path"
 
@@ -46,12 +46,36 @@ object LocalSettings {
         runCatching {
             val sp = prefs ?: return@runCatching
             if (!sp.getBoolean(KEY_QAIRT_REVERTED, false)) {
+                // ① 清掉 QAIRT/GenieX 选中状态，恢复自建引擎
                 sp.edit()
                     .putBoolean(KEY_QAIRT_BUNDLE, false)
                     .putBoolean(KEY_GENIEX_LLAMA, false)
                     .putBoolean(KEY_SELF_BUILT, true)
                     .putBoolean(KEY_QAIRT_REVERTED, true)
                     .apply()
+                // ② 修正被 QAIRT 试验改坏的模型路径：测试期曾把 customModelPath 指向
+                //    bundle 内的 genie_config.json（该 bundle 已随试验数据删除）。
+                //    若路径已失效或指向 bundle 配置，回退为已下载的 4B GGUF。
+                val cmp = sp.getString(KEY_CUSTOM_MODEL_PATH, "").orEmpty()
+                val invalid = cmp.isNotBlank() && (
+                    cmp.endsWith("genie_config.json") ||
+                        cmp.contains("qwen3_4b-genie") ||
+                        !java.io.File(cmp).exists()
+                    )
+                if (invalid) {
+                    val dir = java.io.File(
+                        context.getExternalFilesDir(null) ?: context.filesDir,
+                        "models",
+                    )
+                    val fallback = java.io.File(dir, DEFAULT_GGUF_NAME)
+                    val target = when {
+                        fallback.isFile -> fallback.absolutePath
+                        else -> dir.listFiles()?.firstOrNull {
+                            it.isFile && it.name.endsWith(".gguf") && it.length() > 0
+                        }?.absolutePath.orEmpty()
+                    }
+                    sp.edit().putString(KEY_CUSTOM_MODEL_PATH, target).apply()
+                }
             }
         }
     }
