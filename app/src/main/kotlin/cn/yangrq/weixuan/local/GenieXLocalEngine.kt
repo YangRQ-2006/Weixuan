@@ -99,14 +99,10 @@ object GenieXLocalEngine : LocalChatEngine {
                     }
                     android.system.Os.setenv("ADSP_LIBRARY_PATH", merged, true)
                 }
-                // 预加载 Qualcomm DSP HIDL 库（2026-09-28 实测定案）：
-                // 系统原始文件名是 vendor.qti.hardware.dsp@1.0.so（不以 lib 开头），
-                // AGP 不会把它打进 APK；故以 lib 名打包（libqti_dsp_v1.so）并用 patchelf
-                // 把 SONAME 改回原名，这里显式 loadLibrary 让 bionic 记住该 SONAME——
-                // 之后 QNN 内部 dlopen("vendor.qti.hardware.dsp@1.0.so") 才能按 soname 命中。
-                listOf("qti_dsp_v1", "qti_dsp_v1_ndk").forEach { n ->
-                    runCatching { System.loadLibrary(n) }
-                }
+                // 注：libcdsprpc/libadsprpc 是 vendor 公开库（在 public.libraries.txt 中），
+                // 由 linker 从 /vendor 解析（连带其 HIDL 依赖也走 vendor namespace）。
+                // 早期版本曾把它们连同 libhidlbase 等拷进 APK，反而破坏 namespace 一致性，
+                // 引发一连串 libhidlbase/libhardware/dl-android missing —— 已全部移除。
                 GenieXSdk.getInstance().init(
                     app,
                     object : GenieXSdk.InitCallback {
