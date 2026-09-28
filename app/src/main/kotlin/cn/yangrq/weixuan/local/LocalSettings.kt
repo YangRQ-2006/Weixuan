@@ -23,6 +23,7 @@ object LocalSettings {
     const val KEY_BMOE_ENGINE = "bmoe_moe_engine"
     const val KEY_QAIRT_BUNDLE = "qairt_bundle_enabled"
     const val KEY_GENIEX_LLAMA = "geniex_llama_enabled"
+    const val KEY_QAIRT_REVERTED = "qairt_reverted_v1"
     const val KEY_CUSTOM_MODEL_PATH = "custom_model_path"
     const val KEY_CUSTOM_TOKENIZER_PATH = "custom_tokenizer_path"
 
@@ -38,6 +39,20 @@ object LocalSettings {
     fun init(context: Context) {
         if (prefs == null) {
             prefs = context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        }
+        // 一次性回退（2026-09-28）：QAIRT/GenieX 路线在非系统 App 上依赖链过深且有原生
+        // 崩溃风险（JNI GetIntField 类型错误 -> SIGABRT），已放弃。此处强制恢复自建
+        // llama.cpp 引擎，避免用户此前测试残留的 QAIRT 选中状态在开机自动加载时再次崩溃。
+        runCatching {
+            val sp = prefs ?: return@runCatching
+            if (!sp.getBoolean(KEY_QAIRT_REVERTED, false)) {
+                sp.edit()
+                    .putBoolean(KEY_QAIRT_BUNDLE, false)
+                    .putBoolean(KEY_GENIEX_LLAMA, false)
+                    .putBoolean(KEY_SELF_BUILT, true)
+                    .putBoolean(KEY_QAIRT_REVERTED, true)
+                    .apply()
+            }
         }
     }
 

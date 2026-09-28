@@ -180,23 +180,11 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
 
     // ── 选择器数据：主模型 / 草稿模型 ─────────────────────────────────
     val fileOptions = catalogFiles.map { "${it.nameWithoutExtension}（${it.length() / 1048576}MB）" }
-    // 选项布局：[0] GenieX 模型中心 · X  [1] QAIRT 预编译 bundle  [2..] 本地 .gguf
-    val qairtOption = "QAIRT · Qwen3-4B w4a16（AI Hub 预编译 · NPU 峰值）"
-    // GenieX 的 llama.cpp 插件：吃 GGUF，无 QAIRT 那套 HIDL/DSP 依赖链，
-    // 但同样跑在 GenieX 的优化 runtime 上（可作为速度备选路径）。
-    val geniexLlamaOption = "GenieX llama.cpp · GGUF 通用路径"
-    // 已部署的 AI Hub bundle 目录名。GenieX 的 ModelManagerWrapper 按「模型名」查找，
-    // 名字必须与 files/models/ 下的实际目录名一致，否则报「模型未安装」。
-    val qairtBundleDir = "qwen3_4b-genie-w4a16-qualcomm_snapdragon_8_elite_gen5_for_galaxy"
-    // 布局：[0] GenieX 模型中心 [1] QAIRT bundle [2] GenieX llama.cpp(GGUF) [3..] 本地文件
-    val mainItems = listOf("GenieX 模型中心 · $centerModel", qairtOption, geniexLlamaOption) + fileOptions
-    val mainIndex = when {
-        LocalSettings.qairtBundleEnabled -> 1
-        LocalSettings.geniexLlamaEnabled -> 2
-        mainPath.isNotBlank() ->
-            (catalogFiles.indexOfFirst { it.absolutePath == mainPath } + 3).coerceAtLeast(0)
-        else -> 0
-    }
+    // 注：曾于 2026-09-28 试验 QAIRT(AI Hub 预编译 bundle) 与 GenieX llama.cpp 两条路径，
+    // 因依赖链过深且触发原生崩溃（JNI GetIntField 类型错误 -> SIGABRT）已全部移除，
+    // 回到自建 llama.cpp 引擎（稳定 10+ tok/s）。
+    val mainItems = listOf("GenieX 模型中心 · $centerModel") + fileOptions
+    val mainIndex = (catalogFiles.indexOfFirst { it.absolutePath == mainPath } + 1).coerceAtLeast(0)
     val draftItems = listOf(
         "不使用草稿模型",
         "自动 · ${LocalPerfTuner.DRAFT_MODEL_NAME}（模型中心）",
@@ -228,56 +216,13 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                         EtaPreferenceIcon(icon = Icons.Rounded.Memory, tint = EtaPreferenceColors.Blue)
                     },
                     onSelectedIndexChange = { idx ->
-                        if (idx == 1) {
-                            // QAIRT 预编译 bundle：关自建引擎，交给 GenieX 走 NPU 峰值路径
-                            LocalSettings.qairtBundleEnabled = true
-                            LocalSettings.useSelfBuiltEngine = false
-                            selfBuiltOn = false
-                            mainPath = ""
-                            // 关键：改走 resolveModel 的「自定义路径」分支（直接给路径，
-                            // 不经 ModelManagerWrapper 的注册表）。native 库支持"含
-                            // metadata.json + *.bin 的目录"这一布局，正是 AI Hub bundle 的形态；
-                            // 而模型名注册链路要求先经 pullFlow 下载，手动放置的 bundle 不在
-                            // 注册表中 → 因此报「模型未安装」。
-                            LocalSettings.modelName = qairtBundleDir
-                            // 关键（源码级，2026-09-27）：QAIRT 插件把 model_path 当「文件」处理，
-                            // 随后取 parent_path() 作为模型目录（sdk/plugins/qairt/src/llm.cpp:59-61）。
-                            // 因此必须传入 bundle 目录内的真实文件（这里用 genie_config.json），
-                            // 否则 parent_path() 会落到上一层目录 → File not found or inaccessible。
-                            val dir = java.io.File(LocalSettings.modelsDir(appContext), qairtBundleDir)
-                            val cfg = java.io.File(dir, "genie_config.json")
-                            LocalSettings.customModelPath =
-                                if (cfg.isFile) cfg.absolutePath else ""
-                            message = if (dir.isDirectory) {
-                                "已切到 QAIRT（Qwen3-4B w4a16 · NPU 峰值），点「加载模型」生效"
-                            } else {
-                                "未找到已部署的 QAIRT bundle（请先完成一次 AI Hub 拉取）"
-                            }
-                        } else if (idx == 2) {
-                            // GenieX llama.cpp：本地 GGUF 走 GenieX 的 llama.cpp 插件
-                            LocalSettings.qairtBundleEnabled = false
-                            LocalSettings.geniexLlamaEnabled = true
-                            LocalSettings.useSelfBuiltEngine = false
-                            selfBuiltOn = false
-                            if (mainPath.isBlank()) {
-                                val g = catalogFiles.firstOrNull { it.name.contains("4B", true) }
-                                    ?: catalogFiles.firstOrNull()
-                                mainPath = g?.absolutePath ?: ""
-                                LocalSettings.customModelPath = mainPath
-                            }
-                            val n = if (mainPath.isBlank()) "未选文件" else java.io.File(mainPath).name
-                            message = "已切到 GenieX llama.cpp（GGUF：$n），点「加载模型」生效"
+                        val picked = catalogFiles.getOrNull(idx - 1)
+                        mainPath = picked?.absolutePath ?: ""
+                        LocalSettings.customModelPath = mainPath
+                        message = if (picked != null) {
+                            "主模型已设为 ${picked.name}，点「加载模型」生效"
                         } else {
-                            val picked = catalogFiles.getOrNull(idx - 3)
-                            LocalSettings.qairtBundleEnabled = false
-                            LocalSettings.geniexLlamaEnabled = false
-                            mainPath = picked?.absolutePath ?: ""
-                            LocalSettings.customModelPath = mainPath
-                            message = if (picked != null) {
-                                "主模型已设为 ${picked.name}，点「加载模型」生效"
-                            } else {
-                                "主模型改用 GenieX 模型中心（$centerModel）"
-                            }
+                            "主模型改用 GenieX 模型中心（$centerModel）"
                         }
                     },
                 )

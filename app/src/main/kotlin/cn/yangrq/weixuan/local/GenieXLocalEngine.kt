@@ -82,27 +82,6 @@ object GenieXLocalEngine : LocalChatEngine {
         val app = context.applicationContext
         return suspendCancellableCoroutine { continuation ->
             try {
-                // QNN/FastRPC 的 DSP 侧库（libQnnHtpV81Skel.so）需要由 ADSP_LIBRARY_PATH
-                // 指定搜索路径；App 的 native 库都在 nativeLibraryDir，故并入其中。
-                // 未设置时 QnnDevice_create 会失败（status 0x36b1），表现为
-                // "LLMPipeline: model initialize() failed"（2026-09-28 实测定案）。
-                runCatching {
-                    val libDir = app.applicationInfo.nativeLibraryDir
-                    val old = System.getenv("ADSP_LIBRARY_PATH").orEmpty()
-                    // 同时并入 /vendor/lib64：QNN 的 DSP/HIDL 依赖（如
-                    // vendor.qti.hardware.dsp@1.0.so）应由系统提供，不能由 App 自带副本
-                    // （自带副本会因 libc++ ABI 差异报 cannot locate symbol）。
-                    val merged = if (old.isBlank()) {
-                        "$libDir:/vendor/lib64"
-                    } else {
-                        "$libDir:/vendor/lib64:$old"
-                    }
-                    android.system.Os.setenv("ADSP_LIBRARY_PATH", merged, true)
-                }
-                // 注：libcdsprpc/libadsprpc 是 vendor 公开库（在 public.libraries.txt 中），
-                // 由 linker 从 /vendor 解析（连带其 HIDL 依赖也走 vendor namespace）。
-                // 早期版本曾把它们连同 libhidlbase 等拷进 APK，反而破坏 namespace 一致性，
-                // 引发一连串 libhidlbase/libhardware/dl-android missing —— 已全部移除。
                 GenieXSdk.getInstance().init(
                     app,
                     object : GenieXSdk.InitCallback {
@@ -166,14 +145,10 @@ object GenieXLocalEngine : LocalChatEngine {
         val context = appContext ?: return Result.failure(IllegalStateException("引擎未初始化"))
         initialize(context).onFailure { return Result.failure(it) }
         return try {
-            // Hub 自动路由（2026-09-27）：Qualcomm AI Hub 提供"按芯片预编译"的 bundle
-            // （精度形如 w4a16/w8a16，走 NPU-only 的 QAIRT 路径，追求峰值性能）；
-            // 其余精度（q4_0/q8_0 等 GGUF）走 HuggingFace。据此自动选源。
-            val isPrecompiled = Regex("^w\\d+a\\d+$").matches(precision.lowercase())
             val input = ModelPullInput(
                 model_name = name,
                 precision = precision,
-                hub = if (isPrecompiled) HubSource.AIHUB else HubSource.HUGGINGFACE,
+                hub = HubSource.HUGGINGFACE,
                 model_type = ModelType.LLM,
             )
             ModelManagerWrapper.pullFlow(input).collect { event ->
@@ -298,52 +273,27 @@ object GenieXLocalEngine : LocalChatEngine {
             message = "正在加载模型（首次加载较慢）…",
         )
         val draftPath = resolveDraftModelPath(target)
-        val isQairtBundleEarly = (LocalSettings.qairtBundleEnabled && !LocalSettings.geniexLlamaEnabled) ||
-            resolved.modelPath.contains("genie_config", true) ||
-            resolved.modelPath.contains("w4a16", true) ||
-            resolved.key.contains("w4a16", true)
-        val config = LocalPerfTuner.buildModelConfig(
-            guard,
-            draftPath,
-            estimateMb,
-            qairtBundle = isQairtBundleEarly,
-        )
-        // 预编译 bundle（AI Hub QAIRT）：其 genie_config.json 写死 QnnHtp 后端，插件只接受
-        // NPU 计算单元——传 HYBRID/CPU 会直接报 "Parameter not supported by this plugin"。
-        // 故此处提前判定，并让 units 只含 NPU。GGUF 仍按 hybrid→npu→cpu 逐级回退。
-        val units = if (isQairtBundleEarly) {
-            listOf(LocalPerfTuner.COMPUTE_UNIT_NPU)
-        } else {
-            when (LocalSettings.computeUnit) {
-                LocalPerfTuner.COMPUTE_UNIT_NPU -> listOf(
-                    LocalPerfTuner.COMPUTE_UNIT_NPU,
-                    LocalPerfTuner.COMPUTE_UNIT_CPU,
-                )
-                LocalPerfTuner.COMPUTE_UNIT_CPU -> listOf(LocalPerfTuner.COMPUTE_UNIT_CPU)
-                else -> listOf(
-                    LocalPerfTuner.COMPUTE_UNIT_HYBRID,
-                    LocalPerfTuner.COMPUTE_UNIT_NPU,
-                    LocalPerfTuner.COMPUTE_UNIT_CPU,
-                )
-            }
+        val config = LocalPerfTuner.buildModelConfig(guard, draftPath, estimateMb)
+        val units = when (LocalSettings.computeUnit) {
+            // npu 优先（实测最快），失败回退 cpu 保可用
+            LocalPerfTuner.COMPUTE_UNIT_NPU -> listOf(
+                LocalPerfTuner.COMPUTE_UNIT_NPU,
+                LocalPerfTuner.COMPUTE_UNIT_CPU,
+            )
+            LocalPerfTuner.COMPUTE_UNIT_CPU -> listOf(LocalPerfTuner.COMPUTE_UNIT_CPU)
+            else -> listOf(
+                LocalPerfTuner.COMPUTE_UNIT_HYBRID,
+                LocalPerfTuner.COMPUTE_UNIT_NPU,
+                LocalPerfTuner.COMPUTE_UNIT_CPU,
+            )
         }
         var lastError: Throwable? = null
         for (unit in units) {
-            // runtime 自动路由（2026-09-27）：Qualcomm AI Hub 的预编译 bundle
-            // （含 genie_config.json / part*_of_*.bin，精度 w4a16）以 QAIRT 在 NPU 上
-            // NPU-only 执行——这是官方峰值性能路径；GGUF 仍走 llama.cpp（通用路径）。
-            // GenieX llama.cpp 模式（geniexLlamaEnabled）时强制走 llama_cpp 插件，
-            // 即使模型路径看起来像 bundle。
-            val isPrecompiledBundle = isQairtBundleEarly && !LocalSettings.geniexLlamaEnabled
             val input = LlmCreateInput(
                 model_path = resolved.modelPath,
                 tokenizer_path = resolved.tokenizerPath,
                 config = config,
-                runtime_id = if (isPrecompiledBundle) {
-                    LocalPerfTuner.RUNTIME_QAIRT
-                } else {
-                    LocalPerfTuner.RUNTIME_LLAMA_CPP
-                },
+                runtime_id = LocalPerfTuner.RUNTIME_LLAMA_CPP,
                 compute_unit = unit,
             )
             val result = runCatching {
@@ -651,16 +601,8 @@ object GenieXLocalEngine : LocalChatEngine {
     private suspend fun resolveModel(target: String): ResolvedModel? {
         val customPath = LocalSettings.customModelPath
         if (customPath.isNotBlank()) {
-            var file = File(customPath)
+            val file = File(customPath)
             if (!file.exists()) return null
-            // QAIRT bundle 兼容（2026-09-28，源码级）：qairt 插件把 model_path 当「文件」处理，
-            // 再取 parent_path() 作为模型目录（sdk/plugins/qairt/src/llm.cpp:59-61）。若配置给的是
-            // 目录（旧配置或用户手选），这里自动改指目录内的 genie_config.json，
-            // 使 parent_path() 恰好等于 bundle 目录 → 不再报 File not found。
-            if (file.isDirectory) {
-                val cfg = File(file, "genie_config.json")
-                if (cfg.isFile) file = cfg
-            }
             val tokenizer = LocalSettings.customTokenizerPath.takeIf { it.isNotBlank() }
             return ResolvedModel(
                 modelPath = file.absolutePath,

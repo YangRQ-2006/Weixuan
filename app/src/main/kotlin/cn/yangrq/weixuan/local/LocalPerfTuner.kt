@@ -45,24 +45,7 @@ object LocalPerfTuner {
         guard: LocalResourceGuard,
         draftModelPath: String?,
         modelMb: Int = 0,
-        qairtBundle: Boolean = false,
     ): ModelConfig {
-        // QAIRT 预编译 bundle（2026-09-27）：模型已是编译好的 HTP 图，插件不接受
-        // llama.cpp 的运行期参数（nThreads/nBatch/nGpuLayers/spec_* 等）——传了会直接报
-        // "Llm create failed: Parameter not supported by this plugin"（实测定案）。
-        // 故只保留最小集：上下文长度 + HTP 电源模式。
-        if (qairtBundle) {
-            // 源码级硬约束（sdk/plugins/qairt/src/llm.cpp:45-59）：
-            //   if (config.n_gpu_layers != 0) -> PARAM_NOT_SUPPORTED ("--ngl ...")
-            //   if (config.n_ctx        != 0) -> PARAM_NOT_SUPPORTED ("--nctx ...")
-            // QAIRT 的上下文长度/后端/采样器全部取自 bundle 的 genie_config.json
-            // （context.size=4096），故 nCtx 与 nGpuLayers 必须保持 0，传任何非零值都直接失败。
-            return ModelConfig(
-                nCtx = 0,
-                nGpuLayers = 0,
-                power_mode = "burst", // 保 HTP 满频
-            )
-        }
         // 大模型低内存模式（2026-09-25）：小窗口 + 小 batch + 纯 CPU（免 NPU ION 额外分配）
         val lowMem = guard.lowMemoryMode(modelMb)
         val batch = if (lowMem) 64 else guard.optimalBatchSize()
