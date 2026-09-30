@@ -57,6 +57,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cn.yangrq.weixuan.ui.design.XuanRule
 import cn.yangrq.weixuan.R
 import cn.yangrq.weixuan.ui.model.ConversationPaneUiState
 import cn.yangrq.weixuan.ui.model.ConversationSummaryUi
@@ -482,46 +483,52 @@ private fun PaneDock(
     onOpenCharacters: () -> Unit,
     onOpenPermissions: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        DockEntry(
-            icon = Icons.Rounded.Settings,
-            label = "设置",
-            onClick = onOpenSettings,
-            modifier = Modifier.weight(1f),
-        )
-        DockEntry(
-            icon = Icons.Rounded.Memory,
-            label = "模型",
-            onClick = onOpenModelProviders,
-            modifier = Modifier.weight(1f),
-        )
-        DockEntry(
-            icon = Icons.Rounded.Inventory2,
-            label = "工具",
-            onClick = onOpenTools,
-            modifier = Modifier.weight(1f),
-        )
-        DockEntry(
-            icon = Icons.Rounded.Extension,
-            label = "Skills",
-            onClick = onOpenSkills,
-            modifier = Modifier.weight(1f),
-        )
-        DockEntry(
-            icon = Icons.Rounded.Lock,
-            label = "权限",
-            onClick = onOpenPermissions,
-            modifier = Modifier.weight(1f),
-        )
-        DockEntry(
-            icon = Icons.Rounded.TheaterComedy,
-            label = "角色",
-            onClick = onOpenCharacters,
-            modifier = Modifier.weight(1f),
-        )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // 微玄「卦格」：Dock 用一条墨线与上方会话列表分界，六格并列如卦位。
+        XuanRule()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            DockEntry(
+                icon = Icons.Rounded.Settings,
+                label = "设置",
+                onClick = onOpenSettings,
+                modifier = Modifier.weight(1f),
+            )
+            DockEntry(
+                icon = Icons.Rounded.Memory,
+                label = "模型",
+                onClick = onOpenModelProviders,
+                modifier = Modifier.weight(1f),
+            )
+            DockEntry(
+                icon = Icons.Rounded.Inventory2,
+                label = "工具",
+                onClick = onOpenTools,
+                modifier = Modifier.weight(1f),
+            )
+            DockEntry(
+                icon = Icons.Rounded.Extension,
+                label = "Skills",
+                onClick = onOpenSkills,
+                modifier = Modifier.weight(1f),
+            )
+            DockEntry(
+                icon = Icons.Rounded.Lock,
+                label = "权限",
+                onClick = onOpenPermissions,
+                modifier = Modifier.weight(1f),
+            )
+            DockEntry(
+                icon = Icons.Rounded.TheaterComedy,
+                label = "角色",
+                onClick = onOpenCharacters,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 

@@ -85,6 +85,9 @@ import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.squircle.squircleBorder
 import top.yukonga.miuix.kmp.squircle.squircleSurface
+import cn.yangrq.weixuan.ui.design.XuanColors
+import cn.yangrq.weixuan.ui.design.XuanShape
+import cn.yangrq.weixuan.ui.design.XuanStroke
 import top.yukonga.miuix.kmp.theme.LocalDismissState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowListPopup
@@ -93,7 +96,7 @@ private val SendButtonVisualSize = ChatInputActionIconSize
 private val SendIconSize = 16.dp
 private val StopIconSize = 10.dp
 private val ThinkingIconSize = 21.dp
-private val InputContainerShape = RoundedCornerShape(16.dp)
+private val InputContainerShape = RoundedCornerShape(18.dp)
 
 /**
  * Agent 输入器始终保持同一空间结构，聚焦、输入和执行过程只改变状态，不搬动操作入口。
@@ -230,13 +233,13 @@ internal fun AgentChatInputBar(
                     )
                     .squircleSurface(
                         color = MiuixTheme.colorScheme.surfaceContainer,
-                        // 微玄：与全局卡片圆角（16dp）统一，替换上游的 20dp。
-                        cornerRadius = 16.dp,
+                        // 微玄「墨槽」：输入槽 18dp，比内容卡（14dp）略大，形成层级差。
+                        cornerRadius = 18.dp,
                     )
                     .squircleBorder(
-                        width = 0.5.dp,
-                        color = MiuixTheme.colorScheme.outline.copy(alpha = 0.50f),
-                        cornerRadius = 16.dp,
+                        width = XuanStroke.hairline,
+                        color = XuanColors.inkLineSoft,
+                        cornerRadius = 18.dp,
                     )
                     .padding(horizontal = 10.dp, vertical = 8.dp),
             ) {
@@ -359,7 +362,8 @@ internal fun AgentChatInputBar(
                             Box(
                                 modifier = Modifier
                                     .size(SendButtonVisualSize)
-                                    .clip(CircleShape)
+                                    // 微玄「方印」：发送键从正圆改为 14dp 圆角的方印，呼应印章语义。
+                                    .clip(XuanShape.md)
                                     .background(sendButtonColor),
                                 contentAlignment = Alignment.Center,
                             ) {

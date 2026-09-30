@@ -10,6 +10,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -60,11 +61,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
@@ -76,6 +81,10 @@ import cn.yangrq.weixuan.R
 import cn.yangrq.weixuan.agent.browser.AgentBrowserSession
 import cn.yangrq.weixuan.data.model.ReasoningEffort
 import cn.yangrq.weixuan.ui.app.AgentConversationRevisionReducer
+import cn.yangrq.weixuan.ui.design.XuanColors
+import cn.yangrq.weixuan.ui.design.XuanMotto
+import cn.yangrq.weixuan.ui.design.XuanShape
+import cn.yangrq.weixuan.ui.design.XuanStroke
 import cn.yangrq.weixuan.ui.app.LocalBlurEnabled
 import cn.yangrq.weixuan.ui.model.AgentChatMessageUi
 import cn.yangrq.weixuan.ui.model.AgentContextUsageUi
@@ -978,6 +987,46 @@ internal fun shouldRequestInitialBottom(
     isUserDragging: Boolean,
 ): Boolean = isStreaming && keepBottomAnchored && !isUserDragging
 
+/**
+ * 微玄「玄之门」品牌标记（自绘）。
+ * 语义：门 = 众妙之门；门内漩涡 = 模型内部的「玄」；两点星火 = 端侧算力。
+ */
+@Composable
+private fun XuanGateMark(modifier: Modifier = Modifier) {
+    val archColor = XuanColors.primary
+    val sparkColor = XuanColors.gilded
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.8.dp.toPx()
+        val arch = Path().apply {
+            moveTo(w * 0.16f, h * 0.94f)
+            lineTo(w * 0.16f, h * 0.46f)
+            cubicTo(w * 0.16f, h * 0.14f, w * 0.84f, h * 0.14f, w * 0.84f, h * 0.46f)
+            lineTo(w * 0.84f, h * 0.94f)
+        }
+        drawPath(
+            path = arch,
+            color = archColor,
+            style = Stroke(width = stroke, cap = StrokeCap.Round),
+        )
+        val center = Offset(w * 0.5f, h * 0.63f)
+        drawCircle(
+            color = sparkColor,
+            radius = w * 0.115f,
+            center = center,
+            style = Stroke(width = stroke * 0.8f),
+        )
+        drawCircle(color = sparkColor.copy(alpha = 0.6f), radius = w * 0.045f, center = center)
+        drawCircle(color = sparkColor, radius = w * 0.022f, center = Offset(w * 0.30f, h * 0.26f))
+        drawCircle(
+            color = sparkColor.copy(alpha = 0.7f),
+            radius = w * 0.016f,
+            center = Offset(w * 0.72f, h * 0.20f),
+        )
+    }
+}
+
 @Composable
 private fun EmptyChatState(
     showSuggestions: Boolean,
@@ -1029,11 +1078,15 @@ private fun EmptyChatState(
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
             } else {
+                XuanGateMark(modifier = Modifier.size(56.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Text(
                     text = stringResource(R.string.ui_how_can_i_help_you_e75391),
                     style = MiuixTheme.textStyles.headline1,
                     color = MiuixTheme.colorScheme.onSurface,
                 )
+                Spacer(modifier = Modifier.height(10.dp))
+                XuanMotto(text = "玄之又玄 · 众妙之门")
             }
 
             Spacer(modifier = Modifier.height(30.dp))
@@ -1085,12 +1138,13 @@ private fun SuggestionCard(
 ) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            // 微玄「签」：小圆角 + 发丝墨线，取代上游 12dp 圆角 + 描边的卡片观感。
+            .clip(XuanShape.xs)
             .background(MiuixTheme.colorScheme.surface)
             .border(
-                width = 0.5.dp,
-                color = MiuixTheme.colorScheme.outline.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(12.dp),
+                width = XuanStroke.hairline,
+                color = XuanColors.inkLine,
+                shape = XuanShape.xs,
             )
             .clickable(onClick = onClick)
             .padding(horizontal = 13.dp, vertical = 12.dp),
@@ -1099,7 +1153,7 @@ private fun SuggestionCard(
             imageVector = item.icon,
             contentDescription = null,
             modifier = Modifier.size(17.dp),
-            tint = MiuixTheme.colorScheme.onBackground,
+            tint = XuanColors.xuanViolet,
         )
         Spacer(modifier = Modifier.height(9.dp))
         Text(

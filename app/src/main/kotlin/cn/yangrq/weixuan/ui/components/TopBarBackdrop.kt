@@ -2,13 +2,18 @@ package cn.yangrq.weixuan.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import cn.yangrq.weixuan.data.model.AppearanceTopBarBlurStyle
 import cn.yangrq.weixuan.ui.app.LocalBlurEnabled
 import cn.yangrq.weixuan.ui.app.LocalTopBarBlurStyle
+import cn.yangrq.weixuan.ui.design.XuanColors
+import cn.yangrq.weixuan.ui.design.XuanStroke
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurColors
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
@@ -64,7 +69,20 @@ internal fun TopBarBackdrop(
             )
         }
     }
-    Box(modifier = modifier) { content() }
+    Box(modifier = modifier) {
+        content()
+        // 微玄「墨层」：默认（非毛玻璃）顶栏用一条发丝墨线与内容分界，
+        // 取代 HyperOS 顶栏的毛玻璃质感 —— 纸面靠墨线分层，而不是靠玻璃。
+        if (backdrop == null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .height(XuanStroke.hairline)
+                    .background(XuanColors.inkLineSoft),
+            )
+        }
+    }
 }
 
 internal fun Modifier.captureForTopBar(backdrop: LayerBackdrop?): Modifier =

@@ -12,12 +12,13 @@ import top.yukonga.miuix.kmp.utils.PressFeedbackType
 
 internal object EtaCardDefaults {
     /**
-     * 微玄（2026-09-28）：从 24dp 收敛到 16dp。
-     * 上游 Eta 沿用 HyperOS 的大圆角「方圆形」，视觉偏软；微玄走「玄墨/留白」路线，
-     * 用更克制的圆角 + 细描边来体现书卷气的安静感。此处是全 App 卡片与设置分组的
-     * 圆角总开关，改一处即全局生效。
+     * 微玄全局卡片圆角总开关（= XuanShape.md）。
+     *
+     * 上游 Eta 沿用 HyperOS 的大圆角「方圆形」（24dp），视觉偏软；
+     * 微玄走「墨玄/留白」路线：24dp → 16dp（2026-09-28）→ 14dp（2026-09-30 令牌化），
+     * 用更克制的圆角 + 细描边体现书卷气的安静感。改此处即全 App 卡片与设置分组生效。
      */
-    val CornerRadius = 16.dp
+    val CornerRadius = 14.dp
 }
 
 @Composable

@@ -637,11 +637,12 @@ private fun UserMessageBubble(
                         } else {
                             Modifier.squircleSurface(
                                 color = MiuixTheme.colorScheme.surfaceContainerHigh,
-                                // 微玄：圆角收敛（20→16），"尾巴"更锐（6→4），收束为更安静的书卷感。
-                                topStart = 16.dp,
-                                topEnd = 16.dp,
-                                bottomEnd = 4.dp,
-                                bottomStart = 16.dp,
+                                // 微玄「签条」：四角收束到 14dp，左下角收成 3dp —— 像一枚贴在纸上的签，
+                                // 而不是上游的圆润对话气泡。
+                                topStart = 14.dp,
+                                topEnd = 14.dp,
+                                bottomEnd = 14.dp,
+                                bottomStart = 3.dp,
                             )
                         }
                     )
@@ -650,7 +651,7 @@ private fun UserMessageBubble(
                             Modifier.squircleBorder(
                                 width = 1.dp,
                                 color = MiuixTheme.colorScheme.primary,
-                                cornerRadius = 16.dp,
+                                cornerRadius = 14.dp,
                             )
                         } else if (assistantOverlay) {
                             Modifier
@@ -660,7 +661,7 @@ private fun UserMessageBubble(
                             Modifier.squircleBorder(
                                 width = 0.6.dp,
                                 color = MiuixTheme.colorScheme.outline.copy(alpha = 0.45f),
-                                cornerRadius = 16.dp,
+                                cornerRadius = 14.dp,
                             )
                         }
                     )
