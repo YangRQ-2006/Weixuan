@@ -93,6 +93,7 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanMotion
 
 // Miuix 未提供语义 success 色，沿用项目既有值；失败色走主题 error
 private val SuccessColor = Color(0xFF34C759)
@@ -195,10 +196,10 @@ internal fun AgentOverlayOrb(
         visible = visible,
         enter = scaleIn(
             initialScale = 0.5f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioLowBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            )
+            animationSpec = tween(
+                    durationMillis = XuanMotion.base,
+                    easing = XuanMotion.easing,
+                )
         ) + fadeIn(animationSpec = tween(durationMillis = 200)),
         exit = scaleOut(
             targetScale = 0.5f,
@@ -340,10 +341,10 @@ internal fun AgentOverlayBubble(
         enter = scaleIn(
             initialScale = 0.5f,
             transformOrigin = TransformOrigin(1f, 0.5f),
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioLowBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            )
+            animationSpec = tween(
+                    durationMillis = XuanMotion.base,
+                    easing = XuanMotion.easing,
+                )
         ) + fadeIn(animationSpec = tween(durationMillis = 180)),
         exit = scaleOut(
             targetScale = 0.5f,
@@ -386,16 +387,16 @@ internal fun AgentOverlayBubble(
             AnimatedVisibility(
                 visible = supplementMode,
                 enter = expandVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMedium,
-                    )
+                    animationSpec = tween(
+                    durationMillis = XuanMotion.base,
+                    easing = XuanMotion.easing,
+                )
                 ) + fadeIn(animationSpec = tween(durationMillis = 140)),
                 exit = shrinkVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMedium,
-                    )
+                    animationSpec = tween(
+                    durationMillis = XuanMotion.base,
+                    easing = XuanMotion.easing,
+                )
                 ) + fadeOut(animationSpec = tween(durationMillis = 100)),
             ) {
                 SupplementInput(
@@ -409,16 +410,16 @@ internal fun AgentOverlayBubble(
             AnimatedVisibility(
                 visible = !supplementMode,
                 enter = expandVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMedium,
-                    )
+                    animationSpec = tween(
+                    durationMillis = XuanMotion.base,
+                    easing = XuanMotion.easing,
+                )
                 ) + fadeIn(animationSpec = tween(durationMillis = 140)),
                 exit = shrinkVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMedium,
-                    )
+                    animationSpec = tween(
+                    durationMillis = XuanMotion.base,
+                    easing = XuanMotion.easing,
+                )
                 ) + fadeOut(animationSpec = tween(durationMillis = 100)),
             ) {
                 Row(
@@ -612,9 +613,9 @@ internal fun AgentResultCard(
             visible = visible,
             enter = slideInVertically(
                 initialOffsetY = { it },
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
+                animationSpec = tween(
+                    durationMillis = XuanMotion.base,
+                    easing = XuanMotion.easing,
                 )
             ) + fadeIn(animationSpec = tween(durationMillis = 200)),
             exit = slideOutVertically(

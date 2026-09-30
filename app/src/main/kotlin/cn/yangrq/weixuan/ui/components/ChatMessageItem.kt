@@ -181,6 +181,7 @@ import top.yukonga.miuix.kmp.basic.rememberTooltipState
 import top.yukonga.miuix.kmp.squircle.squircleBorder
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanMotion
 
 @Composable
 internal fun rememberDataUrlBitmap(dataUrl: String) = remember(dataUrl) {
@@ -515,15 +516,16 @@ internal fun AgentWorkProcess(
         AnimatedVisibility(
             visible = expanded,
             enter = fadeIn() + expandVertically(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
+                // 微玄「玄缓」：无回弹，缓入缓出（展开稍慢、收起更快）。
+                animationSpec = tween(
+                    durationMillis = XuanMotion.base,
+                    easing = XuanMotion.easing,
                 )
             ),
             exit = fadeOut() + shrinkVertically(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
+                animationSpec = tween(
+                    durationMillis = XuanMotion.fast,
+                    easing = XuanMotion.easing,
                 )
             ),
         ) {

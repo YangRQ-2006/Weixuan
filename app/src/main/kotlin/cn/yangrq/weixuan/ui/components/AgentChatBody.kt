@@ -123,6 +123,7 @@ import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import cn.yangrq.weixuan.ui.design.XuanMotion
 
 /**
  * 聊天主体：消息流 + 底部输入框。
@@ -1098,9 +1099,10 @@ private fun EmptyChatState(
                 enter = fadeIn(
                     animationSpec = tween(durationMillis = 220)
                 ) + slideInVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow,
+                    // 微玄「玄缓」：去掉弹簧回弹手感，改为缓入缓出曲线。
+                    animationSpec = tween(
+                        durationMillis = XuanMotion.emphasis,
+                        easing = XuanMotion.easing,
                     ),
                     initialOffsetY = { it / 3 },
                 ),
