@@ -82,6 +82,8 @@ import cn.yangrq.weixuan.agent.browser.AgentBrowserSession
 import cn.yangrq.weixuan.data.model.ReasoningEffort
 import cn.yangrq.weixuan.ui.app.AgentConversationRevisionReducer
 import cn.yangrq.weixuan.ui.design.XuanColors
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import cn.yangrq.weixuan.ui.design.XuanMotto
 import cn.yangrq.weixuan.ui.design.XuanShape
 import cn.yangrq.weixuan.ui.design.XuanStroke
@@ -1038,22 +1040,22 @@ private fun EmptyChatState(
     val suggestions = listOf(
         SuggestionItem(
             title = stringResource(R.string.ui_analyze_current_screen_ebf08f),
-            icon = Icons.Rounded.DocumentScanner,
+            glyph = XuanGlyphType.Memory,
             prompt = stringResource(R.string.suggestion_analyze_screen_prompt),
         ),
         SuggestionItem(
             title = stringResource(R.string.ui_open_wechat_6b2c28),
-            icon = Icons.Rounded.RocketLaunch,
+            glyph = XuanGlyphType.Play,
             prompt = stringResource(R.string.suggestion_open_wechat_prompt),
         ),
         SuggestionItem(
             title = stringResource(R.string.ui_browse_the_web_da7afb),
-            icon = Icons.Rounded.Language,
+            glyph = XuanGlyphType.Globe,
             prompt = stringResource(R.string.suggestion_browse_web_prompt),
         ),
         SuggestionItem(
             title = stringResource(R.string.ui_check_memory_pressure_2d9600),
-            icon = Icons.Rounded.Terminal,
+            glyph = XuanGlyphType.Terminal,
             prompt = stringResource(R.string.suggestion_memory_pressure_prompt),
         ),
     )
@@ -1149,10 +1151,9 @@ private fun SuggestionCard(
             .clickable(onClick = onClick)
             .padding(horizontal = 13.dp, vertical = 12.dp),
     ) {
-        Icon(
-            imageVector = item.icon,
-            contentDescription = null,
-            modifier = Modifier.size(17.dp),
+        XuanGlyph(
+            type = item.glyph,
+            modifier = Modifier.size(18.dp),
             tint = XuanColors.xuanViolet,
         )
         Spacer(modifier = Modifier.height(9.dp))
@@ -1167,6 +1168,6 @@ private fun SuggestionCard(
 
 private data class SuggestionItem(
     val title: String,
-    val icon: ImageVector,
+    val glyph: XuanGlyphType,
     val prompt: String,
 )

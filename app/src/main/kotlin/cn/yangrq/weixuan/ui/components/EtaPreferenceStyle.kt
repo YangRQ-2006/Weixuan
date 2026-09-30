@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import cn.yangrq.weixuan.ui.design.XuanColors
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import cn.yangrq.weixuan.ui.design.XuanSpace
 import cn.yangrq.weixuan.ui.design.XuanStroke
 import top.yukonga.miuix.kmp.basic.CardColors
@@ -150,6 +152,28 @@ internal fun EtaPreferenceGroupTitle(text: String, modifier: Modifier = Modifier
             text = text,
             style = MiuixTheme.textStyles.subtitle,
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        )
+    }
+}
+
+/**
+ * 微玄：设置页图标支持自绘「爻线」图形（XuanGlyphType）。
+ * 与下方 ImageVector 重载并列，便于逐项把 Material 图标换成微玄图形语言。
+ */
+@Composable
+internal fun EtaPreferenceIcon(
+    glyph: XuanGlyphType,
+    tint: Color = MiuixTheme.colorScheme.onBackground,
+    enabled: Boolean = true,
+) {
+    Box(
+        modifier = Modifier.size(XuanSpace.iconSlot),
+        contentAlignment = Alignment.Center,
+    ) {
+        XuanGlyph(
+            type = glyph,
+            modifier = Modifier.size(22.dp),
+            tint = if (enabled) tint else MiuixTheme.colorScheme.disabledOnSurface,
         )
     }
 }

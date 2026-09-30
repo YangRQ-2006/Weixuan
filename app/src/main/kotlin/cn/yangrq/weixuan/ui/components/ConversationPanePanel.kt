@@ -57,7 +57,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import cn.yangrq.weixuan.ui.design.XuanRule
+import cn.yangrq.weixuan.ui.design.XuanShape
 import cn.yangrq.weixuan.R
 import cn.yangrq.weixuan.ui.model.ConversationPaneUiState
 import cn.yangrq.weixuan.ui.model.ConversationSummaryUi
@@ -493,37 +496,37 @@ private fun PaneDock(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             DockEntry(
-                icon = Icons.Rounded.Settings,
+                glyph = XuanGlyphType.Settings,
                 label = "设置",
                 onClick = onOpenSettings,
                 modifier = Modifier.weight(1f),
             )
             DockEntry(
-                icon = Icons.Rounded.Memory,
+                glyph = XuanGlyphType.Model,
                 label = "模型",
                 onClick = onOpenModelProviders,
                 modifier = Modifier.weight(1f),
             )
             DockEntry(
-                icon = Icons.Rounded.Inventory2,
+                glyph = XuanGlyphType.Tools,
                 label = "工具",
                 onClick = onOpenTools,
                 modifier = Modifier.weight(1f),
             )
             DockEntry(
-                icon = Icons.Rounded.Extension,
+                glyph = XuanGlyphType.Skills,
                 label = "Skills",
                 onClick = onOpenSkills,
                 modifier = Modifier.weight(1f),
             )
             DockEntry(
-                icon = Icons.Rounded.Lock,
+                glyph = XuanGlyphType.Permission,
                 label = "权限",
                 onClick = onOpenPermissions,
                 modifier = Modifier.weight(1f),
             )
             DockEntry(
-                icon = Icons.Rounded.TheaterComedy,
+                glyph = XuanGlyphType.Character,
                 label = "角色",
                 onClick = onOpenCharacters,
                 modifier = Modifier.weight(1f),
@@ -534,7 +537,7 @@ private fun PaneDock(
 
 @Composable
 private fun DockEntry(
-    icon: ImageVector,
+    glyph: XuanGlyphType,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -542,13 +545,14 @@ private fun DockEntry(
     Box(
         modifier = modifier
             .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(ConversationPanelMetrics.DockEntryCornerRadius))
+            .clip(XuanShape.xs)
             .clickable(onClickLabel = label, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
+        // 微玄：Dock 六格改用自绘「爻线」图标（设置=一枚爻、模型=枢、工具=斜杆+环…），
+        // 取代上游的 Material 图标语义。
+        XuanGlyph(
+            type = glyph,
             modifier = Modifier.size(ConversationPanelMetrics.DockEntryIconSize),
             tint = MiuixTheme.colorScheme.onSurface,
         )

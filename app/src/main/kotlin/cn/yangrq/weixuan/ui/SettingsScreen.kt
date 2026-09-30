@@ -58,6 +58,7 @@ import cn.yangrq.weixuan.config.PowerAssistantTarget
 import cn.yangrq.weixuan.config.Prefs
 import cn.yangrq.weixuan.data.repository.ProviderRepository
 import cn.yangrq.weixuan.data.repository.RuntimeConfigRepository
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import cn.yangrq.weixuan.systemizer.GoogleAppSystemizerInstaller
 import cn.yangrq.weixuan.systemizer.RootManager
 import cn.yangrq.weixuan.systemizer.SystemizerInstallResult
@@ -215,7 +216,7 @@ private fun SettingsPageContent(
                         summary = providerSummary,
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.Memory,
+                                glyph = XuanGlyphType.Model,
                                 tint = EtaPreferenceColors.Blue,
                             )
                         },
@@ -228,7 +229,7 @@ private fun SettingsPageContent(
                         summary = "在端侧 NPU/GPU 上跑推理，数据不出手机",
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.Memory,
+                                glyph = XuanGlyphType.Model,
                                 tint = EtaPreferenceColors.Blue,
                             )
                         },
@@ -255,7 +256,7 @@ private fun SettingsPageContent(
                         title = stringResource(R.string.ui_memory_b55ff5),
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.AutoMirrored.Rounded.MenuBook,
+                                glyph = XuanGlyphType.Memory,
                                 tint = EtaPreferenceColors.Orange,
                             )
                         },
@@ -267,7 +268,7 @@ private fun SettingsPageContent(
                         title = stringResource(R.string.route_skills),
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.Extension,
+                                glyph = XuanGlyphType.Skills,
                                 tint = EtaPreferenceColors.Green,
                             )
                         },
@@ -279,7 +280,7 @@ private fun SettingsPageContent(
                         title = stringResource(R.string.route_mcp_servers),
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.AccountTree,
+                                glyph = XuanGlyphType.Mcp,
                                 tint = EtaPreferenceColors.Blue,
                             )
                         },
@@ -291,7 +292,7 @@ private fun SettingsPageContent(
                         title = "角色",
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.TheaterComedy,
+                                glyph = XuanGlyphType.Character,
                                 tint = EtaPreferenceColors.Orange,
                             )
                         },
@@ -306,7 +307,7 @@ private fun SettingsPageContent(
                 EtaPreferenceGroup {
                     EtaArrowPreference(
                         title = stringResource(R.string.settings_tools_list),
-                        startAction = { EtaPreferenceIcon(Icons.Rounded.Dashboard, tint = EtaPreferenceColors.Green) },
+                        startAction = { EtaPreferenceIcon(XuanGlyphType.Tools, tint = EtaPreferenceColors.Green) },
                         onClick = { onNavigate(AppRoute.Tools) },
                     )
 
@@ -365,7 +366,7 @@ private fun SettingsPageContent(
                         title = stringResource(R.string.ui_linux_tool_environment_314d22),
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.Inventory2,
+                                glyph = XuanGlyphType.Tools,
                                 tint = EtaPreferenceColors.Orange,
                             )
                         },
@@ -378,7 +379,7 @@ private fun SettingsPageContent(
                 EtaPreferenceGroup {
                     EtaArrowPreference(
                         title = stringResource(R.string.capability_enhancements),
-                        startAction = { EtaPreferenceIcon(Icons.Rounded.Security, tint = EtaPreferenceColors.Blue) },
+                        startAction = { EtaPreferenceIcon(XuanGlyphType.Permission, tint = EtaPreferenceColors.Blue) },
                         onClick = { onNavigate(AppRoute.SystemEnhance) },
                     )
                 }
@@ -392,7 +393,7 @@ private fun SettingsPageContent(
                         title = stringResource(R.string.ui_eta_system_assistant_003e9b),
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.SupportAgent,
+                                glyph = XuanGlyphType.Character,
                                 tint = EtaPreferenceColors.Green,
                             )
                         },
@@ -426,7 +427,7 @@ private fun SettingsPageContent(
                             },
                             startAction = {
                                 EtaPreferenceIcon(
-                                    icon = Icons.Rounded.PowerSettingsNew,
+                                    glyph = XuanGlyphType.Stop,
                                     tint = EtaPreferenceColors.Yellow,
                                     enabled = prefs != null,
                                 )
@@ -518,7 +519,7 @@ private fun SettingsPageContent(
                                 title = stringResource(R.string.ui_convert_google_apps_to_system_apps_0f6d89),
                                 startAction = {
                                     EtaPreferenceIcon(
-                                        icon = Icons.Rounded.Inventory,
+                                        glyph = XuanGlyphType.Tools,
                                         tint = EtaPreferenceColors.Orange,
                                         enabled = !installingSystemizer,
                                     )
@@ -589,7 +590,7 @@ private fun SettingsPageContent(
                         title = stringResource(R.string.data_backup_title),
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.Description,
+                                glyph = XuanGlyphType.Memory,
                                 tint = EtaPreferenceColors.Blue,
                             )
                         },
@@ -606,7 +607,7 @@ private fun SettingsPageContent(
                         title = stringResource(R.string.ui_floating_window_permissions_076b77),
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.Layers,
+                                glyph = XuanGlyphType.Skills,
                                 tint = EtaPreferenceColors.Blue,
                             )
                         },
@@ -642,7 +643,7 @@ private fun SettingsPageContent(
                         title = stringResource(R.string.ui_accessibility_enhancement_tools_8fd257),
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.AccessibilityNew,
+                                glyph = XuanGlyphType.Character,
                                 tint = EtaPreferenceColors.Blue,
                             )
                         },
@@ -703,7 +704,7 @@ private fun SettingsPageContent(
                             },
                             startAction = {
                                 EtaPreferenceIcon(
-                                    icon = Icons.Rounded.VerifiedUser,
+                                    glyph = XuanGlyphType.Permission,
                                     tint = EtaPreferenceColors.Blue,
                                     enabled = prefs != null && !accessibilityProtectionPending,
                                 )
@@ -722,7 +723,7 @@ private fun SettingsPageContent(
                         title = stringResource(R.string.ui_source_code_740296),
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.Code,
+                                glyph = XuanGlyphType.Terminal,
                                 tint = EtaPreferenceColors.Blue,
                             )
                         },

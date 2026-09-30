@@ -21,6 +21,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
@@ -34,7 +36,10 @@ import cn.yangrq.weixuan.ui.components.TopBarBackdrop
 import cn.yangrq.weixuan.ui.components.captureForTopBar
 import cn.yangrq.weixuan.ui.components.rememberTopBarBackdrop
 import cn.yangrq.weixuan.ui.components.topBarContainerColor
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import cn.yangrq.weixuan.ui.model.ConversationPaneUiState
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import cn.yangrq.weixuan.ui.model.ConversationSummaryUi
 import cn.yangrq.weixuan.ui.navigation.AppRoute
 import top.yukonga.miuix.kmp.basic.DropdownImpl
@@ -175,13 +180,17 @@ private fun AgentTopBar(
     onOpenBrowser: () -> Unit,
 ) {
     val isHome = route is AppRoute.Home
+    val historyLabel = stringResource(R.string.action_conversation_history)
     val navigationIcon: @Composable () -> Unit = {
         if (isHome) {
             IconButton(onClick = onOpenConversationPane) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ShortText,
-                    modifier = Modifier.size(24.dp),
-                    contentDescription = stringResource(R.string.action_conversation_history),
+                // 微玄：顶栏图标改用自绘「爻线」图形（会话历史 = 圆 + 指针）。
+                XuanGlyph(
+                    type = XuanGlyphType.History,
+                    modifier = Modifier
+                        .size(22.dp)
+                        .semantics { contentDescription = historyLabel },
+                    tint = MiuixTheme.colorScheme.onBackground,
                 )
             }
         } else {
@@ -242,11 +251,15 @@ private fun TopBarOverflowMenu(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     Box {
+        val moreLabel = stringResource(R.string.action_more)
         IconButton(onClick = { onRefreshKimiWeb(); showMenu = true }) {
-            Icon(
-                imageVector = Icons.Outlined.MoreHoriz,
-                modifier = Modifier.size(24.dp),
-                contentDescription = stringResource(R.string.action_more),
+            // 微玄：溢出菜单入口改为自绘三点。
+            XuanGlyph(
+                type = XuanGlyphType.More,
+                modifier = Modifier
+                    .size(22.dp)
+                    .semantics { contentDescription = moreLabel },
+                tint = MiuixTheme.colorScheme.onBackground,
             )
         }
         WindowListPopup(
@@ -266,30 +279,30 @@ private fun TopBarOverflowMenu(
                     DropdownItem(
                         text = newConversationText,
                         icon = { modifier ->
-                            Icon(
-                                imageVector = Icons.Rounded.AddComment,
-                                contentDescription = null,
+                            XuanGlyph(
+                                type = XuanGlyphType.Plus,
                                 modifier = modifier.size(TopBarMenuIconSize),
+                                tint = MiuixTheme.colorScheme.onBackground,
                             )
                         },
                     ),
                     DropdownItem(
                         text = openTerminalText,
                         icon = { modifier ->
-                            Icon(
-                                imageVector = Icons.Rounded.Terminal,
-                                contentDescription = null,
+                            XuanGlyph(
+                                type = XuanGlyphType.Terminal,
                                 modifier = modifier.size(TopBarMenuIconSize),
+                                tint = MiuixTheme.colorScheme.onBackground,
                             )
                         },
                     ),
                     DropdownItem(
                         text = openBrowserText,
                         icon = { modifier ->
-                            Icon(
-                                imageVector = Icons.Rounded.Language,
-                                contentDescription = null,
+                            XuanGlyph(
+                                type = XuanGlyphType.Globe,
                                 modifier = modifier.size(TopBarMenuIconSize),
+                                tint = MiuixTheme.colorScheme.onBackground,
                             )
                         },
                     ),
