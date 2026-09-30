@@ -4,7 +4,7 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_animated</item>
-        <item name="android:windowSplashScreenBackground">#FF0D0D12</item>
+        <item name="android:windowSplashScreenBackground">@color/xuan_ink</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
         <item name="android:windowSplashScreenBehavior">icon_preferred</item>
         <item name="android:windowLightStatusBar">false</item>

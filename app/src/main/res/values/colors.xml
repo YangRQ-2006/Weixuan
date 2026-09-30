@@ -1,10 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  微玄品牌色板（XML 层事实源）。
+  与 ui/app/AgentAppTheme.kt 的 Compose 色板保持一致：
+    深色「玄墨」= xuan_ink 系列；浅色「留白」= xuan_paper 系列。
+  上游遗留的 Android Studio 模板色（purple_200/500/700、teal_200/700）已删除（全项目零引用）。
+-->
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- 玄墨（深色底） -->
+    <color name="xuan_ink">#FF0D0D12</color>
+    <color name="xuan_ink_surface">#FF14141A</color>
+    <color name="xuan_ink_line">#FF3A3A47</color>
+    <!-- 留白（浅色底） -->
+    <color name="xuan_paper">#FFFAF8F4</color>
+    <color name="xuan_paper_container">#FFF6F4EF</color>
+    <color name="xuan_paper_line">#FFD8D3C8</color>
+    <!-- 玄紫（品牌主色） -->
+    <color name="xuan_violet">#FF5B4EC2</color>
+    <color name="xuan_violet_light">#FF9B8CFF</color>
+    <!-- 鎏金（强调/点缀） -->
+    <color name="xuan_gilded">#FFE8C56A</color>
+    <color name="xuan_gilded_deep">#FFB08A2E</color>
+    <!-- 竹青（成功/次级） -->
+    <color name="xuan_bamboo">#FF3E7A5E</color>
+    <color name="xuan_bamboo_light">#FF7FB3A0</color>
+    <!-- 朱砂（危险/删除） -->
+    <color name="xuan_cinnabar">#FFB5453A</color>
+    <!-- 青黛（次要信息） -->
+    <color name="xuan_indigo">#FF4A5A72</color>
 </resources>

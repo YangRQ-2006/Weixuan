@@ -8,9 +8,11 @@ import cn.yangrq.weixuan.ui.model.PermissionStatusUi
 import cn.yangrq.weixuan.ui.model.RunStatusUi
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-// 语义状态色
-val StatusSuccess = Color(0xFF00BD13)
-val StatusWarning = Color(0xFFFFB200)
+// 语义状态色（微玄：2026-09-30 降饱和，改为「墨玄」体系配色）
+// 上游为 #00BD13（过饱和绿）/#FFB200（过饱和黄），与玄墨/留白的克制调性冲突。
+// 这里取深浅底都可读的中间调：竹青 / 鎏金。
+val StatusSuccess = Color(0xFF4E8F72)
+val StatusWarning = Color(0xFFC79A3E)
 val StatusError: Color @Composable get() = MiuixTheme.colorScheme.error
 val StatusRunning: Color @Composable get() = MiuixTheme.colorScheme.primary
 val StatusIdle: Color @Composable get() = MiuixTheme.colorScheme.onSurfaceVariantSummary
