@@ -43,6 +43,7 @@ import cn.yangrq.weixuan.ui.components.MiuixScaffoldPage
 import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import cn.yangrq.weixuan.ui.design.XuanGlyph
 
 @Composable
 internal fun WorkspaceScreen(onBack: () -> Unit) {
@@ -172,7 +173,7 @@ internal fun WorkspaceScreen(onBack: () -> Unit) {
                         ),
                     startAction = {
                         EtaPreferenceIcon(
-                            icon = if (entry.directory) Icons.Rounded.Folder else Icons.AutoMirrored.Rounded.InsertDriveFile,
+                            glyph = if (entry.directory) XuanGlyphType.Folder else XuanGlyphType.Note,
                             enabled = !busy,
                             tint = EtaPreferenceColors.Orange,
                         )

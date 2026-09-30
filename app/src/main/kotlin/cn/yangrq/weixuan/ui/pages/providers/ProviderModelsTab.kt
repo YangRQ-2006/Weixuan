@@ -81,6 +81,7 @@ import cn.yangrq.weixuan.ui.components.MiuixDialogActions
 import cn.yangrq.weixuan.ui.components.StatusError
 import cn.yangrq.weixuan.ui.components.StatusSuccess
 import cn.yangrq.weixuan.ui.model.formatCompactTokenCount
+import cn.yangrq.weixuan.ui.design.XuanGlyph
 import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -232,7 +233,7 @@ internal fun ProviderModelsTab(
                         enabled = !isFetching && !isMutatingModel,
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.CloudDownload,
+                                glyph = XuanGlyphType.Download,
                                 enabled = !isFetching && !isMutatingModel,
                                 tint = EtaPreferenceColors.Blue,
                             )
@@ -599,9 +600,8 @@ private fun ModelSelectionBar(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             IconButton(onClick = onExit, enabled = enabled) {
-                Icon(
-                    imageVector = Icons.Rounded.Close,
-                    contentDescription = stringResource(R.string.ui_exit_multiple_selection_c194fd),
+                                XuanGlyph(
+                    type = XuanGlyphType.Close,
                     tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
                 )
             }
@@ -696,17 +696,14 @@ private fun ModelListItem(
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onEdit, enabled = enabled) {
-                    Icon(
-                        imageVector = Icons.Rounded.Tune,
-                        contentDescription = stringResource(R.string.ui_edit_model_parameters_ba4864),
+                                        XuanGlyph(
+                        type = XuanGlyphType.Skills,
                         tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
                     )
                 }
                 IconButton(onClick = onSetCurrent, enabled = enabled) {
-                    Icon(
-                        imageVector = if (isSelected) Icons.Rounded.Check
-                            else Icons.Rounded.RadioButtonUnchecked,
-                        contentDescription = if (isSelected) context.getString(R.string.page_current_model_a0af8f) else context.getString(R.string.page_set_as_current_model_183d7d),
+                                        XuanGlyph(
+                        type = if (isSelected) XuanGlyphType.Check else XuanGlyphType.Stop,
                         tint = if (isSelected) {
                             MiuixTheme.colorScheme.primary
                         } else {

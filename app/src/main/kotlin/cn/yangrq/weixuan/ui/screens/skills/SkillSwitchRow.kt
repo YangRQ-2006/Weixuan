@@ -35,6 +35,7 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import cn.yangrq.weixuan.ui.design.XuanGlyphType
+import cn.yangrq.weixuan.ui.design.XuanGlyph
 
 @Composable
 internal fun SkillSwitchRow(
@@ -66,9 +67,8 @@ internal fun SkillSwitchRow(
                     ),
                 ),
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.MoreHoriz,
-                    contentDescription = stringResource(R.string.skills_more_named, skill.name),
+                                XuanGlyph(
+                    type = XuanGlyphType.More,
                     modifier = Modifier.size(20.dp),
                     tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
                 )

@@ -29,6 +29,10 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 @Composable
 internal fun CharacterEditorScreen(
@@ -50,7 +54,7 @@ internal fun CharacterEditorScreen(
                 onClick = { store.saveEditor(onSaved) },
                 enabled = !store.busy && store.draftName.isNotBlank(),
             ) {
-                Icon(Icons.Rounded.Check, contentDescription = "保存角色")
+                XuanGlyph(XuanGlyphType.Check, modifier = Modifier.semantics { contentDescription = "保存角色" })
             }
         },
     ) {
@@ -87,9 +91,8 @@ internal fun CharacterEditorScreen(
                     minWidth = 36.dp,
                     minHeight = 36.dp,
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "移除此开场白",
+                                        XuanGlyph(
+                        type = XuanGlyphType.Close,
                         tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                 }

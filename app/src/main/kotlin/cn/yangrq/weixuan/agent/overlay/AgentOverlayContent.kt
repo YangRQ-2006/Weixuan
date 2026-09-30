@@ -94,6 +94,10 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import cn.yangrq.weixuan.ui.design.XuanMotion
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 // Miuix 未提供语义 success 色，沿用项目既有值；失败色走主题 error
 private val SuccessColor = Color(0xFF34C759)
@@ -429,28 +433,28 @@ internal fun AgentOverlayBubble(
                 ) {
                     OverlayControlButton(
                         onClick = ::enterSupplementMode,
-                        icon = Icons.Rounded.Edit,
+                        glyph = XuanGlyphType.Note,
                         contentDescription = stringResource(R.string.overlay_supplement),
                         tint = MiuixTheme.colorScheme.onSurface,
                     )
                     if (state.phase == AgentOverlayPhase.RUNNING) {
                         OverlayControlButton(
                             onClick = onPause,
-                            icon = Icons.Rounded.Pause,
+                            glyph = XuanGlyphType.Stop,
                             contentDescription = stringResource(R.string.overlay_pause),
                             tint = MiuixTheme.colorScheme.onSurface,
                         )
                     } else if (state.phase == AgentOverlayPhase.PAUSED) {
                         OverlayControlButton(
                             onClick = onResume,
-                            icon = Icons.Rounded.PlayArrow,
+                            glyph = XuanGlyphType.Play,
                             contentDescription = stringResource(R.string.overlay_resume),
                             tint = MiuixTheme.colorScheme.primary,
                         )
                     }
                     OverlayControlButton(
                         onClick = onStop,
-                        icon = Icons.Rounded.Stop,
+                        glyph = XuanGlyphType.Stop,
                         contentDescription = stringResource(R.string.action_stop),
                         tint = MiuixTheme.colorScheme.error,
                     )
@@ -477,7 +481,7 @@ private fun rememberStatusDotPulse(active: Boolean): Float {
 @Composable
 private fun OverlayControlButton(
     onClick: () -> Unit,
-    icon: ImageVector,
+    glyph: XuanGlyphType,
     contentDescription: String,
     tint: Color,
 ) {
@@ -488,10 +492,11 @@ private fun OverlayControlButton(
         minHeight = 32.dp,
         cornerRadius = 16.dp,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(15.dp),
+        XuanGlyph(
+            type = glyph,
+            modifier = Modifier
+                .size(17.dp)
+                .semantics { this.contentDescription = contentDescription },
             tint = tint,
         )
     }
@@ -660,9 +665,8 @@ internal fun AgentResultCard(
                             minHeight = 32.dp,
                             cornerRadius = 16.dp,
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Close,
-                                contentDescription = stringResource(R.string.action_close),
+                            XuanGlyph(
+                                type = XuanGlyphType.Close,
                                 modifier = Modifier.size(16.dp),
                                 tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
                             )

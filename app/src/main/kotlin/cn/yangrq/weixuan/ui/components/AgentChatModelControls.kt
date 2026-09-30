@@ -250,9 +250,8 @@ private fun ModelPickerRow(
         )
         if (selected) {
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = stringResource(R.string.ui_current_model_a0af8f),
+                        XuanGlyph(
+                type = XuanGlyphType.Check,
                 modifier = Modifier.size(18.dp),
                 tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
             )
@@ -380,9 +379,8 @@ private fun ModelBrandMark(
                 .background(MiuixTheme.colorScheme.primaryContainer, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Dns,
-                contentDescription = null,
+                        XuanGlyph(
+                type = XuanGlyphType.Mcp,
                 modifier = Modifier.size(size * 0.56f),
                 tint = MiuixTheme.colorScheme.primary,
             )

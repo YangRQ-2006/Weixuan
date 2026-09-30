@@ -61,10 +61,17 @@ object LocalModelCatalog {
     private const val MS = "https://modelscope.cn/models/unsloth"
     private const val HF = "https://hf-mirror.com/unsloth"
 
+    /** hf-mirror 根（实测可从国内/沙箱直连，huggingface.co 直连会超时）。 */
+    private const val HF_BASE = "https://hf-mirror.com"
+
     private fun links(repo: String, file: String): List<String> = listOf(
         "$HF/$repo/resolve/main/$file",
         "$MS/$repo/resolve/master/$file",
     )
+
+    /** 第三方作者（非 unsloth）的 GGUF：hf-mirror 必须排第一（enqueue 只用 urls.first()）。 */
+    private fun linksFrom(owner: String, repo: String, file: String): List<String> =
+        listOf("$HF_BASE/$owner/$repo/resolve/main/$file")
 
     /** 体积为 hf-mirror API 实测字节数换算。 */
     val MODELS: List<LocalCatalogModel> = listOf(
@@ -159,6 +166,24 @@ object LocalModelCatalog {
             fileName = "Qwen3-30B-A3B-Q4_K_M.gguf",
             sizeMb = 17697,
             urls = links("Qwen3-30B-A3B-GGUF", "Qwen3-30B-A3B-Q4_K_M.gguf"),
+            tier = ModelTier.FLAGSHIP,
+        ),
+        // ── 小米 MiMo V2.6（Qwen3.5-9B 蒸馏：Agentic / 工具调用 / 代码 / 网络安全）──
+        // 关键差异：混合线性注意力，32 层里只有 8 层带 KV，**KV 比 Qwen3-4B 还省 4.5 倍**
+        // （0.031 vs 0.141 MiB/token）。所以 9B 的瓶颈只在权重体积——选 IQ3 档即可放下，
+        // 不需要 root 暴力清后台。IQ3_XXS 需 ≈4.3GB 可用内存；吃紧可换 IQ2_M（3.29GB）。
+        LocalCatalogModel(
+            id = "mimo-v26-distill-qwen-9b-iq3xxs",
+            title = "MiMo-V2.6-Distill-Qwen-9B · IQ3_XXS（推荐）",
+            summary = "3.86GB｜小米 9B 蒸馏（Qwen3.5 基座），KV 比 4B 省 4.5 倍；" +
+                "内存吃紧可换 IQ2_M（3.29GB）",
+            fileName = "MiMo-V2.6-Distill-Qwen-9B-IQ3_XXS.gguf",
+            sizeMb = 3947,
+            urls = linksFrom(
+                "bartowski",
+                "MiMo-V2.6-Distill-Qwen-9B-GGUF",
+                "MiMo-V2.6-Distill-Qwen-9B-IQ3_XXS.gguf",
+            ),
             tier = ModelTier.FLAGSHIP,
         ),
     )

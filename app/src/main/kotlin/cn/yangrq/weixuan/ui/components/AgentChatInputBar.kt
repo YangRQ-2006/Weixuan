@@ -91,6 +91,8 @@ import cn.yangrq.weixuan.ui.design.XuanStroke
 import top.yukonga.miuix.kmp.theme.LocalDismissState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowListPopup
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 private val SendButtonVisualSize = ChatInputActionIconSize
 private val SendIconSize = 16.dp
@@ -286,9 +288,8 @@ internal fun AgentChatInputBar(
                                 minWidth = ChatInputActionSize,
                                 minHeight = ChatInputActionSize,
                             ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.ui_cancel_edit_c698df),
+                                XuanGlyph(
+                                    type = XuanGlyphType.Close,
                                     modifier = Modifier.size(ChatInputActionIconSize),
                                     tint = MiuixTheme.colorScheme.onSurface,
                                 )
@@ -378,16 +379,11 @@ internal fun AgentChatInputBar(
                                     },
                                     label = "send_stop_icon",
                                 ) { streaming ->
-                                    Icon(
-                                        imageVector = if (streaming) {
-                                            Icons.Rounded.Stop
+                                    XuanGlyph(
+                                        type = if (streaming) {
+                                            XuanGlyphType.Stop
                                         } else {
-                                            Icons.Rounded.ArrowUpward
-                                        },
-                                        contentDescription = when {
-                                            streaming -> stringResource(R.string.chat_stop)
-                                            isEditingMessage && preserveFollowingMessages -> "保存消息"
-                                            else -> stringResource(R.string.chat_send)
+                                            XuanGlyphType.Send
                                         },
                                         modifier = Modifier.size(
                                             if (streaming) StopIconSize else SendIconSize
@@ -518,9 +514,8 @@ private fun PendingImageStrip(
                         .clickable { onRemoveImage(image.id) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = stringResource(R.string.ui_remove_image_089db3),
+                    XuanGlyph(
+                        type = XuanGlyphType.Close,
                         modifier = Modifier.size(11.dp),
                         tint = Color.White,
                     )

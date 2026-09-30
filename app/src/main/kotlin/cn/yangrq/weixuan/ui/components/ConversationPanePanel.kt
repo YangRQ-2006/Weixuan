@@ -101,7 +101,7 @@ private object ConversationPanelMetrics {
     val EmptyVerticalPadding = 28.dp
     val DockTopGap = 2.dp
     val DockEntryCornerRadius = 12.dp
-    val DockEntryIconSize = 20.dp
+    val DockEntryIconSize = 24.dp
 }
 
 /**
@@ -280,9 +280,8 @@ private fun ConversationSectionHeader(
             ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = Icons.Rounded.Schedule,
-            contentDescription = null,
+        XuanGlyph(
+            type = XuanGlyphType.History,
             modifier = Modifier.size(ConversationPanelMetrics.SectionIconSize),
             tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
         )
@@ -386,9 +385,8 @@ private fun ConversationTextRow(
                 DropdownItem(
                     text = renameText,
                     icon = { modifier ->
-                        Icon(
-                            imageVector = Icons.Rounded.Edit,
-                            contentDescription = null,
+                        XuanGlyph(
+                            type = XuanGlyphType.Note,
                             modifier = modifier.size(ConversationPanelMetrics.ActionIconSize),
                         )
                     },
@@ -398,9 +396,8 @@ private fun ConversationTextRow(
                 DropdownItem(
                     text = exportText,
                     icon = { modifier ->
-                        Icon(
-                            imageVector = Icons.Rounded.Download,
-                            contentDescription = null,
+                        XuanGlyph(
+                            type = XuanGlyphType.Download,
                             modifier = modifier.size(ConversationPanelMetrics.ActionIconSize),
                         )
                     },
@@ -410,9 +407,8 @@ private fun ConversationTextRow(
                 DropdownItem(
                     text = deleteText,
                     icon = { modifier ->
-                        Icon(
-                            imageVector = Icons.Rounded.Delete,
-                            contentDescription = null,
+                        XuanGlyph(
+                            type = XuanGlyphType.Delete,
                             modifier = modifier.size(ConversationPanelMetrics.ActionIconSize),
                             tint = MiuixTheme.colorScheme.error,
                         )

@@ -43,6 +43,8 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.InputField
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 internal fun ModelProviderListScreen(
@@ -215,13 +217,8 @@ private fun ProviderListItem(
         },
         endActions = {
             IconButton(onClick = onSelect) {
-                Icon(
-                    imageVector = if (isSelected) Icons.Rounded.Check else Icons.Rounded.RadioButtonUnchecked,
-                    contentDescription = if (isSelected) {
-                        stringResource(R.string.provider_selected)
-                    } else {
-                        stringResource(R.string.provider_set_current)
-                    },
+                                XuanGlyph(
+                    type = if (isSelected) XuanGlyphType.Check else XuanGlyphType.Stop,
                     tint = if (isSelected) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantActions,
                 )
             }

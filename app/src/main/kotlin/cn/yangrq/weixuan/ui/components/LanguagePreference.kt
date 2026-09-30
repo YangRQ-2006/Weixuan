@@ -20,6 +20,8 @@ import cn.yangrq.weixuan.R
 import cn.yangrq.weixuan.data.repository.LanguageSettingsRepository
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 internal fun LanguagePreference(iconTint: Color = MiuixTheme.colorScheme.onBackground) {
@@ -54,7 +56,7 @@ internal fun LanguagePreference(iconTint: Color = MiuixTheme.colorScheme.onBackg
         items = labels.map { DropdownItem(text = it) },
         useWindow = false,
         selectedIndex = selectedIndex,
-        startAction = { EtaPreferenceIcon(icon = Icons.Rounded.Language, tint = iconTint) },
+        startAction = { EtaPreferenceIcon(glyph = XuanGlyphType.Globe, tint = iconTint) },
         onSelectedIndexChange = { index ->
             if (index in labels.indices) {
                 repository.selectLocale(if (index == 0) null else locales[index - 1])

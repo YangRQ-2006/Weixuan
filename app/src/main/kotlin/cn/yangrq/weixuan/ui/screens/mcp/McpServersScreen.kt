@@ -55,6 +55,8 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 internal fun McpServersScreen(
@@ -77,9 +79,8 @@ internal fun McpServersScreen(
         onBack = onBack,
         actions = {
             IconButton(onClick = { showAdd = true }) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = stringResource(R.string.mcp_add_server),
+                                XuanGlyph(
+                    type = XuanGlyphType.Plus,
                 )
             }
         },
@@ -258,9 +259,8 @@ internal fun McpServerDetailScreen(
                     }
                 },
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Refresh,
-                    contentDescription = stringResource(R.string.mcp_refresh_tools),
+                                XuanGlyph(
+                    type = XuanGlyphType.Refresh,
                 )
             }
         },

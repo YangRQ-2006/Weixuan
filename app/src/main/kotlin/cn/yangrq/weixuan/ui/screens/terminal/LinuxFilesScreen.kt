@@ -35,6 +35,8 @@ import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 /**
  * Linux rootfs 只读文件浏览：目录列举与文件读取都经一次性 root Shell 完成，
@@ -266,9 +268,8 @@ private fun FileRow(
         title = name,
         summary = summary,
         startAction = {
-            Icon(
-                imageVector = if (isDir) Icons.Rounded.Folder else Icons.AutoMirrored.Rounded.InsertDriveFile,
-                contentDescription = null,
+                        XuanGlyph(
+                type = if (isDir) XuanGlyphType.Folder else XuanGlyphType.Note,
                 modifier = Modifier
                     .padding(end = 12.dp)
                     .size(20.dp),

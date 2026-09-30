@@ -66,6 +66,8 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 /** 终端入口：块式终端为本体；PTY 可用时状态栏提供控制台模式切换。 */
 @Composable
@@ -227,17 +229,15 @@ private fun ConsoleStatusBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onOpenSessions) {
-                Icon(
-                    imageVector = Icons.Rounded.Layers,
-                    contentDescription = stringResource(R.string.terminal_sessions),
+                                XuanGlyph(
+                    type = XuanGlyphType.Skills,
                     modifier = Modifier.size(18.dp),
                     tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
             }
             IconButton(onClick = onOpenTasks) {
-                Icon(
-                    imageVector = Icons.Rounded.Insights,
-                    contentDescription = stringResource(R.string.terminal_daemon_tasks),
+                                XuanGlyph(
+                    type = XuanGlyphType.History,
                     modifier = Modifier.size(18.dp),
                     tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )

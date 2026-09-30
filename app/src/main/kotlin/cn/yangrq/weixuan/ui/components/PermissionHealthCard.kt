@@ -25,6 +25,8 @@ import cn.yangrq.weixuan.ui.model.PermissionStatusUi
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 fun PermissionHealthCard(
@@ -97,25 +99,22 @@ private fun PermissionStatusIcon(status: PermissionStatusUi) {
         PermissionStatusUi.Disabled -> MiuixTheme.colorScheme.onSurfaceVariantActions
     }
     when (status) {
-        PermissionStatusUi.Available -> Icon(
-            imageVector = Icons.Rounded.Check,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = tint,
-        )
-        PermissionStatusUi.Warning -> Icon(
-            imageVector = Icons.Rounded.Warning,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = tint,
-        )
+        PermissionStatusUi.Available -> XuanGlyph(
+    type = XuanGlyphType.Check,
+    modifier = Modifier.size(16.dp),
+    tint = tint,
+)
+        PermissionStatusUi.Warning -> XuanGlyph(
+    type = XuanGlyphType.Pulse,
+    modifier = Modifier.size(16.dp),
+    tint = tint,
+)
         PermissionStatusUi.Missing,
-        PermissionStatusUi.Disabled -> Icon(
-            imageVector = Icons.Rounded.Close,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = tint,
-        )
+        PermissionStatusUi.Disabled -> XuanGlyph(
+    type = XuanGlyphType.Close,
+    modifier = Modifier.size(16.dp),
+    tint = tint,
+)
     }
 }
 

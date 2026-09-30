@@ -36,6 +36,8 @@ import cn.yangrq.weixuan.ui.model.SkillItemUi
 import cn.yangrq.weixuan.ui.model.canDeleteUserSkill
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 private val CardHorizontalPadding = 16.dp
 private val CardBottomPadding = 16.dp
@@ -98,7 +100,7 @@ fun AgentSkillsScreen(
                                 InfiniteProgressIndicator(size = 22.dp)
                             }
                         } else {
-                            EtaPreferenceIcon(Icons.Rounded.FolderZip, enabled = !operationPending, tint = EtaPreferenceColors.Orange)
+                            EtaPreferenceIcon(XuanGlyphType.Folder, enabled = !operationPending, tint = EtaPreferenceColors.Orange)
                         }
                     },
                     enabled = !operationPending,

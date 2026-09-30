@@ -34,6 +34,8 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 internal fun ToolCard(
@@ -62,13 +64,12 @@ internal fun ToolCard(
         summary = description,
         modifier = modifier,
         onClick = { if (action != null) onAction(action) else showDescription = true },
-        icon = { EtaPreferenceIcon(icon = iconForTool(tool.id), tint = EtaPreferenceColors.Green) },
+        icon = { EtaPreferenceIcon(glyph = iconForTool(tool.id), tint = EtaPreferenceColors.Green) },
         action = if (action != null) {
             {
                 IconButton(onClick = { showDescription = true }) {
-                    Icon(
-                        imageVector = Icons.Rounded.Info,
-                        contentDescription = stringResource(R.string.ui_description_named, tool.title),
+                                        XuanGlyph(
+                        type = XuanGlyphType.Memory,
                         modifier = Modifier.size(18.dp),
                         tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
                     )
@@ -94,9 +95,8 @@ internal fun ToolCard(
                 modifier = Modifier.weight(1f),
             )
             if (action != null) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                    contentDescription = null,
+                                XuanGlyph(
+                    type = XuanGlyphType.ChevronRight,
                     modifier = Modifier.size(16.dp),
                     tint = MiuixTheme.colorScheme.primary,
                 )

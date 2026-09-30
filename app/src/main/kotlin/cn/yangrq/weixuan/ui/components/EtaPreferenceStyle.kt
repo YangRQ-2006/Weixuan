@@ -163,16 +163,17 @@ internal fun EtaPreferenceGroupTitle(text: String, modifier: Modifier = Modifier
 @Composable
 internal fun EtaPreferenceIcon(
     glyph: XuanGlyphType,
+    modifier: Modifier = Modifier,
     tint: Color = MiuixTheme.colorScheme.onBackground,
     enabled: Boolean = true,
 ) {
     Box(
-        modifier = Modifier.size(XuanSpace.iconSlot),
+        modifier = modifier.size(XuanSpace.iconSlot),
         contentAlignment = Alignment.Center,
     ) {
         XuanGlyph(
             type = glyph,
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier.size(24.dp),
             tint = if (enabled) tint else MiuixTheme.colorScheme.disabledOnSurface,
         )
     }

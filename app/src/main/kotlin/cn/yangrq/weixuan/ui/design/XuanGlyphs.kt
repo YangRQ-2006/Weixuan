@@ -18,100 +18,16 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * 微玄「爻线」图标系统（Xuan Glyphs）
- * ---------------------------------------------------------------------------
- * 为什么要自绘：上游 Eta 全量使用 `material-icons-extended`（**引用 262 处**），
- * 即 Google Material 图标语义（圆润实心、2dp 描边、Google 几何），
- * 是"看起来还像 ETA/Google"的重要组成部分之一。仅换色无法改变图形语言。
  *
- * 微玄的图形语言（三条硬规则）：
- *  1. **线，不是块**：一律 24 格画布上的 1.6dp 圆头细线，除门心/星火外不做实心填充。
- *  2. **爻的骨架**：以「三横 / 断横（阴爻）/ 竖线 / 圆」为基本笔画，
- *     例如「设置」直接就是一枚爻（上横 · 阴爻 · 下横），不画齿轮。
- *  3. **留白与呼吸**：笔画不贴边（内缩 3 格以上），形状不闭合的地方就开口。
- *
- * 使用：`XuanGlyph(XuanGlyphType.Settings, modifier = Modifier.size(22.dp), tint = ...)`
+ * 图形语言：24 格画布 / 2.0dp 圆头细线 / 笔画占满 4-20 格（视觉重量对齐 Material 24dp 图标）。
+ * 上游 Eta 全量使用 material-icons-extended（262 处），此为微玄自有图形语言。
  */
 enum class XuanGlyphType {
-    /** 玄之门：拱门 + 门内环 + 门心（品牌标记，用于空态/关于/启动）。 */
-    Gate,
-
-    /** 设置：一枚爻（阳 · 阴 · 阳），取代 Material 齿轮。 */
-    Settings,
-
-    /** 模型：枢 —— 圆环 + 中心点 + 上下引线。 */
-    Model,
-
-    /** 工具：斜杆 + 环（扳手抽象）。 */
-    Tools,
-
-    /** 技能：三条右对齐横线 + 右竖线。 */
-    Skills,
-
-    /** 权限：门框 + 门内一点（守护）。 */
-    Permission,
-
-    /** 角色：两枚交叠的圆（阴阳相合）。 */
-    Character,
-
-    /** 终端：折角符 + 底线。 */
-    Terminal,
-
-    /** 浏览器：圆 + 横弦。 */
-    Browser,
-
-    /** 记忆：纸页 + 两行字。 */
-    Memory,
-
-    /** MCP：三节点连线。 */
-    Mcp,
-
-    /** 新建会话：十字。 */
-    Plus,
-
-    /** 会话历史：圆 + 指针。 */
-    History,
-
-    /** 更多：三点竖排。 */
-    More,
-
-    /** 发送：上行箭头（配合「方印」底）。 */
-    Send,
-
-    /** 停止：方。 */
-    Stop,
-
-    /** 搜索：环 + 斜柄。 */
-    Search,
-
-    /** 完成：勾。 */
-    Check,
-
-    /** 关闭：叉。 */
-    Close,
-
-    /** 进入：右尖角。 */
-    ChevronRight,
-
-    /** 展开：下尖角。 */
-    ChevronDown,
-
-    /** 刷新：近全圆弧 + 引线。 */
-    Refresh,
-
-    /** 下载：下行箭头 + 底线。 */
-    Download,
-
-    /** 删除：两竖 + 上横。 */
-    Delete,
-
-    /** 运行：三角。 */
-    Play,
-
-    /** 语言 / 网络：圆 + 两条经线。 */
-    Globe,
-
-    /** 文件夹 / 工作区：折页框。 */
-    Folder,
+    Gate, Settings, Model, Tools, Skills, Permission, Character, Terminal, Browser,
+    Memory, Mcp, Plus, History, More, Send, Stop, Search, Check, Close,
+    ChevronRight, ChevronDown, ChevronLeft, Refresh, Download, Delete, Play, Globe, Folder,
+    Image, Device, Clipboard, Tap, Wifi, Swap, Bag, Monitor, Bell, Location,
+    Music, Pulse, Mic, Command, Keyboard, Note, Contact, Move, Sync, Link,
 }
 
 @Composable
@@ -119,7 +35,7 @@ internal fun XuanGlyph(
     type: XuanGlyphType,
     modifier: Modifier = Modifier,
     tint: Color = Color.Unspecified,
-    strokeWidth: Dp = 1.6.dp,
+    strokeWidth: Dp = 2.dp,
 ) {
     val color = if (tint == Color.Unspecified) MiuixTheme.colorScheme.onBackground else tint
     Canvas(modifier = modifier) {
@@ -128,248 +44,265 @@ internal fun XuanGlyph(
     }
 }
 
-/** 便捷重载：直接给尺寸。 */
 @Composable
 internal fun XuanGlyph(
     type: XuanGlyphType,
     size: Dp,
     tint: Color = Color.Unspecified,
-    strokeWidth: Dp = 1.6.dp,
+    strokeWidth: Dp = 2.dp,
 ) = XuanGlyph(type, Modifier.size(size), tint, strokeWidth)
 
+@Suppress("CyclomaticComplexMethod", "LongMethod")
 private fun DrawScope.drawGlyph(type: XuanGlyphType, s: Float, w: Float, c: Color) {
-    fun line(x1: Float, y1: Float, x2: Float, y2: Float) {
-        drawLine(
-            color = c,
-            start = Offset(x1 * s, y1 * s),
-            end = Offset(x2 * s, y2 * s),
-            strokeWidth = w,
-            cap = StrokeCap.Round,
-        )
+    fun l(x1: Float, y1: Float, x2: Float, y2: Float) {
+        drawLine(c, Offset(x1 * s, y1 * s), Offset(x2 * s, y2 * s), w, StrokeCap.Round)
     }
 
-    fun dot(x: Float, y: Float, r: Float) {
-        drawCircle(color = c, radius = r * s, center = Offset(x * s, y * s))
+    fun d(x: Float, y: Float, r: Float) {
+        drawCircle(c, r * s, Offset(x * s, y * s))
     }
 
-    fun ring(x: Float, y: Float, r: Float, sw: Float = w) {
-        drawCircle(
-            color = c,
-            radius = r * s,
-            center = Offset(x * s, y * s),
-            style = Stroke(width = sw),
-        )
+    fun r(x: Float, y: Float, rad: Float, sw: Float = w) {
+        drawCircle(c, rad * s, Offset(x * s, y * s), style = Stroke(sw))
     }
 
-    fun arc(x: Float, y: Float, r: Float, startAngle: Float, sweep: Float, sw: Float = w) {
+    fun a(x: Float, y: Float, rad: Float, st: Float, sw: Float = w, th: Float = w) {
         drawArc(
             color = c,
-            startAngle = startAngle,
-            sweepAngle = sweep,
+            startAngle = st,
+            sweepAngle = sw,
             useCenter = false,
-            topLeft = Offset((x - r) * s, (y - r) * s),
-            size = Size(2f * r * s, 2f * r * s),
-            style = Stroke(width = sw, cap = StrokeCap.Round),
+            topLeft = Offset((x - rad) * s, (y - rad) * s),
+            size = Size(2f * rad * s, 2f * rad * s),
+            style = Stroke(width = th, cap = StrokeCap.Round),
         )
     }
 
-    fun path(block: Path.() -> Unit) {
-        drawPath(
-            path = Path().apply(block),
-            color = c,
-            style = Stroke(width = w, cap = StrokeCap.Round, join = StrokeJoin.Round),
-        )
+    fun p(block: Path.() -> Unit) {
+        drawPath(Path().apply(block), c, style = Stroke(w, cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 
     when (type) {
         XuanGlyphType.Gate -> {
-            path {
-                moveTo(7f * s, 19.5f * s)
-                lineTo(7f * s, 12f * s)
-                cubicTo(7f * s, 6.2f * s, 17f * s, 6.2f * s, 17f * s, 12f * s)
-                lineTo(17f * s, 19.5f * s)
+            p {
+                moveTo(6f * s, 20.5f * s); lineTo(6f * s, 11.6f * s)
+                cubicTo(6f * s, 5f * s, 18f * s, 5f * s, 18f * s, 11.6f * s)
+                lineTo(18f * s, 20.5f * s)
             }
-            ring(12f, 13.2f, 3.2f)
-            dot(12f, 13.2f, 1.05f)
+            r(12f, 13.4f, 3.9f); d(12f, 13.4f, 1.35f)
         }
-
-        // 一枚爻：阳 · 阴 · 阳
         XuanGlyphType.Settings -> {
-            line(5.5f, 6.5f, 18.5f, 6.5f)
-            line(5.5f, 12f, 10.2f, 12f)
-            line(13.8f, 12f, 18.5f, 12f)
-            line(5.5f, 17.5f, 18.5f, 17.5f)
+            l(4f, 5.5f, 20f, 5.5f); l(4f, 12f, 10.2f, 12f); l(13.8f, 12f, 20f, 12f); l(4f, 18.5f, 20f, 18.5f)
         }
-
         XuanGlyphType.Model -> {
-            ring(12f, 12f, 6.6f)
-            dot(12f, 12f, 1.5f)
-            line(12f, 2.6f, 12f, 5.1f)
-            line(12f, 18.9f, 12f, 21.4f)
+            r(12f, 12f, 7.6f); d(12f, 12f, 1.9f); l(12f, 2.4f, 12f, 4.2f); l(12f, 19.8f, 12f, 21.6f)
         }
-
         XuanGlyphType.Tools -> {
-            line(6.5f, 17.5f, 13.6f, 10.4f)
-            ring(16f, 8f, 3.1f)
+            l(5.2f, 18.8f, 14.4f, 9.6f); r(16.9f, 7.1f, 3.7f)
         }
-
         XuanGlyphType.Skills -> {
-            line(17.5f, 5.5f, 17.5f, 18.5f)
-            line(8f, 7f, 17.5f, 7f)
-            line(6f, 12f, 17.5f, 12f)
-            line(10f, 17f, 17.5f, 17f)
+            l(19.6f, 4.4f, 19.6f, 19.6f); l(9.6f, 7f, 19.6f, 7f); l(4.4f, 12f, 19.6f, 12f); l(11f, 17f, 19.6f, 17f)
         }
-
         XuanGlyphType.Permission -> {
-            path {
-                moveTo(8f * s, 20f * s)
-                lineTo(8f * s, 9.5f * s)
-                cubicTo(8f * s, 6f * s, 16f * s, 6f * s, 16f * s, 9.5f * s)
-                lineTo(16f * s, 20f * s)
+            p {
+                moveTo(7f * s, 20.8f * s); lineTo(7f * s, 10.2f * s)
+                cubicTo(7f * s, 5.2f * s, 17f * s, 5.2f * s, 17f * s, 10.2f * s)
+                lineTo(17f * s, 20.8f * s)
             }
-            dot(12f, 13.5f, 1.35f)
+            d(12f, 13.6f, 1.7f)
         }
-
-        XuanGlyphType.Character -> {
-            ring(9.4f, 12f, 4.6f)
-            ring(14.6f, 12f, 4.6f)
-        }
-
+        XuanGlyphType.Character -> { r(8.7f, 12f, 5.3f); r(15.3f, 12f, 5.3f) }
         XuanGlyphType.Terminal -> {
-            line(6.5f, 8.5f, 10.5f, 12f)
-            line(10.5f, 12f, 6.5f, 15.5f)
-            line(12.5f, 16.5f, 17.5f, 16.5f)
+            l(5.4f, 7.4f, 10.6f, 12f); l(10.6f, 12f, 5.4f, 16.6f); l(12.8f, 17.6f, 18.6f, 17.6f)
         }
-
-        XuanGlyphType.Browser -> {
-            ring(12f, 12f, 7f)
-            line(5f, 12f, 19f, 12f)
-        }
-
+        XuanGlyphType.Browser -> { r(12f, 12f, 7.8f); l(4.2f, 12f, 19.8f, 12f) }
         XuanGlyphType.Memory -> {
-            path {
-                moveTo(6.5f * s, 6.5f * s)
-                lineTo(17.5f * s, 6.5f * s)
-                lineTo(17.5f * s, 17.5f * s)
-                lineTo(6.5f * s, 17.5f * s)
-                close()
+            p {
+                moveTo(5.4f * s, 5.4f * s); lineTo(18.6f * s, 5.4f * s)
+                lineTo(18.6f * s, 18.6f * s); lineTo(5.4f * s, 18.6f * s); close()
             }
-            line(9.5f, 10.5f, 14.5f, 10.5f)
-            line(9.5f, 13.5f, 12.5f, 13.5f)
+            l(9f, 10.4f, 15f, 10.4f); l(9f, 14f, 13.4f, 14f)
         }
-
         XuanGlyphType.Mcp -> {
-            line(12f, 6f, 7f, 17.5f)
-            line(12f, 6f, 17f, 17.5f)
-            line(7f, 17.5f, 17f, 17.5f)
-            dot(12f, 6f, 1.5f)
-            dot(7f, 17.5f, 1.5f)
-            dot(17f, 17.5f, 1.5f)
+            l(12f, 4.6f, 5.8f, 19f); l(12f, 4.6f, 18.2f, 19f); l(5.8f, 19f, 18.2f, 19f)
+            d(12f, 4.6f, 1.8f); d(5.8f, 19f, 1.8f); d(18.2f, 19f, 1.8f)
         }
-
-        XuanGlyphType.Plus -> {
-            line(12f, 6f, 12f, 18f)
-            line(6f, 12f, 18f, 12f)
-        }
-
+        XuanGlyphType.Plus -> { l(12f, 4.6f, 12f, 19.4f); l(4.6f, 12f, 19.4f, 12f) }
         XuanGlyphType.History -> {
-            ring(12f, 12f, 7f)
-            line(12f, 12f, 12f, 7.8f)
-            line(12f, 12f, 15.4f, 13.6f)
+            r(12f, 12f, 7.8f); l(12f, 12f, 12f, 6.8f); l(12f, 12f, 16.2f, 14f)
         }
-
-        XuanGlyphType.More -> {
-            dot(12f, 5.8f, 1.5f)
-            dot(12f, 12f, 1.5f)
-            dot(12f, 18.2f, 1.5f)
-        }
-
+        XuanGlyphType.More -> { d(12f, 4.8f, 1.9f); d(12f, 12f, 1.9f); d(12f, 19.2f, 1.9f) }
         XuanGlyphType.Send -> {
-            line(12f, 19f, 12f, 6f)
-            line(12f, 6f, 7.8f, 10.2f)
-            line(12f, 6f, 16.2f, 10.2f)
+            l(12f, 20f, 12f, 5f); l(12f, 5f, 6.8f, 10.6f); l(12f, 5f, 17.2f, 10.6f)
         }
-
         XuanGlyphType.Stop -> {
-            path {
-                moveTo(8f * s, 8f * s)
-                lineTo(16f * s, 8f * s)
-                lineTo(16f * s, 16f * s)
-                lineTo(8f * s, 16f * s)
-                close()
+            p {
+                moveTo(7.2f * s, 7.2f * s); lineTo(16.8f * s, 7.2f * s)
+                lineTo(16.8f * s, 16.8f * s); lineTo(7.2f * s, 16.8f * s); close()
             }
         }
-
-        XuanGlyphType.Search -> {
-            ring(11f, 11f, 5.4f)
-            line(15.1f, 15.1f, 19f, 19f)
-        }
-
-        XuanGlyphType.Check -> {
-            line(6f, 12.6f, 10.2f, 16.6f)
-            line(10.2f, 16.6f, 18f, 8f)
-        }
-
-        XuanGlyphType.Close -> {
-            line(7f, 7f, 17f, 17f)
-            line(17f, 7f, 7f, 17f)
-        }
-
-        XuanGlyphType.ChevronRight -> {
-            line(9.8f, 6.5f, 15.2f, 12f)
-            line(15.2f, 12f, 9.8f, 17.5f)
-        }
-
-        XuanGlyphType.ChevronDown -> {
-            line(6.5f, 9.8f, 12f, 15.2f)
-            line(12f, 15.2f, 17.5f, 9.8f)
-        }
-
+        XuanGlyphType.Search -> { r(10.8f, 10.8f, 6.4f); l(15.6f, 15.6f, 20f, 20f) }
+        XuanGlyphType.Check -> { l(4.6f, 12.8f, 9.6f, 17.6f); l(9.6f, 17.6f, 19.6f, 6.8f) }
+        XuanGlyphType.Close -> { l(6f, 6f, 18f, 18f); l(18f, 6f, 6f, 18f) }
+        XuanGlyphType.ChevronRight -> { l(9f, 5.2f, 15.8f, 12f); l(15.8f, 12f, 9f, 18.8f) }
+        XuanGlyphType.ChevronDown -> { l(5.2f, 9f, 12f, 15.8f); l(12f, 15.8f, 18.8f, 9f) }
+        XuanGlyphType.ChevronLeft -> { l(15.8f, 5.2f, 9f, 12f); l(9f, 12f, 15.8f, 18.8f) }
         XuanGlyphType.Refresh -> {
-            arc(12f, 12f, 6.8f, startAngle = -55f, sweep = 285f)
-            line(15.2f, 4.4f, 17.4f, 8.4f)
-            line(17.4f, 8.4f, 13.1f, 8.9f)
+            a(12f, 12f, 7.6f, st = -60f, sw = 290f)
+            l(15.4f, 3.6f, 18.6f, 8.4f); l(18.6f, 8.4f, 13.2f, 9f)
         }
-
         XuanGlyphType.Download -> {
-            line(12f, 4.5f, 12f, 14.5f)
-            line(12f, 14.5f, 8f, 10.5f)
-            line(12f, 14.5f, 16f, 10.5f)
-            line(7f, 18.5f, 17f, 18.5f)
+            l(12f, 3.6f, 12f, 15.4f); l(12f, 15.4f, 7.2f, 10.6f); l(12f, 15.4f, 16.8f, 10.6f)
+            l(6.4f, 19.8f, 17.6f, 19.8f)
         }
-
         XuanGlyphType.Delete -> {
-            line(7.5f, 7f, 16.5f, 7f)
-            line(10f, 7f, 10.6f, 18.5f)
-            line(14f, 7f, 13.4f, 18.5f)
-            line(9.4f, 18.5f, 14.6f, 18.5f)
+            l(6.6f, 6.4f, 17.4f, 6.4f); l(9.8f, 6.4f, 10.5f, 19.6f)
+            l(14.2f, 6.4f, 13.5f, 19.6f); l(9.2f, 19.6f, 14.8f, 19.6f)
         }
-
         XuanGlyphType.Play -> {
-            path {
-                moveTo(8.5f * s, 6.5f * s)
-                lineTo(8.5f * s, 17.5f * s)
-                lineTo(17.5f * s, 12f * s)
-                close()
+            p {
+                moveTo(7f * s, 4.6f * s); lineTo(7f * s, 19.4f * s); lineTo(19f * s, 12f * s); close()
             }
         }
-
-        XuanGlyphType.Globe -> {
-            ring(12f, 12f, 7f)
-            line(5f, 12f, 19f, 12f)
-            arc(12f, 12f, 3.4f, startAngle = 90f, sweep = 180f)
-        }
-
+        XuanGlyphType.Globe -> { r(12f, 12f, 7.8f); l(4.2f, 12f, 19.8f, 12f); a(12f, 12f, 3.9f, 90f, 180f) }
         XuanGlyphType.Folder -> {
-            path {
-                moveTo(5.5f * s, 18f * s)
-                lineTo(5.5f * s, 7f * s)
-                lineTo(10f * s, 7f * s)
-                lineTo(11.6f * s, 9.2f * s)
-                lineTo(18.5f * s, 9.2f * s)
-                lineTo(18.5f * s, 18f * s)
+            p {
+                moveTo(4.6f * s, 19.6f * s); lineTo(4.6f * s, 6f * s); lineTo(9.8f * s, 6f * s)
+                lineTo(11.6f * s, 8.6f * s); lineTo(19.4f * s, 8.6f * s); lineTo(19.4f * s, 19.6f * s); close()
+            }
+        }
+
+        XuanGlyphType.Image -> {
+            p {
+                moveTo(4.6f * s, 5.4f * s); lineTo(19.4f * s, 5.4f * s)
+                lineTo(19.4f * s, 18.6f * s); lineTo(4.6f * s, 18.6f * s); close()
+            }
+            l(6.8f, 15.6f, 10.8f, 11f); l(10.8f, 11f, 14.4f, 15.6f)
+            d(15.6f, 9.2f, 1.5f)
+        }
+        XuanGlyphType.Device -> {
+            p {
+                moveTo(7.6f * s, 4.4f * s); lineTo(16.4f * s, 4.4f * s)
+                lineTo(16.4f * s, 19.6f * s); lineTo(7.6f * s, 19.6f * s); close()
+            }
+            l(10.8f, 17f, 13.2f, 17f)
+        }
+        XuanGlyphType.Clipboard -> {
+            p {
+                moveTo(7.4f * s, 5.6f * s); lineTo(16.6f * s, 5.6f * s)
+                lineTo(16.6f * s, 19.6f * s); lineTo(7.4f * s, 19.6f * s); close()
+            }
+            l(10f, 5.6f, 10f, 3.6f); l(10f, 3.6f, 14f, 3.6f); l(14f, 3.6f, 14f, 5.6f)
+        }
+        XuanGlyphType.Tap -> {
+            r(12f, 12f, 6.6f); d(12f, 12f, 1.9f)
+            l(12f, 2.6f, 12f, 4.6f); l(12f, 19.4f, 12f, 21.4f); l(2.6f, 12f, 4.6f, 12f); l(19.4f, 12f, 21.4f, 12f)
+        }
+        XuanGlyphType.Wifi -> {
+            a(12f, 18.6f, 12.6f, st = -145f, sw = 110f)
+            a(12f, 18.6f, 8f, st = -145f, sw = 110f)
+            a(12f, 18.6f, 3.4f, st = -145f, sw = 110f)
+        }
+        XuanGlyphType.Swap -> {
+            l(7.6f, 4.4f, 7.6f, 17.6f); l(4.8f, 14.8f, 7.6f, 17.6f); l(10.4f, 14.8f, 7.6f, 17.6f)
+            l(16.4f, 19.6f, 16.4f, 6.4f); l(13.6f, 9.2f, 16.4f, 6.4f); l(19.2f, 9.2f, 16.4f, 6.4f)
+        }
+        XuanGlyphType.Bag -> {
+            p {
+                moveTo(5.4f * s, 8.6f * s); lineTo(18.6f * s, 8.6f * s)
+                lineTo(18.6f * s, 20f * s); lineTo(5.4f * s, 20f * s); close()
+            }
+            a(12f, 8.6f, 3.4f, st = 180f, sw = 180f)
+        }
+        XuanGlyphType.Monitor -> {
+            p {
+                moveTo(3.6f * s, 5.2f * s); lineTo(20.4f * s, 5.2f * s)
+                lineTo(20.4f * s, 16.4f * s); lineTo(3.6f * s, 16.4f * s); close()
+            }
+            l(12f, 16.4f, 12f, 19.6f); l(8f, 19.6f, 16f, 19.6f)
+        }
+        XuanGlyphType.Bell -> {
+            p {
+                moveTo(8.2f * s, 17.4f * s); lineTo(8.2f * s, 11f * s)
+                cubicTo(8.2f * s, 5.6f * s, 15.8f * s, 5.6f * s, 15.8f * s, 11f * s)
+                lineTo(15.8f * s, 17.4f * s)
+            }
+            l(5.8f, 17.4f, 18.2f, 17.4f); l(10.6f, 20f, 13.4f, 20f)
+        }
+        XuanGlyphType.Location -> {
+            p {
+                moveTo(12f * s, 4f * s)
+                cubicTo(17.2f * s, 4f * s, 19.6f * s, 8f * s, 19.6f * s, 11f * s)
+                cubicTo(19.6f * s, 15.6f * s, 12f * s, 21f * s, 12f * s, 21f * s)
+                cubicTo(12f * s, 21f * s, 4.4f * s, 15.6f * s, 4.4f * s, 11f * s)
+                cubicTo(4.4f * s, 8f * s, 6.8f * s, 4f * s, 12f * s, 4f * s)
                 close()
             }
+            r(12f, 10.8f, 2.4f)
+        }
+        XuanGlyphType.Music -> {
+            l(8.6f, 18.4f, 8.6f, 6.4f); l(8.6f, 6.4f, 17.4f, 4.6f); l(17.4f, 4.6f, 17.4f, 16.4f)
+            r(6.4f, 18.4f, 2.3f); r(15.2f, 16.4f, 2.3f)
+        }
+        XuanGlyphType.Pulse -> {
+            l(3.6f, 12f, 8f, 12f); l(8f, 12f, 10.2f, 6.6f); l(10.2f, 6.6f, 13.4f, 17.4f)
+            l(13.4f, 17.4f, 15.6f, 12f); l(15.6f, 12f, 20.4f, 12f)
+        }
+        XuanGlyphType.Mic -> {
+            p {
+                moveTo(12f * s, 4.2f * s)
+                cubicTo(14.4f * s, 4.2f * s, 15.4f * s, 6f * s, 15.4f * s, 8f * s)
+                lineTo(15.4f * s, 12.6f * s)
+                cubicTo(15.4f * s, 15f * s, 8.6f * s, 15f * s, 8.6f * s, 12.6f * s)
+                lineTo(8.6f * s, 8f * s)
+                cubicTo(8.6f * s, 6f * s, 9.6f * s, 4.2f * s, 12f * s, 4.2f * s)
+                close()
+            }
+            a(12f, 12.4f, 6.2f, st = 20f, sw = 140f)
+            l(12f, 18.6f, 12f, 21f)
+        }
+        XuanGlyphType.Command -> {
+            l(8.6f, 8.6f, 15.4f, 15.4f); l(15.4f, 8.6f, 8.6f, 15.4f)
+            r(6.6f, 6.6f, 2f); r(17.4f, 6.6f, 2f); r(6.6f, 17.4f, 2f); r(17.4f, 17.4f, 2f)
+        }
+        XuanGlyphType.Keyboard -> {
+            p {
+                moveTo(3.6f * s, 6.8f * s); lineTo(20.4f * s, 6.8f * s)
+                lineTo(20.4f * s, 17.2f * s); lineTo(3.6f * s, 17.2f * s); close()
+            }
+            l(7f, 10.4f, 8.4f, 10.4f); l(11.2f, 10.4f, 12.6f, 10.4f); l(15.4f, 10.4f, 16.8f, 10.4f)
+            l(8.4f, 14f, 15.6f, 14f)
+        }
+        XuanGlyphType.Note -> {
+            p {
+                moveTo(5.4f * s, 4.6f * s); lineTo(14f * s, 4.6f * s)
+                lineTo(18.6f * s, 9.2f * s); lineTo(18.6f * s, 19.4f * s)
+                lineTo(5.4f * s, 19.4f * s); close()
+            }
+            l(13.6f, 4.6f, 13.6f, 9.6f); l(13.6f, 9.6f, 18.6f, 9.6f)
+            l(8.6f, 13.4f, 15.4f, 13.4f); l(8.6f, 16.4f, 13f, 16.4f)
+        }
+        XuanGlyphType.Contact -> {
+            r(12f, 9f, 3.6f)
+            a(12f, 20.4f, 7.6f, st = 200f, sw = 140f)
+        }
+        XuanGlyphType.Move -> {
+            l(12f, 3.6f, 12f, 20.4f); l(3.6f, 12f, 20.4f, 12f)
+            l(12f, 3.6f, 9.6f, 6.4f); l(12f, 3.6f, 14.4f, 6.4f)
+            l(12f, 20.4f, 9.6f, 17.6f); l(12f, 20.4f, 14.4f, 17.6f)
+            l(3.6f, 12f, 6.4f, 9.6f); l(3.6f, 12f, 6.4f, 14.4f)
+            l(20.4f, 12f, 17.6f, 9.6f); l(20.4f, 12f, 17.6f, 14.4f)
+        }
+        XuanGlyphType.Sync -> {
+            a(11f, 11f, 7.2f, st = -30f, sw = 200f)
+            a(11f, 11f, 7.2f, st = 150f, sw = 200f)
+            l(15.4f, 2.6f, 18.4f, 6.2f); l(18.4f, 6.2f, 13.6f, 6.8f)
+            l(6.6f, 21.4f, 3.6f, 17.8f); l(3.6f, 17.8f, 8.4f, 17.2f)
+        }
+        XuanGlyphType.Link -> {
+            a(9.4f, 12f, 5.4f, st = 40f, sw = 100f)
+            a(14.6f, 12f, 5.4f, st = 220f, sw = 100f)
+            l(9.4f, 12f, 14.6f, 12f)
         }
     }
 }

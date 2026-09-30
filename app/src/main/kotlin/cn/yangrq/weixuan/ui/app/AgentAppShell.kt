@@ -188,7 +188,7 @@ private fun AgentTopBar(
                 XuanGlyph(
                     type = XuanGlyphType.History,
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(24.dp)
                         .semantics { contentDescription = historyLabel },
                     tint = MiuixTheme.colorScheme.onBackground,
                 )
@@ -232,7 +232,7 @@ private fun AgentTopBar(
     }
 }
 
-private val TopBarMenuIconSize = 20.dp
+private val TopBarMenuIconSize = 22.dp
 
 /**
  * 首页顶栏溢出菜单。WindowListPopup 以父布局为锚点，因此与触发按钮包在同一个 Box 中，
@@ -257,7 +257,7 @@ private fun TopBarOverflowMenu(
             XuanGlyph(
                 type = XuanGlyphType.More,
                 modifier = Modifier
-                    .size(22.dp)
+                    .size(24.dp)
                     .semantics { contentDescription = moreLabel },
                 tint = MiuixTheme.colorScheme.onBackground,
             )

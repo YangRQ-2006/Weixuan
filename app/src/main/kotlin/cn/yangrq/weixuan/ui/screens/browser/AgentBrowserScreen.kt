@@ -96,6 +96,8 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 /**
  * Agent 与用户共享的浏览器会话。
@@ -180,14 +182,13 @@ internal fun AgentBrowserScreen(
             ),
             keyboardActions = KeyboardActions(onGo = { navigate() }),
             leadingIcon = {
-                Icon(
-                    imageVector = if (snapshot.url.startsWith("https://")) {
-                        Icons.Rounded.Lock
+                XuanGlyph(
+                    type = if (snapshot.url.startsWith("https://")) {
+                        XuanGlyphType.Permission
                     } else {
-                        Icons.Rounded.Language
+                        XuanGlyphType.Globe
                     },
-                    contentDescription = null,
-                    modifier = Modifier.padding(start = 12.dp).size(18.dp),
+                    modifier = Modifier.padding(start = 12.dp).size(20.dp),
                     tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
             },
@@ -199,9 +200,8 @@ internal fun AgentBrowserScreen(
                         .padding(end = 6.dp)
                         .alpha(if (address.isNotBlank() && !actionPending) 1f else 0.34f),
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                        contentDescription = stringResource(R.string.ui_access_7f5641),
+                    XuanGlyph(
+                        type = XuanGlyphType.ChevronRight,
                         modifier = Modifier.size(19.dp),
                         tint = MiuixTheme.colorScheme.onSurface,
                     )
@@ -346,22 +346,22 @@ private fun BrowserToolbar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BrowserControlButton(
-            icon = Icons.AutoMirrored.Rounded.ArrowBack,
+            glyph = XuanGlyphType.ChevronLeft,
             description = stringResource(R.string.browser_back),
             enabled = snapshot.canGoBack && !actionPending,
             onClick = onBack,
         )
         BrowserControlButton(
-            icon = Icons.AutoMirrored.Rounded.ArrowForward,
+            glyph = XuanGlyphType.ChevronRight,
             description = stringResource(R.string.browser_forward),
             enabled = snapshot.canGoForward && !actionPending,
             onClick = onForward,
         )
         BrowserControlButton(
-            icon = if (snapshot.isLoading) {
-                Icons.Rounded.Close
+            glyph = if (snapshot.isLoading) {
+                XuanGlyphType.Close
             } else {
-                Icons.Rounded.Refresh
+                XuanGlyphType.Refresh
             },
             description = if (snapshot.isLoading) stringResource(R.string.browser_stop_loading) else stringResource(R.string.browser_refresh),
             enabled = snapshot.available && (snapshot.isLoading || !actionPending),
@@ -391,13 +391,13 @@ private fun BrowserToolbar(
         }
 
         BrowserControlButton(
-            icon = Icons.AutoMirrored.Rounded.OpenInNew,
+            glyph = XuanGlyphType.Link,
             description = stringResource(R.string.browser_open_external),
             enabled = snapshot.available,
             onClick = onOpenExternal,
         )
         BrowserControlButton(
-            icon = Icons.Rounded.Delete,
+            glyph = XuanGlyphType.Delete,
             description = stringResource(R.string.browser_reset_session),
             enabled = snapshot.available && !actionPending,
             onClick = onReset,
@@ -407,7 +407,7 @@ private fun BrowserToolbar(
 
 @Composable
 private fun BrowserControlButton(
-    icon: ImageVector,
+    glyph: XuanGlyphType,
     description: String,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -422,10 +422,9 @@ private fun BrowserControlButton(
                 if (!enabled) disabled()
             },
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
+        XuanGlyph(
+            type = glyph,
+            modifier = Modifier.size(20.dp),
             tint = MiuixTheme.colorScheme.onSurface,
         )
     }
@@ -509,9 +508,9 @@ private fun ColumnScope.BrowserStatusBanner(snapshot: BrowserSessionSnapshot) {
         else -> MiuixTheme.colorScheme.primary
     }
     val icon = if (snapshot.error != null) {
-        Icons.Rounded.GppMaybe
+        XuanGlyphType.Permission
     } else {
-        Icons.Rounded.AdsClick
+        XuanGlyphType.Tap
     }
 
     AnimatedVisibility(
@@ -530,10 +529,9 @@ private fun ColumnScope.BrowserStatusBanner(snapshot: BrowserSessionSnapshot) {
             ),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(17.dp),
+                XuanGlyph(
+                    type = icon,
+                    modifier = Modifier.size(19.dp),
                     tint = color,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -550,7 +548,7 @@ private fun ColumnScope.BrowserStatusBanner(snapshot: BrowserSessionSnapshot) {
 
 @Composable
 private fun BrowserOverlayIcon(
-    icon: ImageVector,
+    glyph: XuanGlyphType,
     tint: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -563,10 +561,9 @@ private fun BrowserOverlayIcon(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(28.dp),
+        XuanGlyph(
+            type = glyph,
+            modifier = Modifier.size(30.dp),
             tint = tint,
         )
     }
@@ -596,7 +593,7 @@ private fun BrowserEmptyState(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center,
     ) {
         BrowserOverlayIcon(
-            icon = Icons.Rounded.Language,
+            glyph = XuanGlyphType.Globe,
             tint = MiuixTheme.colorScheme.primary,
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -658,7 +655,7 @@ private fun BrowserFailedState(
         verticalArrangement = Arrangement.Center,
     ) {
         BrowserOverlayIcon(
-            icon = Icons.Rounded.GppMaybe,
+            glyph = XuanGlyphType.Permission,
             tint = StatusError,
         )
         Spacer(modifier = Modifier.height(16.dp))

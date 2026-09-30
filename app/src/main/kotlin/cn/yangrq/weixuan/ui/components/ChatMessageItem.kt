@@ -182,6 +182,8 @@ import top.yukonga.miuix.kmp.squircle.squircleBorder
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import cn.yangrq.weixuan.ui.design.XuanMotion
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 internal fun rememberDataUrlBitmap(dataUrl: String) = remember(dataUrl) {
@@ -460,15 +462,14 @@ internal fun AgentWorkProcess(
                 .padding(horizontal = 13.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = when {
+            XuanGlyph(
+                type = when {
                     runningTool != null -> iconForTool(runningTool.toolName)
-                    running -> Icons.Rounded.Lightbulb
-                    else -> Icons.Rounded.Build
+                    running -> XuanGlyphType.Pulse
+                    else -> XuanGlyphType.Tools
                 },
-                contentDescription = null,
                 modifier = Modifier
-                    .size(15.dp)
+                    .size(17.dp)
                     .graphicsLayer(alpha = if (running) pulseAlpha else 1f),
                 tint = if (running) {
                     MiuixTheme.colorScheme.primary
@@ -502,12 +503,8 @@ internal fun AgentWorkProcess(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Icon(
-                imageVector = if (expanded) Icons.Rounded.ExpandMore
-                    else Icons.Rounded.ChevronRight,
-                contentDescription = stringResource(
-                    if (expanded) R.string.work_collapse else R.string.work_expand,
-                ),
+                        XuanGlyph(
+                type = if (expanded) XuanGlyphType.ChevronDown else XuanGlyphType.ChevronRight,
                 modifier = Modifier.size(14.dp),
                 tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
             )
@@ -599,7 +596,7 @@ private fun UserMessageBubble(
                 RichTooltip(insideMargin = PaddingValues(horizontal = 8.dp, vertical = 6.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         MessageTooltipAction(
-                            icon = Icons.Rounded.ContentCopy,
+                            glyph = XuanGlyphType.Clipboard,
                             label = stringResource(R.string.ui_copy_4edd1d),
                             onClick = {
                                 @Suppress("DEPRECATION")
@@ -608,7 +605,7 @@ private fun UserMessageBubble(
                             },
                         )
                         MessageTooltipAction(
-                            icon = Icons.Rounded.Edit,
+                            glyph = XuanGlyphType.Note,
                             label = stringResource(R.string.ui_edit_a7f814),
                             onClick = {
                                 tooltipState.dismiss()
@@ -616,7 +613,7 @@ private fun UserMessageBubble(
                             },
                         )
                         MessageTooltipAction(
-                            icon = Icons.Rounded.Delete,
+                            glyph = XuanGlyphType.Delete,
                             label = stringResource(R.string.ui_delete_3755f5),
                             onClick = {
                                 tooltipState.dismiss()
@@ -724,7 +721,7 @@ private fun UserMessageBubble(
 
 @Composable
 private fun MessageTooltipAction(
-    icon: ImageVector,
+    glyph: XuanGlyphType,
     label: String,
     onClick: () -> Unit,
 ) {
@@ -735,10 +732,11 @@ private fun MessageTooltipAction(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            modifier = Modifier.size(16.dp),
+        XuanGlyph(
+            type = glyph,
+            modifier = Modifier
+                .size(18.dp)
+                .semantics { this.contentDescription = label },
             tint = MiuixTheme.colorScheme.onSurface,
         )
         Text(
@@ -779,9 +777,8 @@ private fun ContextCompactionMarker(
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Compress,
-                contentDescription = null,
+            XuanGlyph(
+                type = XuanGlyphType.Swap,
                 modifier = Modifier
                     .size(12.dp)
                     .graphicsLayer(alpha = if (message.running) pulseAlpha else 1f),
@@ -932,12 +929,8 @@ private fun AgentMessageBlock(
                     minWidth = 30.dp,
                     minHeight = 30.dp,
                 ) {
-                    Icon(
-                        imageVector = if (copied) Icons.Rounded.Check
-                            else Icons.Rounded.ContentCopy,
-                        contentDescription = stringResource(
-                            if (copied) R.string.copy_copied else R.string.copy_answer,
-                        ),
+                                        XuanGlyph(
+                        type = if (copied) XuanGlyphType.Check else XuanGlyphType.Clipboard,
                         modifier = Modifier.size(15.dp),
                         tint = if (copied) {
                             MiuixTheme.colorScheme.primary
@@ -949,9 +942,8 @@ private fun AgentMessageBlock(
                 if (showMessageActions) {
                     if (message.characterEditable) {
                         IconButton(onClick = onEdit, enabled = messageActionsEnabled, minWidth = 30.dp, minHeight = 30.dp) {
-                            Icon(
-                                imageVector = Icons.Rounded.Edit,
-                                contentDescription = "编辑角色回复",
+                            XuanGlyph(
+                                type = XuanGlyphType.Note,
                                 modifier = Modifier.size(15.dp),
                                 tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.75f),
                             )
@@ -964,9 +956,8 @@ private fun AgentMessageBlock(
                             minWidth = 30.dp,
                             minHeight = 30.dp,
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Refresh,
-                                contentDescription = stringResource(R.string.ui_regenerate_reply_84a7d9),
+                            XuanGlyph(
+                                type = XuanGlyphType.Refresh,
                                 modifier = Modifier.size(15.dp),
                                 tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.75f),
                             )
@@ -979,9 +970,8 @@ private fun AgentMessageBlock(
                             minWidth = 30.dp,
                             minHeight = 30.dp,
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Delete,
-                                contentDescription = stringResource(R.string.ui_delete_this_conversation_3f351b),
+                            XuanGlyph(
+                                type = XuanGlyphType.Delete,
                                 modifier = Modifier.size(15.dp),
                                 tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.75f),
                             )
@@ -1001,9 +991,8 @@ private fun AgentMessageBlock(
                                 enabled = messageActionsEnabled && message.selectedCandidate > 0,
                                 minWidth = 28.dp, minHeight = 28.dp,
                             ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.ChevronLeft,
-                                    contentDescription = "上一条候选回复",
+                                                                XuanGlyph(
+                                    type = XuanGlyphType.ChevronLeft,
                                     modifier = Modifier.size(16.dp),
                                     tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                 )
@@ -1020,9 +1009,8 @@ private fun AgentMessageBlock(
                                 enabled = messageActionsEnabled && message.selectedCandidate < message.candidateCount - 1,
                                 minWidth = 28.dp, minHeight = 28.dp,
                             ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.ChevronRight,
-                                    contentDescription = "下一条候选回复",
+                                                                XuanGlyph(
+                                    type = XuanGlyphType.ChevronRight,
                                     modifier = Modifier.size(16.dp),
                                     tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                 )
@@ -1895,12 +1883,8 @@ private fun ChatCodeBlock(
                 minWidth = 28.dp,
                 minHeight = 28.dp,
             ) {
-                Icon(
-                    imageVector = if (copied) Icons.Rounded.Check
-                        else Icons.Rounded.ContentCopy,
-                    contentDescription = stringResource(
-                        if (copied) R.string.copy_copied else R.string.copy_code,
-                    ),
+                                XuanGlyph(
+                    type = if (copied) XuanGlyphType.Check else XuanGlyphType.Clipboard,
                     modifier = Modifier.size(13.dp),
                     tint = if (copied) {
                         MiuixTheme.colorScheme.primary
@@ -2306,9 +2290,8 @@ private fun ThinkingRow(
                 .padding(horizontal = if (compact) 4.dp else 13.dp, vertical = if (compact) 6.dp else 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Lightbulb,
-                contentDescription = null,
+            XuanGlyph(
+                type = XuanGlyphType.Pulse,
                 modifier = Modifier
                     .size(15.dp)
                     .graphicsLayer(alpha = if (message.isStreaming) pulseAlpha else 1f),
@@ -2344,12 +2327,8 @@ private fun ThinkingRow(
                 },
                 modifier = Modifier.weight(1f),
             )
-            Icon(
-                imageVector = if (expanded) Icons.Rounded.ExpandMore
-                    else Icons.Rounded.ChevronRight,
-                contentDescription = stringResource(
-                    if (expanded) R.string.reasoning_collapse else R.string.reasoning_expand,
-                ),
+                        XuanGlyph(
+                type = if (expanded) XuanGlyphType.ChevronDown else XuanGlyphType.ChevronRight,
                 modifier = Modifier.size(14.dp),
                 tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
             )
@@ -2456,10 +2435,9 @@ private fun ToolActivityInline(
                 .padding(horizontal = 4.dp, vertical = 5.dp),
         ) {
             // 工具图标与思考行的灯泡共用同一前导槽位，保证卡片内左边缘对齐。
-            Icon(
-                imageVector = iconForTool(message.toolName),
-                contentDescription = null,
-                modifier = Modifier.size(15.dp),
+            XuanGlyph(
+                type = iconForTool(message.toolName),
+                modifier = Modifier.size(17.dp),
                 tint = when (message.status) {
                     ToolActivityStatusUi.Running -> MiuixTheme.colorScheme.primary
                     ToolActivityStatusUi.Failed -> StatusError
@@ -2515,9 +2493,8 @@ private fun ToolActivityInline(
                 ) { status ->
                     // 成功是常态，只留低饱和度对勾；运行中与失败才占用视觉注意力
                     if (status == ToolActivityStatusUi.Success) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = stringResource(R.string.tool_status_success),
+                        XuanGlyph(
+                            type = XuanGlyphType.Check,
                             modifier = Modifier.size(13.dp),
                             tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
                         )
@@ -2543,10 +2520,8 @@ private fun ToolActivityInline(
                         }
                     }
                 }
-                Icon(
-                    imageVector = if (isExpanded) Icons.Rounded.ExpandMore
-                        else Icons.Rounded.ChevronRight,
-                    contentDescription = null,
+                                XuanGlyph(
+                    type = if (isExpanded) XuanGlyphType.ChevronDown else XuanGlyphType.ChevronRight,
                     modifier = Modifier.size(13.dp),
                     tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.5f),
                 )
@@ -2679,9 +2654,8 @@ private fun BrowserPagePreview(
                     .height(64.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Language,
-                    contentDescription = null,
+                XuanGlyph(
+                    type = XuanGlyphType.Globe,
                     modifier = Modifier.size(20.dp),
                     tint = MiuixTheme.colorScheme.outline,
                 )
@@ -2762,12 +2736,8 @@ private fun ToolCommandBlock(
                 minWidth = 28.dp,
                 minHeight = 28.dp,
             ) {
-                Icon(
-                    imageVector = if (copied) Icons.Rounded.Check
-                        else Icons.Rounded.ContentCopy,
-                    contentDescription = stringResource(
-                        if (copied) R.string.copy_copied else R.string.copy_command,
-                    ),
+                                XuanGlyph(
+                    type = if (copied) XuanGlyphType.Check else XuanGlyphType.Clipboard,
                     modifier = Modifier.size(13.dp),
                     tint = if (copied) {
                         MiuixTheme.colorScheme.primary
@@ -2821,9 +2791,8 @@ private fun RunTraceRow(
             .padding(horizontal = 13.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = Icons.Rounded.Check,
-            contentDescription = null,
+        XuanGlyph(
+            type = XuanGlyphType.Check,
             modifier = Modifier.size(15.dp),
             tint = MiuixTheme.colorScheme.primary,
         )
@@ -2834,9 +2803,8 @@ private fun RunTraceRow(
             color = MiuixTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
-        Icon(
-            imageVector = Icons.Rounded.ChevronRight,
-            contentDescription = null,
+                XuanGlyph(
+            type = XuanGlyphType.ChevronRight,
             modifier = Modifier.size(14.dp),
             tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
         )
@@ -2872,10 +2840,9 @@ private fun ToolSummaryInline(
                     .padding(horizontal = 9.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = iconForTool(tool),
-                    contentDescription = null,
-                    modifier = Modifier.size(12.dp),
+                XuanGlyph(
+                    type = iconForTool(tool),
+                    modifier = Modifier.size(14.dp),
                     tint = MiuixTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(5.dp))
@@ -2919,11 +2886,10 @@ private fun SuggestionChipsRow(
                     .padding(horizontal = 13.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.AutoAwesome,
-                    contentDescription = null,
+                XuanGlyph(
+                    type = XuanGlyphType.Model,
                     modifier = Modifier.size(12.dp),
-                    tint = MiuixTheme.colorScheme.primary
+                    tint = MiuixTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(

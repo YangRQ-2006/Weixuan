@@ -29,6 +29,8 @@ import cn.yangrq.weixuan.ui.components.EtaPreferenceIcon
 import cn.yangrq.weixuan.ui.components.providerBrandLogoRes as sharedProviderBrandLogoRes
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 /** 分组标题 + 卡片的标准组合，Provider 相关页面统一使用。 */
 @Composable
@@ -94,12 +96,12 @@ internal fun ProviderIcon(
 
     when (provider) {
         is CustomProviderSetting -> EtaPreferenceIcon(
-            icon = Icons.Rounded.Dns,
+            glyph = XuanGlyphType.Mcp,
             modifier = modifier,
             tint = EtaPreferenceColors.Blue,
         )
         else -> EtaPreferenceIcon(
-            icon = Icons.Rounded.Language,
+            glyph = XuanGlyphType.Globe,
             modifier = modifier,
             tint = EtaPreferenceColors.Blue,
         )

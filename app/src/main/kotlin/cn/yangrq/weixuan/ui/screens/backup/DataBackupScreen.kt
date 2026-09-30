@@ -43,6 +43,8 @@ import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 internal fun DataBackupScreen(
@@ -128,7 +130,7 @@ internal fun DataBackupScreen(
                     enabled = !busy,
                     startAction = {
                         BackupIcon(
-                            icon = Icons.Rounded.Download,
+                            glyph = XuanGlyphType.Download,
                             loading = busy,
                         )
                     },
@@ -143,7 +145,7 @@ internal fun DataBackupScreen(
                     enabled = !busy,
                     startAction = {
                         BackupIcon(
-                            icon = Icons.Rounded.Description,
+                            glyph = XuanGlyphType.Memory,
                             loading = false,
                         )
                     },
@@ -212,7 +214,7 @@ internal fun DataBackupScreen(
 }
 
 @Composable
-private fun BackupIcon(icon: ImageVector, loading: Boolean) {
+private fun BackupIcon(glyph: XuanGlyphType, loading: Boolean) {
     Box(
         modifier = Modifier
             .padding(end = 6.dp)
@@ -222,9 +224,8 @@ private fun BackupIcon(icon: ImageVector, loading: Boolean) {
         if (loading) {
             InfiniteProgressIndicator(size = 20.dp)
         } else {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
+            XuanGlyph(
+                type = glyph,
                 modifier = Modifier.size(24.dp),
                 tint = MiuixTheme.colorScheme.onBackground,
             )

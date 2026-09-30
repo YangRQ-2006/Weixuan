@@ -713,9 +713,8 @@ internal fun AgentConversationMessages(
                 minWidth = 40.dp,
                 minHeight = 40.dp,
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.ArrowDownward,
-                    contentDescription = stringResource(R.string.ui_back_to_bottom_32282e),
+                                XuanGlyph(
+                    type = XuanGlyphType.ChevronDown,
                     modifier = Modifier.size(17.dp),
                     tint = MiuixTheme.colorScheme.onSurface,
                 )
@@ -1155,7 +1154,7 @@ private fun SuggestionCard(
     ) {
         XuanGlyph(
             type = item.glyph,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(20.dp),
             tint = XuanColors.xuanViolet,
         )
         Spacer(modifier = Modifier.height(9.dp))

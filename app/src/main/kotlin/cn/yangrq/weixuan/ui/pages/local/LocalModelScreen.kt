@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
 
 /**
  * 本地模型（GenieX NPU/GPU）配置页 —— 三段式布局：
@@ -499,7 +500,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                             enabled = !busy,
                             startAction = {
                                 EtaPreferenceIcon(
-                                    icon = Icons.Rounded.Memory,
+                                    glyph = XuanGlyphType.Model,
                                     tint = if (tags.isNotEmpty()) EtaPreferenceColors.Green else EtaPreferenceColors.Blue,
                                 )
                             },

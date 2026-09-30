@@ -27,6 +27,8 @@ import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 fun AgentStatusCard(
@@ -87,23 +89,20 @@ private fun StatusIndicator(status: RunStatusUi) {
             modifier = Modifier.size(18.dp),
             color = MiuixTheme.colorScheme.primary,
         )
-        RunStatusUi.Success -> Icon(
-            imageVector = Icons.Rounded.Check,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-            tint = MiuixTheme.colorScheme.primary,
-        )
-        RunStatusUi.Failed -> Icon(
-            imageVector = Icons.Rounded.Close,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-            tint = MiuixTheme.colorScheme.primary,
-        )
-        RunStatusUi.Cancelled -> Icon(
-            imageVector = Icons.Rounded.MoreHoriz,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-            tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
-        )
+        RunStatusUi.Success -> XuanGlyph(
+    type = XuanGlyphType.Check,
+    modifier = Modifier.size(18.dp),
+    tint = MiuixTheme.colorScheme.primary,
+)
+        RunStatusUi.Failed -> XuanGlyph(
+    type = XuanGlyphType.Close,
+    modifier = Modifier.size(18.dp),
+    tint = MiuixTheme.colorScheme.primary,
+)
+        RunStatusUi.Cancelled -> XuanGlyph(
+    type = XuanGlyphType.More,
+    modifier = Modifier.size(18.dp),
+    tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
+)
     }
 }

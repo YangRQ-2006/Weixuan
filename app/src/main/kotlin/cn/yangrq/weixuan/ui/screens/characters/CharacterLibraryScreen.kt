@@ -37,6 +37,10 @@ import top.yukonga.miuix.kmp.basic.SearchBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 internal val CharacterCardPadding = 16.dp
 
@@ -61,10 +65,10 @@ internal fun CharacterLibraryScreen(
         onBack = onBack,
         actions = {
             IconButton(onClick = importCard, enabled = !store.busy) {
-                Icon(Icons.Rounded.FileUpload, contentDescription = "导入角色卡")
+                XuanGlyph(XuanGlyphType.Download, modifier = Modifier.semantics { contentDescription = "导入角色卡" })
             }
             IconButton(onClick = createCharacter, enabled = !store.busy) {
-                Icon(Icons.Rounded.Add, contentDescription = "创建角色")
+                XuanGlyph(XuanGlyphType.Plus, modifier = Modifier.semantics { contentDescription = "创建角色" })
             }
         },
     ) {

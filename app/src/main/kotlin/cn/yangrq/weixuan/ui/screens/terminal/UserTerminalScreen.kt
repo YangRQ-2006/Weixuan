@@ -74,6 +74,8 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowListPopup
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 /**
  * 用户手动终端：块式输出（命令、输出、退出码），给人用；与 AI 工具调用的任务模型分开。
@@ -424,26 +426,23 @@ private fun StatusBar(
                 .padding(horizontal = 8.dp),
         )
         IconButton(onClick = onOpenSessions) {
-            Icon(
-                imageVector = Icons.Rounded.Layers,
-                contentDescription = stringResource(R.string.terminal_sessions),
+            XuanGlyph(
+                type = XuanGlyphType.Skills,
                 modifier = Modifier.size(18.dp),
                 tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
         }
         IconButton(onClick = onOpenTasks) {
-            Icon(
-                imageVector = Icons.Rounded.Insights,
-                contentDescription = stringResource(R.string.terminal_daemon_tasks),
+            XuanGlyph(
+                type = XuanGlyphType.History,
                 modifier = Modifier.size(18.dp),
                 tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
         }
         if (onOpenConsole != null) {
             IconButton(onClick = onOpenConsole) {
-                Icon(
-                    imageVector = Icons.Rounded.Terminal,
-                    contentDescription = stringResource(R.string.terminal_console_mode),
+                XuanGlyph(
+                    type = XuanGlyphType.Terminal,
                     modifier = Modifier.size(18.dp),
                     tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
@@ -508,9 +507,8 @@ private fun InputRow(
                     .padding(end = 6.dp)
                     .alpha(if (canSend) 1f else 0.34f),
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.ArrowUpward,
-                    contentDescription = stringResource(R.string.terminal_send),
+                                XuanGlyph(
+                    type = XuanGlyphType.Send,
                     modifier = Modifier.size(19.dp),
                     tint = MiuixTheme.colorScheme.onSurface,
                 )

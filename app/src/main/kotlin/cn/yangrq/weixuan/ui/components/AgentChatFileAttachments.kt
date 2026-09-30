@@ -61,6 +61,8 @@ import top.yukonga.miuix.kmp.theme.LocalDismissState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.window.WindowListPopup
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 internal val ChatInputPopupMargin = 8.dp
 internal val ChatInputActionSize = 40.dp
@@ -110,9 +112,8 @@ internal fun AgentAttachmentPickerButton(
             minWidth = ChatInputActionSize,
             minHeight = ChatInputActionSize,
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Add,
-                contentDescription = stringResource(R.string.ui_add_attachment_dba9e8),
+            XuanGlyph(
+                type = XuanGlyphType.Plus,
                 modifier = Modifier.size(ChatInputActionIconSize),
                 tint = MiuixTheme.colorScheme.onSurface,
             )
@@ -223,14 +224,13 @@ internal fun PendingFileReferenceStrip(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(
-                    imageVector = if (reference.kind == AgentFileReferenceKind.Directory) {
-                        Icons.Rounded.FolderOpen
+                XuanGlyph(
+                    type = if (reference.kind == AgentFileReferenceKind.Directory) {
+                        XuanGlyphType.Folder
                     } else {
-                        Icons.Rounded.Description
+                        XuanGlyphType.Memory
                     },
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(20.dp),
                     tint = MiuixTheme.colorScheme.primary,
                 )
                 Text(
@@ -249,9 +249,8 @@ internal fun PendingFileReferenceStrip(
                         .clickable { onRemoveReference(pending.id) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = stringResource(R.string.ui_remove_file_reference_04bbfc),
+                    XuanGlyph(
+                        type = XuanGlyphType.Close,
                         modifier = Modifier.size(15.dp),
                         tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
                     )
@@ -290,14 +289,13 @@ internal fun SentFileReferenceFlow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(
-                    imageVector = if (reference.kind == AgentFileReferenceKind.Directory) {
-                        Icons.Rounded.FolderOpen
+                XuanGlyph(
+                    type = if (reference.kind == AgentFileReferenceKind.Directory) {
+                        XuanGlyphType.Folder
                     } else {
-                        Icons.Rounded.Description
+                        XuanGlyphType.Memory
                     },
-                    contentDescription = null,
-                    modifier = Modifier.size(17.dp),
+                    modifier = Modifier.size(19.dp),
                     tint = MiuixTheme.colorScheme.primary,
                 )
                 Text(

@@ -26,10 +26,14 @@ object LlamaServerProcess {
 
     /**
      * 启动 llama-server。参数（全部来自官方 llama.cpp，2026-09-25 源码确认）：
-     * - `-ctk/-ctv q8_0`：KV cache 量化（内存减半，窗口可加倍）
+     * - `-ctk/-ctv`：KV cache 类型。**默认 f16**（2026-09-30 修正：HTP 上 q8_0 KV 的
+     *   逐行反量化让 decode 慢 2.5 倍，实测 3.1k 上下文 4.4 vs 11.2 tok/s），
+     *   仅当 f16 装不下时降 q8_0。
      * - `-fa on`：flash attention（更快 prefill）
      * - `--mmap`（默认）：权重按需分页（14B 只驻留几百 MB —— 解决崩溃的核心）
-     * - `-c`：上下文窗口
+     * - `-c`：上下文窗口，由 [LocalMemoryModel] 按 GGUF 架构账本与可用内存决策
+     *
+     * @param contextSize 上下文窗口上限（不是固定值；实际窗口取"装得下的最大档"）
      */
     /**
      * 加载前的分层温和内存整理（2026-09-27）。
@@ -89,17 +93,15 @@ object LlamaServerProcess {
             ?: 0
     }.getOrDefault(0)
 
-    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 6144): Boolean {
+    fun start(context: Context, modelPath: String, port: Int, contextSize: Int = 8192): Boolean {
         if (isRunning()) return true
-        // ── 顺序修正（2026-09-28）───────────────────────────────────────────────
-        // 原先先按"整理前"的可用内存决定 KV 类型，导致明明能通过温和整理腾出内存、
-        // 却误选 q8_0 —— 而 HTP 上 q8_0 KV 的逐行反量化正是长上下文 decode 的主要瓶颈
+        // ── 顺序修正（2026-09-28；2026-09-30 简化）──────────────────────────────
+        // 原则不变：必须在「整理后的真实可用内存」上做决策，避免误选 q8_0——
+        // HTP 上 q8_0 KV 的逐行反量化正是长上下文 decode 的主要瓶颈
         // （实测 3.1k 上下文：q8_0 4.4 tok/s vs f16 11.2 tok/s）。
-        // 现改为：先 System.gc + 温和整理，再用整理后的真实可用内存做决策。
+        // 决策已改为按 GGUF 架构账本计算，这里只做 System.gc + 读取真实可用内存；
+        //「温和整理」由下方 planner 在装不下时按需触发，不再无条件先杀一遍后台。
         System.gc()
-        if (readAvailMb() in 1 until 6200) {
-            releaseExpendableProcesses()
-        }
         val availMb = readAvailMb()
 
         val bin = File(context.applicationInfo.nativeLibraryDir, "libllama-server.so")
@@ -113,36 +115,38 @@ object LlamaServerProcess {
         val moeActivatedB = Regex("""-A(\d+)B""").find(modelFile.name)?.groupValues?.get(1)?.toIntOrNull()
         val residentMb = if (moeActivatedB != null) moeActivatedB * 600 else fileMb
 
-        // 窗口 + KV 联合决策：**优先 f16 KV（速度优先）**，在满足内存前提下尽量给大窗口。
-        // 窗口需装得下 Agent prompt（system + 工具 schema + 历史，实测 3.2k~6k tokens）。
-        val ctx: Int
-        val kvType: String
-        when {
-            availMb >= 6200 -> { ctx = 6144; kvType = "f16" }  // KV ~3686MB
-            availMb >= 5000 -> { ctx = 4096; kvType = "f16" }  // KV ~2458MB
-            availMb >= 4000 -> { ctx = 4096; kvType = "q8_0" } // KV ~1229MB
-            else            -> { ctx = 3584; kvType = "q8_0" } // KV ~1075MB
-        }
-        val kvMb = (ctx * (if (kvType == "f16") 0.6 else 0.3)).toInt()
-        val needMb = residentMb + kvMb + 32
+        // ── 内存账本（2026-09-30 重构）──────────────────────────────────────────
+        // 旧版 kvMb = ctx × 0.6(f16)/0.3(q8_0) 是拍出来的常量，比真实 KV 高 4~19 倍，
+        // 连锁造成两个后果：
+        // ① 可用内存 <5GB 时永远选 q8_0 —— 而 HTP 上 q8_0 KV 的逐行反量化让 decode
+        //    慢 2.5 倍（3.1k 上下文实测 4.4 vs 11.2 tok/s），4B 白付了这份速度；
+        // ② 需求虚高后，任何 >2.4GB 的模型都被拒（catalog 里的 8B/9B 永远进不来）。
+        // 现改为读 GGUF 元数据按架构算 KV：只统计真正带 KV 的层，递归层（线性注意力）
+        // 另算固定 F32 状态（与 ctx 无关）。
+        // 例：Qwen3-4B = 36 层 × 2 × 8 KV头 × 128 = 0.1406 MiB/token；
+        //     MiMo-V2.6-9B = 8 层 × 2 × 4 KV头 × 256 = 0.0313 MiB/token（比 4B 还省 4.5 倍）。
+        val footprint = LocalMemoryModel.probe(modelFile) ?: LocalMemoryModel.fallback()
         val kind = if (moeActivatedB != null) "MoE(激活 ${moeActivatedB}B->${residentMb}MB)" else "dense(全量 ${fileMb}MB)"
-        Log.i(TAG, "窗口/KV 决策：可用 ${availMb}MB → n_ctx=$ctx, kv=$kvType（KV ${kvMb}MB, 需 ${needMb}MB）")
+        Log.i(TAG, "内存账本：$kind | ${LocalMemoryModel.describe(footprint)}")
 
-        if (availMb in 1 until needMb) {
-            // 温和内存整理（2026-09-27 实测定案）：只结束「附属进程」——小程序运行时
-            // （:appbrand/:miniapp）与 WebView/浏览器内核（:xweb/:sandbox）。这些是随时
-            // 可重建的缓存式负载，不触碰任何 App 主体（微信聊天/前台任务/登录态不受影响）。
-            // 实测微信 :appbrand0/1 + :xweb 组合释放 ~768MB。
-            // 对比实测：drop_caches 仅 +32MB；send-trim-memory 净效果为负；force-stop 整应用过于粗暴。
+        // 决策：优先 f16、尽量给大窗口；装不下则先温和整理再重试，仍装不下才拒绝
+        val plan = LocalMemoryModel.plan(residentMb, footprint, availMb, contextSize) ?: run {
             val freed = releaseExpendableProcesses()
             val availAfter = readAvailMb()
-            if (availAfter < needMb) {
-                Log.e(TAG, "内存不足拒绝加载：需要 ${needMb}MB [$kind + KV ${kvMb}]，当前 ${availAfter}MB（已温和整理 +${freed}MB）")
+            Log.i(TAG, "温和整理释放 ${freed}MB（${availMb}→${availAfter}MB），重新决策")
+            LocalMemoryModel.plan(residentMb, footprint, availAfter, contextSize) ?: run {
+                val need = LocalMemoryModel.minNeedMb(residentMb, footprint)
+                Log.e(
+                    TAG,
+                    "内存不足拒绝加载：至少需要 ${need}MB（$kind，n_ctx=${LocalMemoryModel.MIN_CTX}），" +
+                        "当前 ${availAfter}MB（已温和整理 +${freed}MB）",
+                )
                 return false
             }
-            Log.i(TAG, "温和整理释放 ${freed}MB（${availMb}→${availAfter}MB），继续加载")
         }
-        Log.i(TAG, "内存预检通过：需要 ${needMb}MB [$kind/可用 ${availMb}MB]")
+        val ctx = plan.ctx
+        val kvType = plan.kvType
+        Log.i(TAG, "内存预检通过：${plan.summary} [$kind]")
         // 投机解码（draft 0.6B，2026-09-27）：同词表小模型草拟 → 4B 并行验证，
         // decode 吞吐可提升 2-3x，且输出与目标模型一致（无损）。draft 与 target 同为
         // Qwen3 系列，词表相同（都是 151936）。
@@ -159,7 +163,7 @@ object LlamaServerProcess {
             "--port", port.toString(),
             "-c", ctx.toString(),
             "-t", "4",
-            // KV 类型由上面的自适应逻辑决定（可用内存 ≥5GB 用 f16，否则 q8_0）
+            // KV 类型由 LocalMemoryModel 按 GGUF 架构账本决定（优先 f16：HTP 上快 2.5 倍）
             "-ctk", kvType,
             "-ctv", kvType,
             "-fa", "on",
@@ -200,11 +204,29 @@ object LlamaServerProcess {
             Thread {
                 runCatching { p.inputStream.bufferedReader().forEachLine { Log.i(TAG, it) } }
             }.apply { isDaemon = true }.start()
-            // 等待端口就绪（14B 的 mmap 加载需要时间，最多 90 秒）
-            val deadline = System.currentTimeMillis() + 90_000
+            // 等待端口就绪（GB 级模型的 mmap 加载 + HTP 上传需要时间；大模型放宽到 180 秒）
+            val deadline = System.currentTimeMillis() + if (fileMb > 3000) 180_000L else 90_000L
             while (System.currentTimeMillis() < deadline) {
                 if (probe(port)) {
-                    Log.i(TAG, "llama-server 就绪：http://127.0.0.1:$port/v1")
+                    // 加载后实测审计（2026-09-30 新增）：预检只是估算，这里用真实可用内存兜底，
+                    // 余量不足立即卸载——这是防「加载成功但拖垮系统」这类事故的最后一道防线。
+                    val afterMb = readAvailMb()
+                    Log.i(
+                        TAG,
+                        "llama-server 就绪：http://127.0.0.1:$port/v1" +
+                            "（加载后可用 ${afterMb}MB，Δ${plan.availMb - afterMb}MB，" +
+                            "其中权重 ${plan.residentMb}MB + KV 估算 ${plan.kvMb}MB）",
+                    )
+                    if (afterMb < LocalMemoryModel.POST_LOAD_MIN_AVAIL_MB) {
+                        Log.e(
+                            TAG,
+                            "加载后审计不通过：可用 ${afterMb}MB < " +
+                                "${LocalMemoryModel.POST_LOAD_MIN_AVAIL_MB}MB，自动卸载防卡死",
+                        )
+                        runCatching { p.destroy() }
+                        process = null
+                        return@runCatching false
+                    }
                     return@runCatching true
                 }
                 if (!p.isAlive) {

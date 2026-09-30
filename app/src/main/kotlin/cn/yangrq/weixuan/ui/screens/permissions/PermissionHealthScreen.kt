@@ -35,6 +35,7 @@ import cn.yangrq.weixuan.ui.model.PermissionHealthItemUi
 import cn.yangrq.weixuan.ui.model.PermissionHealthUiState
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 fun PermissionHealthScreen(
@@ -69,29 +70,29 @@ private fun PermissionItemRow(
     item: PermissionHealthItemUi,
     onActionClick: () -> Unit,
 ) {
-    val icon = when (item.id) {
-        "accessibility" -> Icons.Rounded.AccessibilityNew
-        "overlay" -> Icons.Rounded.Layers
-        "model" -> Icons.Rounded.Memory
-        "terminal" -> Icons.Rounded.Terminal
-        "notification" -> Icons.Rounded.Notifications
-        "root" -> Icons.Rounded.Key
-        "shizuku" -> Icons.Rounded.Memory
-        "xposed" -> Icons.Rounded.AccountTree
-        "background" -> Icons.Rounded.History
-        "app_list" -> Icons.Rounded.Dashboard
-        "location" -> Icons.Rounded.LocationOn
-        "notification_history" -> Icons.Rounded.NotificationsActive
-        "usage_access" -> Icons.Rounded.QueryStats
-        "notifications" -> Icons.Rounded.Notifications
-        else -> Icons.Rounded.Shield
+    val icon: XuanGlyphType = when (item.id) {
+        "accessibility" -> XuanGlyphType.Contact
+        "overlay" -> XuanGlyphType.Skills
+        "model" -> XuanGlyphType.Model
+        "terminal" -> XuanGlyphType.Terminal
+        "notification" -> XuanGlyphType.Bell
+        "root" -> XuanGlyphType.Permission
+        "shizuku" -> XuanGlyphType.Model
+        "xposed" -> XuanGlyphType.Mcp
+        "background" -> XuanGlyphType.History
+        "app_list" -> XuanGlyphType.Tools
+        "location" -> XuanGlyphType.Location
+        "notification_history" -> XuanGlyphType.Bell
+        "usage_access" -> XuanGlyphType.Pulse
+        "notifications" -> XuanGlyphType.Bell
+        else -> XuanGlyphType.Permission
     }
 
     EtaArrowPreference(
         title = item.title,
         summary = item.summary.takeIf { it.isNotBlank() },
         startAction = {
-            EtaPreferenceIcon(icon = icon, tint = EtaPreferenceColors.Blue)
+            EtaPreferenceIcon(glyph = icon, tint = EtaPreferenceColors.Blue)
         },
         endActions = {
             Text(

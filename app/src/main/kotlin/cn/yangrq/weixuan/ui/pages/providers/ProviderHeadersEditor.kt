@@ -33,6 +33,8 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 internal fun LazyListScope.providerHeadersEditor(
     headers: List<ProviderHeaderDraft>,
@@ -48,9 +50,8 @@ internal fun LazyListScope.providerHeadersEditor(
                 title = if (headers.isEmpty()) "未设置" else "已设置 ${headers.size} 项",
                 summary = "可覆盖 User-Agent；认证与传输请求头由系统管理。",
                 endActions = {
-                    Icon(
-                        imageVector = Icons.Rounded.ExpandMore,
-                        contentDescription = if (expanded) "收起" else "展开",
+                                        XuanGlyph(
+                        type = XuanGlyphType.ChevronDown,
                         tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
                         modifier = Modifier.rotate(chevronRotation),
                     )
@@ -80,9 +81,8 @@ internal fun LazyListScope.providerHeadersEditor(
                     title = "添加请求头",
                     titleColor = BasicComponentDefaults.titleColor(color = MiuixTheme.colorScheme.primary),
                     startAction = {
-                        Icon(
-                            imageVector = Icons.Rounded.Add,
-                            contentDescription = null,
+                                                XuanGlyph(
+                            type = XuanGlyphType.Plus,
                             tint = MiuixTheme.colorScheme.primary,
                         )
                     },
@@ -125,13 +125,8 @@ private fun ProviderHeaderRow(
                 visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { visible = !visible }) {
-                        Icon(
-                            imageVector = if (visible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
-                            contentDescription = if (visible) {
-                                context.getString(R.string.page_hide_bb0e7e)
-                            } else {
-                                context.getString(R.string.page_show_71b677)
-                            },
+                                                XuanGlyph(
+                            type = if (visible) XuanGlyphType.Browser else XuanGlyphType.Close,
                         )
                     }
                 },
@@ -139,9 +134,8 @@ private fun ProviderHeaderRow(
             )
         }
         IconButton(onClick = onRemove) {
-            Icon(
-                imageVector = Icons.Rounded.Delete,
-                contentDescription = context.getString(R.string.ui_delete_3755f5),
+                        XuanGlyph(
+                type = XuanGlyphType.Delete,
                 tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
             )
         }
