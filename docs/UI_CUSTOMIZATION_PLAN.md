@@ -391,6 +391,79 @@ XuanMotion: fast 120ms | base 220ms | emphasis 320ms
 1. **其他二级页图标**：`LocalModelScreen` / `AgentSkillsScreen` / `WorkspaceScreen` / `ToolCard` / `PermissionHealthScreen` 等仍用 Material 图标（`EtaPreferenceIcon(glyph=…)` 与 `XuanGlyph` 已就绪，可逐页替换）。
 2. **信息架构文言化**：设置页分组标题（模型供应商 / 工具 / 通用 / 权限 / 关于）可改为微玄四字签（枢机 / 器用 / 行止 / 护持 / 玄迹），需同步中英繁三语并评估可用性。
 3. **`Eta*` 组件与 `EtaApp` 类名**迁移（适配层已就位；`EtaApp` 为 Xposed 入口，需单独回归）。
-4. 品牌衬线字体内嵌、动效曲线全局收敛（`XuanMotion` 已定义但尚未替换 Miuix 弹簧）。
+4. 品牌衬线字体内嵌、动效曲线全局收敛（`XuanMotion` 已定义但尚未替换 Miuix 弹簧 —— 第三轮已完成，见下）。
+
+---
+
+## 9. 第三轮实施记录（2026-09-30，收尾：图标/语感/动效）
+
+### 9.1 提交
+
+| commit | 内容 |
+|---|---|
+| `128d473` | feat(ui): 二级页图标迁移到微玄爻线图形（模型/增强/工作区/终端环境/供应商/技能/模型选择器） |
+| `4325ac3` | feat(ui): 设置页信息架构微玄化——分节签「四字签 · 白话」（中英繁三语） |
+| `f3617ae` | style(ui): 「玄缓」动效落地——10 处 Miuix/Compose 弹簧替换为无回弹缓动曲线 |
+
+### 9.2 二级页图标迁移（25 处 + 变量型改造）
+
+延续「爻线」图形语言，把其余二级页的 Material 图标迁移到 `XuanGlyph`：
+
+| 文件 | 处数 | 说明 |
+|---|---|---|
+| `LocalModelScreen` | 9 | 模型=枢、运行=三角、停止=方、下载 |
+| `SystemEnhanceScreen` | 9 | 密钥=门、多叉=三节点、锁=门、终端、搜索… |
+| `WorkspaceScreen` | 3 | 文件夹、上传 |
+| `LinuxEnvironmentScreen` | 3 | 文件夹、文档=纸页 |
+| `ProviderModelsTab` | 1 | — |
+| `SkillSwitchRow` | — | `iconForSkill()` 返回类型 `ImageVector` → `XuanGlyphType` |
+| `AgentChatModelControls` | 1 | `ExpandMore` → 自绘 `ChevronDown`（含 semantics 无障碍标签） |
+
+**刻意保留 Material 的两处**：
+- `ui/components/ToolIcons.kt`（**63 处**）：它是「具体功能图标表」（日历/通讯录/音乐/定位/键盘/剪贴板…），属**通用系统图标语义**而非 ETA 特色；微玄 27 枚爻线图形无法覆盖其表达范围，强行映射会牺牲辨识度。
+- `ChatMessageItem`（29 处）、`AgentBrowserScreen`（13 处）：消息操作栏与浏览器内嵌 UI，图标语义强、替换收益低于风险，留待后续按需处理。
+
+### 9.3 信息架构微玄化：分节签
+
+设置页 9 个分节标题改为**「四字义符 · 中点 · 白话」**，白话保留可用性，义符建立语感。**新增 9 个专用资源**而非改既有 key —— 因为 `ui_tool_a72ef1` / `ui_about_bed172` / `ui_permissions_560165` 等被多处引用，直接改值会造成语义污染。
+
+| 简体 | 繁体 | 英文 | 取词典故 |
+|---|---|---|---|
+| 枢机 · 模型供应商 | 樞機 · 模型供應商 | Pivot · LLM providers | 模型为枢机 |
+| 器量 · 上下文与扩展 | 器量 · 上下文與擴充 | Vessel · Context & extensions | 《道德经》「器」 |
+| 器用 · 工具 | 器用 · 工具 | Utensils · Tools | 器用 |
+| 代庖 · 系统助手接管 | 代庖 · 系統助理接管 | Steward · System assistant takeover | 越俎代庖 |
+| 兼容 · 小布/小爱入口 | 相容 · 小布／小愛入口 | Compatible · Xiaobu/Xiaoai entrance | — |
+| 一圈即搜 | 圈選搜尋 | Circle to Search | — |
+| 行止 · 通用 | 行止 · 一般 | Conduct · General | 行止 |
+| 护持 · 权限 | 護持 · 權限 | Guard · Permissions | 护持 |
+| 玄迹 · 关于 | 玄跡 · 關於 | Chronicle · About | 玄迹 |
+
+### 9.4 「玄缓」动效落地（10 处弹簧 → 0 回弹曲线）
+
+`XuanMotion`（`fast 120` / `base 220` / `emphasis 320ms` + `CubicBezier(0.22, 0.61, 0.36, 1)`）此前只是**定义**，本轮真正替换掉上游的弹簧手感：
+
+- `AgentChatBody`：空态建议卡 `slideInVertically`；
+- `ChatMessageItem`：展开块 `expandVertically` / `shrinkVertically`（展开 base、收起 fast）；
+- `AgentOverlayContent`：**7 处** `spring`（含 `DampingRatioLowBouncy` 的明显回弹）→ 玄缓缓动。
+
+**保留 2 处**（非 ETA 特色，替换反而伤手感）：`ConversationSidePaneScaffold` 侧栏抽屉拖拽释放的 settle、`EtaAssistantSuggestions` 语音建议浮层。
+
+### 9.5 验证
+
+- 构建：`assembleDebug` → **BUILD SUCCESSFUL**（5m11s，含 Python 批量改码后的首次全量编译）。
+- 装机：`pm install -r` Success；`am start` 后 `pidof` 存活（pid 8824），logcat **无 FATAL EXCEPTION**。
+- ⚠️ **截图取证再次受阻**：设备虽一度解锁（`isKeyguardShowing=false`），但本轮截图均为**宿主 App「太墟智枢」(top.wkbin.taixu) 抢占前台**的界面（灰色系、0% 品牌色），或设备回到半休眠（截图 18848 字节纯黑）。已尝试 `am start -W`、`KEYCODE_HOME` 后快速抓取、`KEYCODE_WAKEUP` 等，均无法稳定把微玄保持在主屏前台。
+  → 取证结论仅限「安装成功 + 进程存活 + 无崩溃」；**视觉需用户目视确认**：设置页分节签是否为「枢机 · 模型供应商」等四字签、二级页图标是否已成爻线、动效是否已无回弹。
+
+### 9.6 仍未做（据实记录）
+
+| 项 | 状态 |
+|---|---|
+| `Eta*` 组件与类名迁移（`EtaCard`/`EtaControls`/`EtaPreferenceStyle`/`EtaApp`…） | 未做。`EtaApp` 是 Xposed 模块入口（15+ 文件 + `voice_interaction_service.xml` 引用），需单独一轮带安装回归；组件级改名收益低、diff 噪声大。 |
+| 品牌衬线字体内嵌（Noto Serif SC 子集） | 未做。当前用系统 `FontFamily.Serif` 实现题记；内嵌需 +数 MB 且需评估中文回退。 |
+| `ToolIcons.kt`（63 处）/ `ChatMessageItem`（29 处）/ `AgentBrowserScreen`（13 处） | 保留 Material（理由见 9.2）。 |
+| 启动页动画实机观感 | 未取证（见 9.5）。 |
+
 
 
