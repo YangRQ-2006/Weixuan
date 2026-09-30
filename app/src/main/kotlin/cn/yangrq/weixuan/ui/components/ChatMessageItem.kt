@@ -440,12 +440,13 @@ internal fun AgentWorkProcess(
             .padding(horizontal = 20.dp, vertical = 4.dp)
             .squircleSurface(
                 color = MiuixTheme.colorScheme.surface,
-                cornerRadius = 14.dp,
+                // 微玄：工作过程卡片圆角与全局一致（14->16）。
+                cornerRadius = 16.dp,
             )
             .squircleBorder(
                 width = 0.5.dp,
                 color = MiuixTheme.colorScheme.outline.copy(alpha = 0.50f),
-                cornerRadius = 14.dp,
+                cornerRadius = 16.dp,
             ),
     ) {
         Row(

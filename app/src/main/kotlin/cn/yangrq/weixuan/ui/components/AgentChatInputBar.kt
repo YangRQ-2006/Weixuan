@@ -93,7 +93,7 @@ private val SendButtonVisualSize = ChatInputActionIconSize
 private val SendIconSize = 16.dp
 private val StopIconSize = 10.dp
 private val ThinkingIconSize = 21.dp
-private val InputContainerShape = RoundedCornerShape(20.dp)
+private val InputContainerShape = RoundedCornerShape(16.dp)
 
 /**
  * Agent 输入器始终保持同一空间结构，聚焦、输入和执行过程只改变状态，不搬动操作入口。
@@ -230,12 +230,13 @@ internal fun AgentChatInputBar(
                     )
                     .squircleSurface(
                         color = MiuixTheme.colorScheme.surfaceContainer,
-                        cornerRadius = 20.dp,
+                        // 微玄：与全局卡片圆角（16dp）统一，替换上游的 20dp。
+                        cornerRadius = 16.dp,
                     )
                     .squircleBorder(
                         width = 0.5.dp,
-                        color = MiuixTheme.colorScheme.outline.copy(alpha = 0.55f),
-                        cornerRadius = 20.dp,
+                        color = MiuixTheme.colorScheme.outline.copy(alpha = 0.50f),
+                        cornerRadius = 16.dp,
                     )
                     .padding(horizontal = 10.dp, vertical = 8.dp),
             ) {
