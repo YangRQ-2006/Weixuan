@@ -1179,4 +1179,14 @@
   <string name="voice_use_keyboard">切换键盘输入</string>
   <string name="voice_finish_speech">结束录音并发送</string>
   <string name="voice_recognizing">识别中...</string>
+  <!-- 微玄分节签（2026-09-30）：四字签 + 中点 + 白话，用于设置页分节标题 -->
+  <string name="xuan_section_pivot">枢机 · 模型供应商</string>
+  <string name="xuan_section_vessel">器量 · 上下文与扩展</string>
+  <string name="xuan_section_tools">器用 · 工具</string>
+  <string name="xuan_section_steward">代庖 · 系统助手接管</string>
+  <string name="xuan_section_compat">兼容 · 小布/小爱入口</string>
+  <string name="xuan_section_circle">一圈即搜</string>
+  <string name="xuan_section_conduct">行止 · 通用</string>
+  <string name="xuan_section_guard">护持 · 权限</string>
+  <string name="xuan_section_chronicle">玄迹 · 关于</string>
 </resources>

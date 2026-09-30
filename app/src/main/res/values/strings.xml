@@ -1196,4 +1196,14 @@
   <string name="voice_use_keyboard">切换键盘输入</string>
   <string name="voice_finish_speech">结束录音并发送</string>
   <string name="voice_recognizing">Recognizing...</string>
+  <!-- 微玄分节签（2026-09-30）：四字签 + 中点 + 白话，用于设置页分节标题 -->
+  <string name="xuan_section_pivot">Pivot · LLM providers</string>
+  <string name="xuan_section_vessel">Vessel · Context &amp; extensions</string>
+  <string name="xuan_section_tools">Utensils · Tools</string>
+  <string name="xuan_section_steward">Steward · System assistant takeover</string>
+  <string name="xuan_section_compat">Compatible · Xiaobu/Xiaoai entrance</string>
+  <string name="xuan_section_circle">Circle to Search</string>
+  <string name="xuan_section_conduct">Conduct · General</string>
+  <string name="xuan_section_guard">Guard · Permissions</string>
+  <string name="xuan_section_chronicle">Chronicle · About</string>
 </resources>

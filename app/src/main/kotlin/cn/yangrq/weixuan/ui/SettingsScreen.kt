@@ -209,7 +209,7 @@ private fun SettingsPageContent(
     ) {
             // ── LLM 提供商 ──────────────────────────────────────────────
             item(key = "section_agent") {
-                EtaPreferenceGroupTitle(stringResource(R.string.settings_llm_providers))
+                EtaPreferenceGroupTitle(stringResource(R.string.xuan_section_pivot))
                 EtaPreferenceGroup {
                     EtaArrowPreference(
                         title = stringResource(R.string.ui_model_provider_e8c7f5),
@@ -250,7 +250,7 @@ private fun SettingsPageContent(
 
             // ── 上下文与扩展 ────────────────────────────────────────────
             item(key = "section_context_extensions") {
-                EtaPreferenceGroupTitle(stringResource(R.string.settings_context_extensions))
+                EtaPreferenceGroupTitle(stringResource(R.string.xuan_section_vessel))
                 EtaPreferenceGroup {
                     EtaArrowPreference(
                         title = stringResource(R.string.ui_memory_b55ff5),
@@ -303,7 +303,7 @@ private fun SettingsPageContent(
 
             // ── 工具 ───────────────────────────────────────────────────
             item(key = "section_tools") {
-                EtaPreferenceGroupTitle(stringResource(R.string.ui_tool_a72ef1))
+                EtaPreferenceGroupTitle(stringResource(R.string.xuan_section_tools))
                 EtaPreferenceGroup {
                     EtaArrowPreference(
                         title = stringResource(R.string.settings_tools_list),
@@ -387,7 +387,7 @@ private fun SettingsPageContent(
 
             // ── 系统助手接管 ──────────────────────────────────────────────
             item(key = "section_assistant_takeover") {
-                EtaPreferenceGroupTitle(stringResource(R.string.ui_system_assistant_takes_over_f46043))
+                EtaPreferenceGroupTitle(stringResource(R.string.xuan_section_steward))
                 EtaPreferenceGroup {
                     EtaArrowPreference(
                         title = stringResource(R.string.ui_eta_system_assistant_003e9b),
@@ -451,7 +451,7 @@ private fun SettingsPageContent(
             if (prefs != null || hasConnectedFramework) {
                 // ── 厂商助手兼容入口 ──────────────────────────────────────────
                 item(key = "section_oem_assistant_compatibility") {
-                    EtaPreferenceGroupTitle(stringResource(R.string.ui_xiaobu_xiaoai_compatible_entrance_ae918a))
+                    EtaPreferenceGroupTitle(stringResource(R.string.xuan_section_compat))
                     EtaPreferenceGroup {
                         SwitchPref(
                             context = context,
@@ -543,7 +543,7 @@ private fun SettingsPageContent(
             if (prefs != null || hasConnectedFramework) {
                 // ── 一圈即搜 ────────────────────────────────────────────────
                 item(key = "section_circle_to_search") {
-                    EtaPreferenceGroupTitle(stringResource(R.string.ui_search_in_one_turn_179584))
+                    EtaPreferenceGroupTitle(stringResource(R.string.xuan_section_circle))
                     EtaPreferenceGroup {
                         SwitchPref(
                             context = context,
@@ -569,7 +569,7 @@ private fun SettingsPageContent(
 
             // ── 通用 ────────────────────────────────────────────────────
             item(key = "section_general") {
-                EtaPreferenceGroupTitle(stringResource(R.string.settings_general))
+                EtaPreferenceGroupTitle(stringResource(R.string.xuan_section_conduct))
                 EtaPreferenceGroup {
                     EtaArrowPreference(
                         title = stringResource(R.string.appearance_title),
@@ -601,7 +601,7 @@ private fun SettingsPageContent(
 
             // ── 权限 ────────────────────────────────────────────────────
             item(key = "section_permissions") {
-                EtaPreferenceGroupTitle(stringResource(R.string.ui_permissions_560165))
+                EtaPreferenceGroupTitle(stringResource(R.string.xuan_section_guard))
                 EtaPreferenceGroup {
                     EtaArrowPreference(
                         title = stringResource(R.string.ui_floating_window_permissions_076b77),
@@ -717,7 +717,7 @@ private fun SettingsPageContent(
 
             // ── 关于 ────────────────────────────────────────────────────
             item(key = "section_about") {
-                EtaPreferenceGroupTitle(stringResource(R.string.ui_about_bed172))
+                EtaPreferenceGroupTitle(stringResource(R.string.xuan_section_chronicle))
                 EtaPreferenceGroup {
                     EtaArrowPreference(
                         title = stringResource(R.string.ui_source_code_740296),

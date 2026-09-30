@@ -1167,4 +1167,14 @@
   <string name="voice_use_keyboard">切换键盘输入</string>
   <string name="voice_finish_speech">结束录音并发送</string>
   <string name="voice_recognizing">識別中...</string>
+  <!-- 微玄分节签（2026-09-30）：四字签 + 中点 + 白话，用于设置页分节标题 -->
+  <string name="xuan_section_pivot">樞機 · 模型供應商</string>
+  <string name="xuan_section_vessel">器量 · 上下文與擴充</string>
+  <string name="xuan_section_tools">器用 · 工具</string>
+  <string name="xuan_section_steward">代庖 · 系統助理接管</string>
+  <string name="xuan_section_compat">相容 · 小布／小愛入口</string>
+  <string name="xuan_section_circle">圈選搜尋</string>
+  <string name="xuan_section_conduct">行止 · 一般</string>
+  <string name="xuan_section_guard">護持 · 權限</string>
+  <string name="xuan_section_chronicle">玄跡 · 關於</string>
 </resources>
