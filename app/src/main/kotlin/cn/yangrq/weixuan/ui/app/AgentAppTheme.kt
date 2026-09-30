@@ -76,26 +76,60 @@ fun AgentAppTheme(
         } else {
             colors
         }
-        // 微玄品牌色板：玄紫主色 + 鎏金点缀 + 玄墨暗底（定点覆写，不改动 miuix 组件实现）。
+        // 微玄品牌色板（2026-09-28 重做）：
+        //   深色 = 「玄墨」——墨黑底 + 竹青/流金点缀，静雅书卷气；
+        //   浅色 = 「留白」——宣纸底 + 暖灰细线，干净克制。
+        // 仅在选中品牌色 XUAN 时生效（其余主题色沿用 miuix 原色板），
+        // 全部为 ColorScheme 定点覆写，不改动任何 miuix 组件实现。
         if (appearance.accentColor != AppearanceAccentColor.XUAN) {
             base
         } else if (isDark) {
             base.copy(
-                background = Color(0xFF121018),
-                surface = Color(0xFF121018),
-                secondary = Color(0xFFE8C56A),
-                onSecondary = Color(0xFF2B2410),
-                primaryContainer = Color(0xFF2A2340),
+                // —— 玄墨：底 ——
+                background = Color(0xFF0D0D12),
+                onBackground = Color(0xFFECEAF2),
+                surface = Color(0xFF14141A),
+                onSurface = Color(0xFFECEAF2),
+                surfaceContainer = Color(0xFF191920),
+                surfaceContainerHigh = Color(0xFF1E1E27),
+                surfaceContainerHighest = Color(0xFF24242E),
+                surfaceVariant = Color(0xFF2A2A35),
+                // —— 玄紫（深色下提亮以保证对比度）——
+                primary = Color(0xFF9B8CFF),
+                onPrimary = Color(0xFF1A1233),
+                primaryContainer = Color(0xFF2C2450),
                 onPrimaryContainer = Color(0xFFE5DEFF),
+                // —— 竹青：次级强调 ——
+                secondary = Color(0xFF7FB3A0),
+                onSecondary = Color(0xFF0E1F1A),
+                secondaryContainer = Color(0xFF1C3A31),
+                onSecondaryContainer = Color(0xFFBFE6D8),
+                // —— 描边：极暗，保持"墨"的克制 ——
+                outline = Color(0xFF3A3A47),
             )
         } else {
             base.copy(
-                background = Color(0xFFF7F4FF),
+                // —— 留白：底（宣纸）——
+                background = Color(0xFFFAF8F4),
+                onBackground = Color(0xFF1C1B20),
                 surface = Color(0xFFFFFFFF),
-                secondary = Color(0xFFA9822C),
+                onSurface = Color(0xFF1C1B20),
+                surfaceContainer = Color(0xFFF6F4EF),
+                surfaceContainerHigh = Color(0xFFF1EEE8),
+                surfaceContainerHighest = Color(0xFFEBE8E1),
+                surfaceVariant = Color(0xFFF2EFE9),
+                // —— 玄紫 ——
+                primary = Color(0xFF5B4EC2),
+                onPrimary = Color(0xFFFFFFFF),
+                primaryContainer = Color(0xFFE9E4FF),
+                onPrimaryContainer = Color(0xFF1F1746),
+                // —— 竹青（浅色下加深）——
+                secondary = Color(0xFF3E7A5E),
                 onSecondary = Color(0xFFFFFFFF),
-                primaryContainer = Color(0xFFE5DEFF),
-                onPrimaryContainer = Color(0xFF241C4F),
+                secondaryContainer = Color(0xFFD3EBDD),
+                onSecondaryContainer = Color(0xFF0F2A1E),
+                // —— 描边：暖灰细线，替代冷灰 ——
+                outline = Color(0xFFD8D3C8),
             )
         }
     }

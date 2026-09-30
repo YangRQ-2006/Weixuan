@@ -636,10 +636,11 @@ private fun UserMessageBubble(
                         } else {
                             Modifier.squircleSurface(
                                 color = MiuixTheme.colorScheme.surfaceContainerHigh,
-                                topStart = 20.dp,
-                                topEnd = 20.dp,
-                                bottomEnd = 6.dp,
-                                bottomStart = 20.dp,
+                                // 微玄：圆角收敛（20→16），"尾巴"更锐（6→4），收束为更安静的书卷感。
+                                topStart = 16.dp,
+                                topEnd = 16.dp,
+                                bottomEnd = 4.dp,
+                                bottomStart = 16.dp,
                             )
                         }
                     )
@@ -648,10 +649,18 @@ private fun UserMessageBubble(
                             Modifier.squircleBorder(
                                 width = 1.dp,
                                 color = MiuixTheme.colorScheme.primary,
-                                cornerRadius = 20.dp,
+                                cornerRadius = 16.dp,
                             )
-                        } else {
+                        } else if (assistantOverlay) {
                             Modifier
+                        } else {
+                            // 微玄「墨线」：给气泡补一圈极细描边，替代上游依赖投影的层次感，
+                            // 在玄墨深底与宣纸浅底上都更克制、更清晰。
+                            Modifier.squircleBorder(
+                                width = 0.6.dp,
+                                color = MiuixTheme.colorScheme.outline.copy(alpha = 0.45f),
+                                cornerRadius = 16.dp,
+                            )
                         }
                     )
                     .padding(

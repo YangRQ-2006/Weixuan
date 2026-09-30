@@ -71,7 +71,7 @@ enum class AppearanceAccentColor(val persistedValue: String) {
 
     companion object {
         fun fromPersistedValue(value: String?): AppearanceAccentColor =
-            entries.firstOrNull { it.persistedValue == value } ?: SYSTEM
+            entries.firstOrNull { it.persistedValue == value } ?: XUAN
     }
 }
 

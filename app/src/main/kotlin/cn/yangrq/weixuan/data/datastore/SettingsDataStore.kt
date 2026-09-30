@@ -203,20 +203,32 @@ internal object SettingsDataStore {
         selectedProviderId = this[SELECTED_PROVIDER_ID],
         selectedModelId = this[SELECTED_MODEL_ID],
         memoryEnabled = this[MEMORY_ENABLED] ?: true,
-        appearance = AppearanceSettings(
-            themeMode = AppearanceThemeMode.fromPersistedValue(this[APPEARANCE_THEME_MODE]),
-            monetEnabled = this[APPEARANCE_MONET_ENABLED] ?: false,
-            paletteStyle = AppearancePaletteStyle.fromPersistedValue(this[APPEARANCE_PALETTE_STYLE]),
-            accentColor = AppearanceAccentColor.fromPersistedValue(this[APPEARANCE_ACCENT_COLOR]),
-            pureBlackEnabled = this[APPEARANCE_PURE_BLACK_ENABLED] ?: false,
-            blurEnabled = this[APPEARANCE_BLUR_ENABLED] ?: true,
-            topBarBlurStyle = AppearanceTopBarBlurStyle.fromPersistedValue(
-                this[APPEARANCE_TOP_BAR_BLUR_STYLE],
-            ),
-            swipeDismissEnabled = this[APPEARANCE_SWIPE_DISMISS_ENABLED] ?: true,
-            predictiveBackEnabled = this[APPEARANCE_PREDICTIVE_BACK_ENABLED] ?: true,
-            interfaceScale = this[APPEARANCE_INTERFACE_SCALE] ?: 1f,
-        ).normalized(),
+        appearance = run {
+            val monet = this[APPEARANCE_MONET_ENABLED] ?: false
+            val stored = AppearanceAccentColor.fromPersistedValue(this[APPEARANCE_ACCENT_COLOR])
+            // 微玄（2026-09-28）：未启用 Monet 时「跟随系统」取不到壁纸取色，本来就会退化成
+            // 一个无品牌感的默认色。此时统一回落到品牌玄紫，让默认外观即具微玄辨识度；
+            // 用户仍可在「外观」里显式改回系统色。（纯读取期映射，不写盘、不影响其它逻辑）
+            val accent = if (!monet && stored == AppearanceAccentColor.SYSTEM) {
+                AppearanceAccentColor.XUAN
+            } else {
+                stored
+            }
+            AppearanceSettings(
+                themeMode = AppearanceThemeMode.fromPersistedValue(this[APPEARANCE_THEME_MODE]),
+                monetEnabled = monet,
+                paletteStyle = AppearancePaletteStyle.fromPersistedValue(this[APPEARANCE_PALETTE_STYLE]),
+                accentColor = accent,
+                pureBlackEnabled = this[APPEARANCE_PURE_BLACK_ENABLED] ?: false,
+                blurEnabled = this[APPEARANCE_BLUR_ENABLED] ?: true,
+                topBarBlurStyle = AppearanceTopBarBlurStyle.fromPersistedValue(
+                    this[APPEARANCE_TOP_BAR_BLUR_STYLE],
+                ),
+                swipeDismissEnabled = this[APPEARANCE_SWIPE_DISMISS_ENABLED] ?: true,
+                predictiveBackEnabled = this[APPEARANCE_PREDICTIVE_BACK_ENABLED] ?: true,
+                interfaceScale = this[APPEARANCE_INTERFACE_SCALE] ?: 1f,
+            ).normalized()
+        },
     )
 
     private fun MutablePreferences.putAppearance(settings: AppearanceSettings) {
