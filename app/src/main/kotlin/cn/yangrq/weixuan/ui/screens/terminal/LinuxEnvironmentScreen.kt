@@ -65,6 +65,7 @@ import cn.yangrq.weixuan.ui.components.EtaPreferenceIcon
 import cn.yangrq.weixuan.ui.components.EtaTextButton
 import cn.yangrq.weixuan.ui.components.MiuixScaffoldPage
 import cn.yangrq.weixuan.ui.navigation.AppRoute
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -374,7 +375,7 @@ internal fun LinuxEnvironmentScreen(
                 EtaArrowPreference(
                     title = stringResource(R.string.capability_workspace),
                     summary = stringResource(R.string.capability_workspace_summary),
-                    startAction = { EtaPreferenceIcon(Icons.Rounded.Folder, tint = EtaPreferenceColors.Orange) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Folder, tint = EtaPreferenceColors.Orange) },
                     onClick = { onNavigate(AppRoute.Workspace) },
                 )
                 if (selectedBaseReady) {
@@ -382,14 +383,14 @@ internal fun LinuxEnvironmentScreen(
                     EtaArrowPreference(
                         title = stringResource(R.string.shared_folders_entry_title),
                         summary = stringResource(R.string.linux_environment_shared_folders_summary),
-                        startAction = { EtaPreferenceIcon(Icons.Rounded.FolderOpen, tint = EtaPreferenceColors.Orange) },
+                        startAction = { EtaPreferenceIcon(XuanGlyphType.Folder, tint = EtaPreferenceColors.Orange) },
                         onClick = { onNavigate(AppRoute.SharedFolders) },
                     )
                     EtaPreferenceDivider(hasLeading = true)
                     EtaArrowPreference(
                         title = stringResource(R.string.linux_files_entry_title),
                         summary = stringResource(R.string.linux_files_entry_summary),
-                        startAction = { EtaPreferenceIcon(Icons.Rounded.Description, tint = EtaPreferenceColors.Blue) },
+                        startAction = { EtaPreferenceIcon(XuanGlyphType.Memory, tint = EtaPreferenceColors.Blue) },
                         onClick = { onNavigate(AppRoute.LinuxFiles(selectedDistribution.wireName)) },
                     )
                 }

@@ -29,6 +29,7 @@ import cn.yangrq.weixuan.ui.components.EtaPreferenceIcon
 import cn.yangrq.weixuan.ui.components.EtaTextButton
 import cn.yangrq.weixuan.ui.components.MiuixScaffoldPage
 import cn.yangrq.weixuan.ui.model.AgentSystemEnhanceAction
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 fun SystemEnhanceScreen(
@@ -48,7 +49,7 @@ fun SystemEnhanceScreen(
                 EtaPreference(
                     title = "Root",
                     summary = capabilities.root.description(context),
-                    startAction = { EtaPreferenceIcon(Icons.Rounded.Key, tint = EtaPreferenceColors.Yellow) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Permission, tint = EtaPreferenceColors.Yellow) },
                     endActions = {
                         EtaTextButton(
                             text = stringResource(
@@ -72,7 +73,7 @@ fun SystemEnhanceScreen(
                         if (capabilities.xposedConnected) R.string.capability_xposed_connected
                         else R.string.capability_xposed_disconnected,
                     ),
-                    startAction = { EtaPreferenceIcon(Icons.Rounded.AccountTree, tint = EtaPreferenceColors.Blue) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Mcp, tint = EtaPreferenceColors.Blue) },
                 )
             }
         }
@@ -81,7 +82,7 @@ fun SystemEnhanceScreen(
                 EtaPreference(
                     title = stringResource(R.string.capability_xposed_help),
                     summary = stringResource(R.string.capability_xposed_help_summary),
-                    startAction = { EtaPreferenceIcon(Icons.Rounded.Info, tint = EtaPreferenceColors.Blue) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Memory, tint = EtaPreferenceColors.Blue) },
                 )
             }
         }
@@ -91,19 +92,19 @@ fun SystemEnhanceScreen(
                 EtaPreference(
                     title = stringResource(R.string.capability_root_device),
                     summary = stringResource(R.string.capability_root_device_summary),
-                    startAction = { EtaPreferenceIcon(Icons.Rounded.AdminPanelSettings, tint = EtaPreferenceColors.Blue) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Permission, tint = EtaPreferenceColors.Blue) },
                 )
                 EtaPreferenceDivider(hasLeading = true)
                 EtaPreference(
                     title = stringResource(R.string.capability_root_data),
                     summary = stringResource(R.string.capability_root_data_summary),
-                    startAction = { EtaPreferenceIcon(Icons.Rounded.Lock, tint = EtaPreferenceColors.Blue) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Permission, tint = EtaPreferenceColors.Blue) },
                 )
                 EtaPreferenceDivider(hasLeading = true)
                 EtaPreference(
                     title = stringResource(R.string.capability_root_linux),
                     summary = stringResource(R.string.capability_root_linux_summary),
-                    startAction = { EtaPreferenceIcon(Icons.Rounded.Terminal, tint = EtaPreferenceColors.Green) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Terminal, tint = EtaPreferenceColors.Green) },
                 )
             }
         }
@@ -113,19 +114,19 @@ fun SystemEnhanceScreen(
                 EtaPreference(
                     title = stringResource(R.string.capability_hook_assistants),
                     summary = stringResource(R.string.capability_hook_assistants_summary),
-                    startAction = { EtaPreferenceIcon(Icons.Rounded.AutoAwesome, tint = EtaPreferenceColors.Green) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Model, tint = EtaPreferenceColors.Green) },
                 )
                 EtaPreferenceDivider(hasLeading = true)
                 EtaPreference(
                     title = stringResource(R.string.capability_hook_google),
                     summary = stringResource(R.string.capability_hook_google_summary),
-                    startAction = { EtaPreferenceIcon(Icons.AutoMirrored.Rounded.ManageSearch, tint = EtaPreferenceColors.Blue) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Search, tint = EtaPreferenceColors.Blue) },
                 )
                 EtaPreferenceDivider(hasLeading = true)
                 EtaPreference(
                     title = stringResource(R.string.capability_hook_accessibility),
                     summary = stringResource(R.string.capability_hook_accessibility_summary),
-                    startAction = { EtaPreferenceIcon(Icons.Rounded.VerifiedUser, tint = EtaPreferenceColors.Blue) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Permission, tint = EtaPreferenceColors.Blue) },
                 )
             }
         }

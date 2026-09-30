@@ -45,6 +45,7 @@ import cn.yangrq.weixuan.ui.components.EtaSwitchPreference
 import cn.yangrq.weixuan.ui.components.EtaTextButton
 import cn.yangrq.weixuan.ui.components.EtaWindowDialog
 import cn.yangrq.weixuan.ui.components.MiuixScaffoldPage
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import java.io.File
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.DropdownItem
@@ -213,7 +214,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                     selectedIndex = mainIndex,
                     enabled = !busy,
                     startAction = {
-                        EtaPreferenceIcon(icon = Icons.Rounded.Memory, tint = EtaPreferenceColors.Blue)
+                        EtaPreferenceIcon(glyph = XuanGlyphType.Model, tint = EtaPreferenceColors.Blue)
                     },
                     onSelectedIndexChange = { idx ->
                         val picked = catalogFiles.getOrNull(idx - 1)
@@ -238,7 +239,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                     selectedIndex = draftIndex,
                     enabled = !busy,
                     startAction = {
-                        EtaPreferenceIcon(icon = Icons.Rounded.PlayArrow, tint = EtaPreferenceColors.Green)
+                        EtaPreferenceIcon(glyph = XuanGlyphType.Play, tint = EtaPreferenceColors.Green)
                     },
                     onSelectedIndexChange = { idx ->
                         when {
@@ -272,7 +273,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                         (if (engineState.status == LocalEngineStatus.READY) "（已加载）" else ""),
                     enabled = !busy,
                     startAction = {
-                        EtaPreferenceIcon(icon = Icons.Rounded.PlayArrow, tint = EtaPreferenceColors.Green)
+                        EtaPreferenceIcon(glyph = XuanGlyphType.Play, tint = EtaPreferenceColors.Green)
                     },
                     onClick = {
                         scope.launch {
@@ -290,7 +291,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                     summary = "推理结束后建议卸载，避免系统回收进程",
                     enabled = engineState.status == LocalEngineStatus.READY,
                     startAction = {
-                        EtaPreferenceIcon(icon = Icons.Rounded.Stop, tint = EtaPreferenceColors.Orange)
+                        EtaPreferenceIcon(glyph = XuanGlyphType.Stop, tint = EtaPreferenceColors.Orange)
                     },
                     onClick = {
                         scope.launch {
@@ -357,7 +358,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                     summary = "开启后 Agent 可通过 127.0.0.1:${LocalSettings.port} 调用本地模型",
                     checked = serverEnabled,
                     startAction = {
-                        EtaPreferenceIcon(icon = Icons.Rounded.Memory, tint = EtaPreferenceColors.Blue)
+                        EtaPreferenceIcon(glyph = XuanGlyphType.Model, tint = EtaPreferenceColors.Blue)
                     },
                     onCheckedChange = { enabled ->
                         serverEnabled = enabled
@@ -403,7 +404,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                     summary = "占用较多内存，仅在需要时开启",
                     checked = autoLoad,
                     startAction = {
-                        EtaPreferenceIcon(icon = Icons.Rounded.PlayArrow, tint = EtaPreferenceColors.Green)
+                        EtaPreferenceIcon(glyph = XuanGlyphType.Play, tint = EtaPreferenceColors.Green)
                     },
                     onCheckedChange = { enabled ->
                         autoLoad = enabled
@@ -444,7 +445,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                             },
                             enabled = !busy,
                             startAction = {
-                                EtaPreferenceIcon(icon = Icons.Rounded.Download, tint = EtaPreferenceColors.Blue)
+                                EtaPreferenceIcon(glyph = XuanGlyphType.Download, tint = EtaPreferenceColors.Blue)
                             },
                             onClick = { downloadCatalogModel(model) },
                         )
@@ -512,7 +513,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                     summary = "从文件管理器选择（保留原文件名），导入后点击条目即可设为主/草稿",
                     enabled = !busy,
                     startAction = {
-                        EtaPreferenceIcon(icon = Icons.Rounded.Download, tint = EtaPreferenceColors.Blue)
+                        EtaPreferenceIcon(glyph = XuanGlyphType.Download, tint = EtaPreferenceColors.Blue)
                     },
                     onClick = { pickModelFile.launch(arrayOf("*/*")) },
                 )
@@ -563,7 +564,7 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                 EtaArrowPreference(
                     title = "刷新列表",
                     startAction = {
-                        EtaPreferenceIcon(icon = Icons.Rounded.Refresh, tint = EtaPreferenceColors.Blue)
+                        EtaPreferenceIcon(glyph = XuanGlyphType.Refresh, tint = EtaPreferenceColors.Blue)
                     },
                     onClick = { refresh() },
                 )

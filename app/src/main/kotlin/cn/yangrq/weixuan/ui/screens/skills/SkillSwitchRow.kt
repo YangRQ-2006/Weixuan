@@ -34,6 +34,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 internal fun SkillSwitchRow(
@@ -105,8 +106,9 @@ internal fun SkillSwitchRow(
     }
 }
 
-internal fun iconForSkill(skillId: String): ImageVector = when (skillId) {
-    "self-improving-agent" -> Icons.Rounded.Refresh
-    "skill-creator" -> Icons.Rounded.DesignServices
-    else -> Icons.Rounded.Extension
+internal fun iconForSkill(skillId: String): XuanGlyphType = when (skillId) {
+    // 微玄：技能图标改用「爻线」图形语言（自我进化=Refresh，技能创作/缺省=Skills）。
+    "self-improving-agent" -> XuanGlyphType.Refresh
+    "skill-creator" -> XuanGlyphType.Skills
+    else -> XuanGlyphType.Skills
 }

@@ -65,6 +65,8 @@ import top.yukonga.miuix.kmp.basic.rememberTooltipState
 import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.yangrq.weixuan.ui.design.XuanGlyph
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 
 @Composable
 internal fun AgentModelPickerButton(
@@ -199,16 +201,18 @@ private fun ModelProviderGroupHeader(
             modifier = Modifier.weight(1f),
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Icon(
-            imageVector = Icons.Rounded.ExpandMore,
-            contentDescription = if (expanded) {
-                stringResource(R.string.model_collapse_provider, name)
-            } else {
-                stringResource(R.string.model_expand_provider, name)
-            },
+        val arrowLabel = if (expanded) {
+            stringResource(R.string.model_collapse_provider, name)
+        } else {
+            stringResource(R.string.model_expand_provider, name)
+        }
+        // 微玄：展开箭头改用自绘尖角（ChevronDown），不再用 Material 的实心箭头。
+        XuanGlyph(
+            type = XuanGlyphType.ChevronDown,
             modifier = Modifier
                 .size(15.dp)
-                .graphicsLayer { rotationZ = arrowRotation },
+                .graphicsLayer { rotationZ = arrowRotation }
+                .semantics { contentDescription = arrowLabel },
             tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
         )
     }

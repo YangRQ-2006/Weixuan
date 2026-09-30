@@ -40,6 +40,7 @@ import cn.yangrq.weixuan.ui.components.EtaPreferenceGroupTitle
 import cn.yangrq.weixuan.ui.components.EtaPreferenceIcon
 import cn.yangrq.weixuan.ui.components.ListEmptyState
 import cn.yangrq.weixuan.ui.components.MiuixScaffoldPage
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -117,14 +118,14 @@ internal fun WorkspaceScreen(onBack: () -> Unit) {
                 EtaArrowPreference(
                     title = stringResource(R.string.capability_workspace_import),
                     enabled = !busy,
-                    startAction = { EtaPreferenceIcon(Icons.Rounded.DriveFolderUpload, enabled = !busy, tint = EtaPreferenceColors.Orange) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Download, enabled = !busy, tint = EtaPreferenceColors.Orange) },
                     onClick = { importLauncher.launch(arrayOf("*/*")) },
                 )
 
                 EtaPreferenceDivider(hasLeading = true)
                 EtaArrowPreference(
                     title = stringResource(R.string.capability_workspace_public),
-                    startAction = { EtaPreferenceIcon(Icons.Rounded.FolderOpen, tint = EtaPreferenceColors.Orange) },
+                    startAction = { EtaPreferenceIcon(XuanGlyphType.Folder, tint = EtaPreferenceColors.Orange) },
                     summary = if (publicAccess) stringResource(R.string.capability_workspace_public_granted) else stringResource(R.string.capability_workspace_public_summary),
                     onClick = {
                         try {
@@ -146,7 +147,7 @@ internal fun WorkspaceScreen(onBack: () -> Unit) {
                 EtaPreferenceGroup(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                     EtaArrowPreference(
                         title = stringResource(R.string.capability_workspace_parent),
-                        startAction = { EtaPreferenceIcon(Icons.Rounded.FolderOpen, tint = EtaPreferenceColors.Orange) },
+                        startAction = { EtaPreferenceIcon(XuanGlyphType.Folder, tint = EtaPreferenceColors.Orange) },
                         onClick = { path = path.substringBeforeLast('/', "") },
                     )
                 }

@@ -81,6 +81,7 @@ import cn.yangrq.weixuan.ui.components.MiuixDialogActions
 import cn.yangrq.weixuan.ui.components.StatusError
 import cn.yangrq.weixuan.ui.components.StatusSuccess
 import cn.yangrq.weixuan.ui.model.formatCompactTokenCount
+import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -289,7 +290,7 @@ internal fun ProviderModelsTab(
                         enabled = !isFetching && !isMutatingModel,
                         startAction = {
                             EtaPreferenceIcon(
-                                icon = Icons.Rounded.Add,
+                                glyph = XuanGlyphType.Plus,
                                 enabled = !isFetching && !isMutatingModel,
                                 tint = EtaPreferenceColors.Blue,
                             )
