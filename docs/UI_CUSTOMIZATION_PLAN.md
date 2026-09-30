@@ -334,3 +334,63 @@ XuanMotion: fast 120ms | base 220ms | emphasis 320ms
 3. 若希望进一步脱离 MIUI 观感：推进 P2.6 图标系统 + 把 `Eta*` 组件逐步换成 `Xuan*`（适配层已就位）。
 4. `EtaPreferenceColors` 的 `Blue/Green/Orange/Yellow` 别名在完成调用点迁移后删除。
 
+---
+
+## 8. 第二轮实施记录（2026-09-30，去 ETA 化攻坚）
+
+### 8.1 提交
+
+| commit | 内容 |
+|---|---|
+| `2e6afb6` | feat(ui): 微玄「爻线」自绘图标系统，替换 Dock/设置页/顶栏/建议卡 Material 图标 |
+| `852a193` | feat(ui): 启动页重做为「玄之门 · 水墨」动画（清除 Google 四色与 orbit 旋转） |
+
+### 8.2 启动页：清掉最后一个"第一眼 Google 痕迹"
+
+`ic_splash_animated.xml` 上游是 **Google AI 动效**：四色元素 `green_circle` / `yellow_star` / `red_capsule` / `blue_clover` 在 `orbit` 容器里 135° 旋转 + 缩放弹出，颜色为 `#4285F4` / `#34A853` / `#EA4335` / `#FBBC05`（逐像素吻合 Google 四色）。**这是用户打开 App 第一眼看到的画面，此前从未品牌化**（上一轮资源审计误判为"已完成品牌化"，本轮已纠错）。
+
+重做为「玄之门 · 水墨」：鎏金拱门 `trimPathEnd 0→1`（0–560ms 自下而上写出）→ 玄紫漩涡外环（140–560ms）→ 内环（280–560ms）→ 门心鎏金渐显（620–820ms）→ 两点星火（700–960ms）。全程只有晕染/擦除/渐显，**无旋转、无弹跳**（「玄缓」）。背景沿用 `@color/xuan_ink`（玄墨 `#0D0D12`）。
+
+### 8.3 爻线图标系统（微玄的图形语言）
+
+上游全量使用 `material-icons-extended`（**262 处引用**），Google Material 的圆润实心语义是"还像 ETA/Google"的最后一块硬骨头——**仅换色永远改不掉图形语言**。
+
+新增 `ui/design/XuanGlyphs.kt`：**27 枚自绘矢量图形**（Canvas，24 格坐标系，1.6dp 圆头细线），三条硬规则：
+
+1. **线，不是块**：除门心/星火外不做实心填充；
+2. **爻的骨架**：以「三横 / 断横（阴爻）/ 竖线 / 圆」为基本笔画 —— 例如**「设置」直接是一枚爻（阳·阴·阳），不再画齿轮**；
+3. **留白呼吸**：笔画内缩 ≥ 2.5 格，该开口的地方就开口。
+
+| 图形 | 语义 | 图形 | 语义 | 图形 | 语义 |
+|---|---|---|---|---|---|
+| `Gate` | 玄之门（拱+环+心） | `Settings` | 一枚爻 | `Model` | 枢（环+心+引线） |
+| `Tools` | 斜杆+环 | `Skills` | 三横+右竖 | `Permission` | 门+门内点 |
+| `Character` | 双圆（阴阳） | `Terminal` | 折角符+底线 | `Browser` | 圆+横弦 |
+| `Memory` | 纸页+两行字 | `Mcp` | 三节点连线 | `History` | 圆+指针 |
+| `More` | 三点竖排 | `Plus` / `Close` | 十字 / 叉 | `Check` | 勾 |
+| `Send` | 上行箭头 | `Stop` | 方 | `Search` | 环+斜柄 |
+| `Refresh` | 近全弧+引线 | `Download` | 下箭头+底线 | `Delete` | 两竖+上横 |
+| `Play` | 三角 | `Globe` | 圆+经线 | `Folder` | 折页框 |
+
+**接入点**（保留语义不明确的 Material 图标，逐批替换）：
+- **侧栏 Dock 六格**：设置=爻、模型=枢、工具、技能、权限=门、角色=阴阳；
+- **设置页 17 处分组图标**（Python 脚本按语义映射批量替换，`Palette` 无对应保留 Material）；
+- **首页顶栏 5 处**（会话历史=History、更多=More、新建=Plus、终端、浏览器=Globe）；
+- **首页空态建议卡 4 处**（`SuggestionItem.icon: ImageVector` → `glyph: XuanGlyphType`）。
+- 新增 `EtaPreferenceIcon(glyph: XuanGlyphType, …)` 重载，使设置页组件可逐步换图形而不改调用结构。
+
+### 8.4 验证
+
+- 构建：`assembleDebug` → **BUILD SUCCESSFUL**（两次，3m58s / 3m57s；中途两次编译错误已修：`XuanGlyphType` 缺 import、`MiuixTheme` 缺 import；一次 XML 解析错误：**XML 注释里不能出现 `--`**）。
+- 装机：`pm install -r` Success；`am start` 后 `pidof` 确认进程存活（pid 7096），logcat **无 FATAL EXCEPTION**。
+- ⚠️ **本轮截图取证未能完成**：设备处于锁屏 + Dozing（`isKeyguardShowing=true`），主屏截图全黑（1220×2656 纯 `(0,0,0)`），且设备有密码锁，无法在不打扰用户的前提下解锁。已尝试 `KEYCODE_WAKEUP` / `KEYCODE_MENU` / 上滑 / `wm dismiss-keyguard` 均停留在锁屏。
+  → **请唤醒手机后打开微玄自查**：① 冷启动看「玄之门」水墨动画；② 侧栏 Dock 六格是否为爻线图形；③ 设置页分组图标是否已由彩色 Material 变为单色爻线；④ 首页顶栏三枚图标。
+
+### 8.5 后续可继续项
+
+1. **其他二级页图标**：`LocalModelScreen` / `AgentSkillsScreen` / `WorkspaceScreen` / `ToolCard` / `PermissionHealthScreen` 等仍用 Material 图标（`EtaPreferenceIcon(glyph=…)` 与 `XuanGlyph` 已就绪，可逐页替换）。
+2. **信息架构文言化**：设置页分组标题（模型供应商 / 工具 / 通用 / 权限 / 关于）可改为微玄四字签（枢机 / 器用 / 行止 / 护持 / 玄迹），需同步中英繁三语并评估可用性。
+3. **`Eta*` 组件与 `EtaApp` 类名**迁移（适配层已就位；`EtaApp` 为 Xposed 入口，需单独回归）。
+4. 品牌衬线字体内嵌、动效曲线全局收敛（`XuanMotion` 已定义但尚未替换 Miuix 弹簧）。
+
+
