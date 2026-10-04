@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -5,16 +7,72 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val releaseStoreFile = System.getenv("WEIXUAN_RELEASE_STORE_FILE")
-val releaseStorePassword = System.getenv("WEIXUAN_RELEASE_STORE_PASSWORD")
-val releaseKeyAlias = System.getenv("WEIXUAN_RELEASE_KEY_ALIAS")
-val releaseKeyPassword = System.getenv("WEIXUAN_RELEASE_KEY_PASSWORD")
+// ── release 签名配置 ────────────────────────────────────────────────────────
+// 取值优先级：**环境变量 > keystore.properties > 无**（无签名时 release 构建会拒绝出包，
+// 这是刻意的：宁可不出包，也不要产出一个用调试密钥签名的"发布包"）。
+//
+// keystore.properties 默认放在**仓库之外**：<仓库父目录>/weixuan-keystore/keystore.properties
+// （可用环境变量 WEIXUAN_KEYSTORE_PROPERTIES 指向别处）。
+// 内容四项：storeFile / storePassword / keyAlias / keyPassword。
+// 该文件与 *.jks 均已被 .gitignore 挡住，不会进版本库。
+val keystorePropsFile: File = System.getenv("WEIXUAN_KEYSTORE_PROPERTIES")
+    ?.takeIf { it.isNotBlank() }
+    ?.let { file(it) }
+    ?: File(rootProject.projectDir.parentFile, "weixuan-keystore/keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.isFile) {
+        keystorePropsFile.inputStream().use { load(it) }
+    }
+}
+
+fun signingValue(envKey: String, propKey: String): String? {
+    val fromEnv: String? = System.getenv(envKey)
+    val raw: String? = if (fromEnv != null && fromEnv.isNotBlank()) {
+        fromEnv
+    } else {
+        keystoreProps.getProperty(propKey)
+    }
+    // 占位符不算配置值：否则「模板还没填」会被误判成「已配置」，
+    // 守卫失效、构建跑到签名阶段才炸，报错还很难懂。
+    if (raw.isNullOrBlank() || raw.contains("REPLACE_ME")) return null
+    return raw
+}
+
+val releaseStoreFile = signingValue("WEIXUAN_RELEASE_STORE_FILE", "storeFile")?.let {
+    // 允许 properties 里写相对路径（相对 keystore.properties 所在目录）
+    val f = File(it)
+    if (f.isAbsolute) f.absolutePath else File(keystorePropsFile.parentFile, it).absolutePath
+}
+val releaseStorePassword = signingValue("WEIXUAN_RELEASE_STORE_PASSWORD", "storePassword")
+val releaseKeyAlias = signingValue("WEIXUAN_RELEASE_KEY_ALIAS", "keyAlias")
+val releaseKeyPassword = signingValue("WEIXUAN_RELEASE_KEY_PASSWORD", "keyPassword")
 val hasReleaseSigning = listOf(
     releaseStoreFile,
     releaseStorePassword,
     releaseKeyAlias,
     releaseKeyPassword
-).all { !it.isNullOrBlank() }
+).all { !it.isNullOrBlank() } &&
+    // 光有配置不算：密钥库文件必须真实存在，否则签名必然失败。
+    releaseStoreFile?.let { File(it).isFile } == true
+
+// 本地发布前自检：若确实要出 release 包却没配签名，直接报错并给出该怎么做。
+val wantsReleaseBuild = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+if (wantsReleaseBuild && !hasReleaseSigning) {
+    throw GradleException(
+        """
+        |未找到 release 签名配置，拒绝出包（避免产出用调试密钥签名的"发布包"）。
+        |
+        |请二选一：
+        |  A) 填写 ${keystorePropsFile.absolutePath}
+        |     内容示例（storeFile 可用相对路径，相对该 properties 文件所在目录）：
+        |       storeFile=weixuan-release.jks
+        |       storePassword=你的密钥库口令
+        |       keyAlias=weixuan
+        |       keyPassword=你的密钥口令
+        |  B) 或用环境变量 WEIXUAN_RELEASE_STORE_FILE / _STORE_PASSWORD / _KEY_ALIAS / _KEY_PASSWORD
+        """.trimMargin()
+    )
+}
 
 java {
     toolchain {
