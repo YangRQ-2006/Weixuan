@@ -1,0 +1,5 @@
+upstream: https://github.com/guillermolg00/morphicons
+version: 1.7.1 (main @ 38d2a7221633a453eeafebd872ee3649b9274b22, 2026-10-02)
+license: MIT
+purpose: 微玄「爻形」（XuanMorph）动态图标的算法蓝本 —— Kotlin 移植的参考原文（只读，不参与编译）
+note: 只保留算法核心（src/core）与 DOM 驱动（src/dom，用于对照 createMorph 的 retarget/snapshot/settle 语义）。
