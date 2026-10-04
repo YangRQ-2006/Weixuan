@@ -32,8 +32,17 @@ import java.util.Locale
 object LocalMemoryModel {
     private const val TAG = "LocalMemModel"
 
-    /** KV 行对齐/布局 + 计算缓冲的安全系数。 */
-    private const val KV_SAFETY = 1.35
+    /**
+     * KV 行对齐/布局 + 计算缓冲的安全系数。
+     *
+     * 2026-09-30 按实测校准 1.35 → 1.10：设备实测显示 KV 实际落在 HTP/DSP 侧内存，
+     * 不占 host RSS（ctx=8192 f16 时加载后 MemAvailable 仅下降 2202MB，而我的保守模型
+     * 预测 3936MB；另一次 ctx=4096 的裸跑进程 RSS 只有 335MB）。保留 1.10 是只覆盖
+     * 行对齐/布局开销，不再重复计入已经不占 host 内存的部分——这样 9B 的 IQ3/Q3 档
+     * 才不会被误拒。**注意：这不等于"KV 免费"**，KV 仍占 HTP 侧物理内存，所以
+     * `residentMb = 文件全量` 这条底线保持不变。
+     */
+    private const val KV_SAFETY = 1.10
 
     /** 固定开销：llama-server 进程自身 + 计算图缓冲 + 采样器。 */
     const val FIXED_OVERHEAD_MB = 128
@@ -47,6 +56,18 @@ object LocalMemoryModel {
      * 所以宁可拒绝加载，也不给一个装不下 prompt 的窗口。
      */
     const val MIN_CTX = 4096
+
+    /**
+     * 默认上下文窗口上限（速度优先，2026-09-30 从 8192 回调）。
+     *
+     * 依据本机实测：同一 prompt（3674 tokens）在 ctx=8192 下 decode = 8.32 tok/s
+     * （120.16 ms/token），而历史记录里 ctx≈3.1k 时有 11.2 tok/s —— KV 每 token 的读取量
+     * 随窗口线性增长（f16 @8192 约 1152MB/token，@6144 约 864MB，@4096 约 576MB），
+     * 在权重带宽已经吃紧的 HTP 路径上，这笔流量会直接反映到 tok/s。
+     * Agent prompt 实测 3.2k~6k，6144 仍留 2k+ 输出余量；需要长会话可调大（实际窗口由
+     * 可用内存决定，阶梯为 8192/6144/4096，不会超过本上限）。
+     */
+    const val DEFAULT_CTX_CAP = 6144
 
     /** 候选窗口，从大到小挑第一个装得下的。 */
     private val LADDER = intArrayOf(8192, 6144, MIN_CTX)
@@ -178,6 +199,138 @@ object LocalMemoryModel {
             null
         } finally {
             runCatching { ins?.close() }
+        }
+    }
+
+    // ──────────────────────────────────────────── 量化画像
+    //
+    // 兼容性矩阵要点：HTP 只对少数量化格式有「原生 tiled 布局」（没有逐行反量化），
+    // 其余格式会退化成慢路径。所以必须知道模型**真正的**权重格式，而不是文件名里写的那个。
+    // 做法：完整走一遍 GGUF 的 KV 段，再读张量信息表，按**元素数加权**统计类型分布。
+
+    /** GGML 张量类型 id → 名称（取自 ggml/include/ggml.h:390-429）。 */
+    private val GGML_TYPE_NAMES = mapOf(
+        0 to "F32", 1 to "F16", 2 to "Q4_0", 3 to "Q4_1", 6 to "Q5_0", 7 to "Q5_1",
+        8 to "Q8_0", 9 to "Q8_1", 10 to "Q2_K", 11 to "Q3_K", 12 to "Q4_K", 13 to "Q5_K",
+        14 to "Q6_K", 15 to "Q8_K", 16 to "IQ2_XXS", 17 to "IQ2_XS", 18 to "IQ3_XXS",
+        19 to "IQ1_S", 20 to "IQ4_NL", 21 to "IQ3_S", 22 to "IQ2_S", 23 to "IQ4_XS",
+        24 to "I8", 25 to "I16", 26 to "I32", 27 to "I64", 28 to "F64", 29 to "IQ1_M",
+        30 to "BF16", 34 to "TQ1_0", 35 to "TQ2_0", 39 to "MXFP4",
+    )
+
+    /**
+     * 模型的量化画像。
+     * @param dominant 按**元素数加权**占比最高的 ggml 类型名（= 真正的权重格式）
+     * @param share 该类型占全部权重元素的比例
+     * @param histogram 类型 → 元素数占比，降序，最多 4 项
+     */
+    data class QuantInfo(
+        val fileType: Int?,
+        val dominant: String,
+        val share: Double,
+        val histogram: List<Pair<String, Double>>,
+        val src: String,
+    ) {
+        fun describe(): String =
+            "$dominant（${String.format(Locale.US, "%.0f%%", share * 100)} 权重元素" +
+                histogram.drop(1).joinToString("") { "，${it.first} ${String.format(Locale.US, "%.0f%%", it.second * 100)}" } +
+                "）"
+    }
+
+    private val quantCache = java.util.concurrent.ConcurrentHashMap<String, QuantInfo>()
+
+    /** 读取模型的量化画像（按 path+length+mtime 缓存）；失败返回 null。 */
+    fun probeQuant(modelFile: File): QuantInfo? {
+        if (!modelFile.isFile || modelFile.length() < (1L shl 20)) return null
+        val key = "${modelFile.absolutePath}|${modelFile.length()}|${modelFile.lastModified()}"
+        quantCache[key]?.let { return it }
+        var ins: InputStream? = null
+        return try {
+            ins = BufferedInputStream(FileInputStream(modelFile), 1 shl 16)
+            parseGgufQuant(ins)?.also { quantCache[key] = it }
+        } catch (t: Throwable) {
+            Log.w(TAG, "量化解析失败，回退文件名判定：${t.message}")
+            null
+        } finally {
+            runCatching { ins?.close() }
+        }
+    }
+
+    private fun parseGgufQuant(ins: InputStream): QuantInfo? {
+        val r = R(ins)
+        if (String(r.buf(4), Charsets.US_ASCII) != "GGUF") return null
+        r.u32()                                  // version
+        val tensorCount = r.u64()
+        val kvCount = r.u64()
+        if (kvCount <= 0L || kvCount > 100_000L) return null
+        if (tensorCount <= 0L || tensorCount > 200_000L) return null
+
+        // 1) 走完元数据段（只关心 general.file_type，其余按类型跳过，不做分配）
+        var fileType: Int? = null
+        var i = 0L
+        while (i < kvCount) {
+            val key = r.str()
+            val t = r.u32().toInt()
+            if (key == "general.file_type") fileType = readInt(r, t).toInt() else skipValue(r, t)
+            i++
+        }
+
+        // 2) 张量信息表：name / n_dims / dims[] / type / offset
+        val elemsByType = HashMap<Int, Long>()
+        i = 0L
+        while (i < tensorCount) {
+            r.str()                              // 张量名
+            val nDims = r.u32().toInt()
+            if (nDims < 0 || nDims > 8) throw IllegalArgumentException("非法维度数 $nDims")
+            var elems = 1L
+            var d = 0
+            while (d < nDims) {
+                val dim = r.u64()
+                if (dim > 0) elems *= dim
+                d++
+            }
+            val ty = r.u32().toInt()
+            r.u64()                              // offset
+            elemsByType[ty] = (elemsByType[ty] ?: 0L) + elems
+            i++
+        }
+        val total = elemsByType.values.sum()
+        if (total <= 0L) return null
+        val hist = elemsByType.entries
+            .sortedByDescending { it.value }
+            .take(4)
+            .map { (ty, n) -> (GGML_TYPE_NAMES[ty] ?: "type$ty") to n.toDouble() / total }
+        return QuantInfo(
+            fileType = fileType,
+            dominant = hist.first().first,
+            share = hist.first().second,
+            histogram = hist,
+            src = "gguf",
+        )
+    }
+
+    /** 按 GGUF 类型定义跳过一个 value（不分配内存）。 */
+    private fun skipValue(r: R, t: Int) {
+        when (t) {
+            0, 1, 7 -> r.u8()
+            2, 3 -> r.skip(2)
+            4, 5, 6 -> r.skip(4)
+            10, 11, 12 -> r.skip(8)
+            8 -> r.skip(r.u64())
+            9 -> {
+                val et = r.u32().toInt()
+                val cnt = r.u64()
+                if (cnt < 0 || cnt > 100_000_000L) throw IllegalArgumentException("非法数组长度 $cnt")
+                if (et == 8) {
+                    var k = 0L
+                    while (k < cnt) { r.skip(r.u64()); k++ }
+                } else {
+                    val sz = intSize(et)
+                    if (sz == 0) throw IllegalArgumentException("非法数组元素类型 $et")
+                    r.skip(cnt * sz)
+                }
+            }
+            else -> throw IllegalArgumentException("非法 GGUF value 类型 $t")
         }
     }
 

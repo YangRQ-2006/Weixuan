@@ -98,6 +98,8 @@ import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import cn.yangrq.weixuan.ui.design.XuanGlyph
 import cn.yangrq.weixuan.ui.design.XuanGlyphType
+import cn.yangrq.weixuan.ui.design.morph.XuanMorphGlyph
+import cn.yangrq.weixuan.ui.design.morph.XuanMorphIcon
 
 /**
  * Agent 与用户共享的浏览器会话。
@@ -357,12 +359,9 @@ private fun BrowserToolbar(
             enabled = snapshot.canGoForward && !actionPending,
             onClick = onForward,
         )
+        // 微玄「爻形」：刷新↔停止加载 沿弹簧形变
         BrowserControlButton(
-            glyph = if (snapshot.isLoading) {
-                XuanGlyphType.Close
-            } else {
-                XuanGlyphType.Refresh
-            },
+            glyph = if (snapshot.isLoading) XuanMorphGlyph.Close else XuanMorphGlyph.Refresh,
             description = if (snapshot.isLoading) stringResource(R.string.browser_stop_loading) else stringResource(R.string.browser_refresh),
             enabled = snapshot.available && (snapshot.isLoading || !actionPending),
             onClick = onRefresh,
@@ -424,6 +423,32 @@ private fun BrowserControlButton(
     ) {
         XuanGlyph(
             type = glyph,
+            modifier = Modifier.size(20.dp),
+            tint = MiuixTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+/** 爻形变形版本：刷新↔停止加载这类状态切换位，目标变化时沿弹簧形变。 */
+@Composable
+private fun BrowserControlButton(
+    glyph: XuanMorphGlyph,
+    description: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .alpha(if (enabled) 1f else 0.34f)
+            .semantics(mergeDescendants = true) {
+                contentDescription = description
+                if (!enabled) disabled()
+            },
+    ) {
+        XuanMorphIcon(
+            glyph = glyph,
             modifier = Modifier.size(20.dp),
             tint = MiuixTheme.colorScheme.onSurface,
         )

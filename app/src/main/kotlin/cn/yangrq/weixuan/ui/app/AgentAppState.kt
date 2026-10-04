@@ -942,6 +942,7 @@ internal class AgentAppState(
             SystemNoticeCode.EmptyResult -> R.string.system_notice_empty_result
             SystemNoticeCode.ContextCompaction -> R.string.context_compaction
             SystemNoticeCode.ModelRetry -> R.string.system_notice_model_retry
+            SystemNoticeCode.LocalModelLoading -> R.string.system_notice_local_model_loading
             SystemNoticeCode.RuntimeFailed -> R.string.system_notice_runtime_failed
             SystemNoticeCode.Interrupted -> R.string.system_notice_interrupted
         },

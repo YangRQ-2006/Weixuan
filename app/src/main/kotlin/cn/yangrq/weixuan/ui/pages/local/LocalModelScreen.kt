@@ -29,6 +29,12 @@ import cn.yangrq.weixuan.local.LocalModelCatalog
 import cn.yangrq.weixuan.local.ModelDownloadStatus
 import cn.yangrq.weixuan.local.ModelTier
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withContext
+import cn.yangrq.weixuan.local.LocalBackend
+import cn.yangrq.weixuan.local.ModelCompat
 import cn.yangrq.weixuan.local.LocalEngineStatus
 import cn.yangrq.weixuan.local.LocalModelEntry
 import cn.yangrq.weixuan.local.LocalPerfTuner
@@ -63,7 +69,10 @@ import cn.yangrq.weixuan.ui.design.XuanGlyph
  * 模型本身由 Eta 原生 Provider 列表里的「本地模型（GenieX NPU）」条目选中使用。
  */
 @Composable
-internal fun LocalModelScreen(onBack: () -> Unit) {
+internal fun LocalModelScreen(
+    onBack: () -> Unit,
+    onOpenMarket: () -> Unit,
+) {
     val scope = rememberCoroutineScope()
     val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
     val engineState by GenieXLocalEngine.state.collectAsState()
@@ -75,8 +84,43 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
     var draftOn by remember { mutableStateOf(LocalSettings.draftEnabled) }
     var centerModel by remember { mutableStateOf(LocalSettings.modelName) }
     var thinkingOn by remember { mutableStateOf(LocalSettings.thinkingEnabled) }
-    var bmoeOn by remember { mutableStateOf(LocalSettings.useBmoeEngine) }
+    // （MoE 流式引擎已移除：该架构对长 prompt 的 Agent 负载不收敛，详见 2026-09-30 结论）
     var selfBuiltOn by remember { mutableStateOf(LocalSettings.useSelfBuiltEngine) }
+    // ── 自建 runtime 的推理后端（2026-10-02）─────────────────────────────────
+    // 可选列表由**设备探测**决定，而不是硬编码：让 llama-server 自己报一遍可用设备
+    //（--list-devices），只把本机真能跑起来的口味摆到 UI 上，避免"选了 GPU 结果起不来"。
+    var backendId by remember { mutableStateOf(LocalSettings.localBackend) }
+    var backendOptions by remember { mutableStateOf(LocalBackend.entries.toList()) }
+    // 兼容性判定（2026-10-02，抄自 PocketOrca）：后端 × 量化格式 × 设备
+    var compatByBackend by remember { mutableStateOf(emptyMap<String, ModelCompat.Verdict>()) }
+    var quantDesc by remember { mutableStateOf("") }
+    val selectedBackend = LocalBackend.fromId(backendId)
+    LaunchedEffect(Unit) {
+        // 三个口味**并发**探测：串行时要依次 dlopen 44MB 的 Vulkan 插件，页面会明显卡顿，
+        // 而且中途被回收（组合被销毁）就会只探到一半，UI 停在「全部可选」的初值上。
+        backendOptions = withContext(Dispatchers.IO) {
+            LocalBackend.entries
+                .map { backend -> async { backend to LocalBackend.isAvailable(appContext, backend) } }
+                .awaitAll()
+                .filter { it.second }
+                .map { it.first }
+                .ifEmpty { listOf(LocalBackend.NPU_HTP, LocalBackend.CPU) }
+        }
+        // 曾选中的口味被探测判定为不可用时，回落到 NPU，避免用户对着一片红字
+        if (backendOptions.none { it.id == backendId }) {
+            val fallback = LocalBackend.DEFAULT
+            backendId = fallback.id
+            LocalSettings.localBackend = fallback.id
+        }
+    }
+    // 兼容性判定：模型换了或后端表变了就重算（读 GGUF 头部 + 设备矩阵，放 IO）
+    LaunchedEffect(mainPath, backendOptions) {
+        withContext(Dispatchers.IO) {
+            val quant = ModelCompat.quantOf(mainPath.takeIf { it.isNotBlank() }?.let { java.io.File(it) })
+            quantDesc = quant?.describe() ?: ""
+            compatByBackend = backendOptions.associate { it.id to ModelCompat.check(it, quant) }
+        }
+    }
     var models by remember { mutableStateOf<List<LocalModelEntry>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
@@ -354,6 +398,34 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                     },
                 )
                 EtaPreferenceDivider()
+                EtaDropdownPreference(
+                    title = "推理后端（自建引擎）",
+                    summary = if (!selfBuiltOn) {
+                        "当前用 GenieX 引擎，此项不生效"
+                    } else {
+                        val v = compatByBackend[backendId]
+                        buildString {
+                            append(selectedBackend.detail)
+                            if (v != null) append(" ｜ ").append(ModelCompat.badge(v))
+                        }
+                    },
+                    items = backendOptions.map { DropdownItem(text = it.label) },
+                    selectedIndex = backendOptions.indexOfFirst { it.id == backendId }.coerceAtLeast(0),
+                    enabled = selfBuiltOn && !busy,
+                    startAction = {
+                        EtaPreferenceIcon(glyph = XuanGlyphType.Model, tint = EtaPreferenceColors.Blue)
+                    },
+                    onSelectedIndexChange = { index ->
+                        val picked = backendOptions.getOrNull(index)
+                            ?: return@EtaDropdownPreference
+                        backendId = picked.id
+                        LocalSettings.localBackend = picked.id
+                        // 换口味后设备集合可能变化，重新探测
+                        LocalBackend.invalidateProbe()
+                        message = "推理后端已切换为「${picked.label}」，重新加载模型后生效"
+                    },
+                )
+                EtaPreferenceDivider()
                 EtaSwitchPreference(
                     title = "启用本地回环服务",
                     summary = "开启后 Agent 可通过 127.0.0.1:${LocalSettings.port} 调用本地模型",
@@ -379,16 +451,9 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
                         }
                     },
                 )
+                // MoE 流式引擎开关已移除（2026-09-30）：该引擎在 3.4k tokens 的 Agent prompt 上
+                // 预填不收敛（实测 139GB 读取 / 2 分钟 / 0 token），改用 dense + NPU 路线。
                 EtaPreferenceDivider()
-                EtaSwitchPreference(
-                    title = "MoE 流式引擎（30B 等超大模型）",
-                    summary = "模型体积远超可用内存时启用：按 token 懒加载专家 + 热专家缓存，无损且不拖垮系统",
-                    checked = bmoeOn,
-                    onCheckedChange = { enabled ->
-                        bmoeOn = enabled
-                        LocalSettings.useBmoeEngine = enabled
-                    },
-                )
                 EtaPreferenceDivider()
                 EtaSwitchPreference(
                     title = "思考模式",
@@ -415,57 +480,21 @@ internal fun LocalModelScreen(onBack: () -> Unit) {
             }
         }
 
-        // ══ ② 中部：模型市场 ══════════════════════════════════════════
+        // ══ ② 模型市场入口（2026-10-04 已剥离为独立页面 ModelMarketScreen）══
         item {
-            EtaPreferenceGroupTitle("模型市场（hf-mirror 高速源 · 系统下载可后台续传）")
+            EtaPreferenceGroupTitle("模型")
         }
-        ModelTier.values().forEach { tier ->
-            item {
-                EtaPreferenceGroupTitle(tier.label)
-            }
-            item {
-                EtaPreferenceGroup {
-                    LocalModelCatalog.MODELS.filter { it.tier == tier }.forEachIndexed { index, model ->
-                        if (index > 0) EtaPreferenceDivider()
-                        val status = catalogStatus[model.id]
-                        val active = status != null && (
-                            status.state == DownloadState.RUNNING ||
-                                status.state == DownloadState.PENDING ||
-                                status.state == DownloadState.PAUSED
-                            )
-                        EtaArrowPreference(
-                            title = model.title,
-                            summary = when {
-                                active -> "下载中 ${(status!!.progress * 100).toInt()}%" +
-                                    "（${status.downloadedBytes / 1048576}MB / ~${model.sizeMb}MB，可退出 App）"
-                                status?.state == DownloadState.SUCCEEDED ->
-                                    "已下载完成，可在下方「模型管理」设为主模型 / 草稿模型"
-                                status?.state == DownloadState.FAILED -> "下载失败（code=${status.reason}），点此重试"
-                                LocalModelCatalog.isDownloaded(appContext, model) -> "已在本机（点击可重新下载覆盖）"
-                                else -> model.summary
-                            },
-                            enabled = !busy,
-                            startAction = {
-                                EtaPreferenceIcon(glyph = XuanGlyphType.Download, tint = EtaPreferenceColors.Blue)
-                            },
-                            onClick = { downloadCatalogModel(model) },
-                        )
-                        if (active) {
-                            EtaPreferenceDivider()
-                            EtaArrowPreference(
-                                title = "取消下载 · ${model.fileName}",
-                                summary = "系统任务将被移除，已下载部分会删除",
-                                enabled = !busy,
-                                onClick = {
-                                    LocalModelCatalog.cancel(appContext, model)
-                                    refreshCatalogStatus()
-                                    reloadCatalogFiles()
-                                    message = "已取消下载：${model.fileName}"
-                                },
-                            )
-                        }
-                    }
-                }
+        item {
+            EtaPreferenceGroup {
+                EtaArrowPreference(
+                    title = "模型市场",
+                    summary = "浏览并下载端侧模型（共 ${LocalModelCatalog.MODELS.size} 个，" +
+                        "含可看图的多模态模型）",
+                    startAction = {
+                        EtaPreferenceIcon(glyph = XuanGlyphType.Download, tint = EtaPreferenceColors.Blue)
+                    },
+                    onClick = onOpenMarket,
+                )
             }
         }
 

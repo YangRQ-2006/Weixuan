@@ -184,6 +184,8 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import cn.yangrq.weixuan.ui.design.XuanMotion
 import cn.yangrq.weixuan.ui.design.XuanGlyph
 import cn.yangrq.weixuan.ui.design.XuanGlyphType
+import cn.yangrq.weixuan.ui.design.morph.XuanMorphGlyph
+import cn.yangrq.weixuan.ui.design.morph.XuanMorphIcon
 
 @Composable
 internal fun rememberDataUrlBitmap(dataUrl: String) = remember(dataUrl) {
@@ -311,6 +313,7 @@ internal fun ChatMessageItem(
                                     SystemNoticeCode.EmptyResult -> R.string.system_notice_empty_result
                                     SystemNoticeCode.ContextCompaction -> R.string.context_compaction
                                     SystemNoticeCode.ModelRetry -> R.string.system_notice_model_retry
+                                    SystemNoticeCode.LocalModelLoading -> R.string.system_notice_local_model_loading
                                     SystemNoticeCode.RuntimeFailed -> R.string.system_notice_runtime_failed
                                     SystemNoticeCode.Interrupted -> R.string.system_notice_interrupted
                                 },
@@ -503,11 +506,12 @@ internal fun AgentWorkProcess(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-                        XuanGlyph(
-                type = if (expanded) XuanGlyphType.ChevronDown else XuanGlyphType.ChevronRight,
-                modifier = Modifier.size(14.dp),
-                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
-            )
+                // 微玄「爻形」：展开↔收起箭头带形变
+                XuanMorphIcon(
+                    glyph = if (expanded) XuanMorphGlyph.ChevronDown else XuanMorphGlyph.ChevronRight,
+                    modifier = Modifier.size(14.dp),
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
+                )
         }
 
         AnimatedVisibility(
@@ -2327,11 +2331,12 @@ private fun ThinkingRow(
                 },
                 modifier = Modifier.weight(1f),
             )
-                        XuanGlyph(
-                type = if (expanded) XuanGlyphType.ChevronDown else XuanGlyphType.ChevronRight,
-                modifier = Modifier.size(14.dp),
-                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
-            )
+                // 微玄「爻形」：展开↔收起箭头带形变
+                XuanMorphIcon(
+                    glyph = if (expanded) XuanMorphGlyph.ChevronDown else XuanMorphGlyph.ChevronRight,
+                    modifier = Modifier.size(14.dp),
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
+                )
         }
 
         AnimatedVisibility(visible = expanded && message.content.isNotBlank()) {
@@ -2520,8 +2525,9 @@ private fun ToolActivityInline(
                         }
                     }
                 }
-                                XuanGlyph(
-                    type = if (isExpanded) XuanGlyphType.ChevronDown else XuanGlyphType.ChevronRight,
+                // 微玄「爻形」：状态区展开↔收起箭头带形变
+                XuanMorphIcon(
+                    glyph = if (isExpanded) XuanMorphGlyph.ChevronDown else XuanMorphGlyph.ChevronRight,
                     modifier = Modifier.size(13.dp),
                     tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.5f),
                 )

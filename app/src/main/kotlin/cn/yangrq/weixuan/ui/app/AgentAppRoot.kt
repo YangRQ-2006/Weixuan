@@ -59,6 +59,7 @@ import cn.yangrq.weixuan.ui.navigation.AgentNavigator
 import cn.yangrq.weixuan.ui.navigation.AppRoute
 import cn.yangrq.weixuan.ui.pages.providers.ModelProviderDetailScreen
 import cn.yangrq.weixuan.ui.pages.local.LocalModelScreen
+import cn.yangrq.weixuan.ui.pages.local.ModelMarketScreen
 import cn.yangrq.weixuan.ui.pages.providers.ModelProviderListScreen
 import cn.yangrq.weixuan.ui.screens.backup.DataBackupScreen
 import cn.yangrq.weixuan.ui.screens.browser.AgentBrowserScreen
@@ -660,7 +661,16 @@ fun AgentAppRoot(
                 )
             }
             entry<AppRoute.LocalModel>(swipeDismiss = swipeDismiss) {
-                LocalModelScreen(onBack = ::popRoute)
+                LocalModelScreen(
+                    onBack = ::popRoute,
+                    onOpenMarket = { pushRoute(AppRoute.ModelMarket) },
+                )
+            }
+            entry<AppRoute.ModelMarket>(swipeDismiss = swipeDismiss) {
+                ModelMarketScreen(
+                    onBack = ::popRoute,
+                    onOpenLocalModels = { pushRoute(AppRoute.LocalModel) },
+                )
             }
             entry<AppRoute.McpServers>(swipeDismiss = swipeDismiss) {
                 McpServersScreen(

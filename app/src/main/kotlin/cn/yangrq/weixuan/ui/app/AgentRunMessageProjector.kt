@@ -59,9 +59,12 @@ internal class AgentRunMessageProjector(
         val finalized = finalizeTextRound(
             runId, event.round, finalizeThinkingRound(runId, event.round, messages),
         )
+        // 2026-10-04：本地模型冷启动加载走同一条「系统提示」通道，但用独立 code 渲染，
+        // 避免把"正在加载（正常等待）"误报成"请求失败重试"。
+        val loading = event.reasonCode == AgentEvent.LOCAL_MODEL_LOADING_CODE
         val notice = SystemNoticeMessageUi(
             id = "assistant-$runId-retry-${event.round}",
-            code = SystemNoticeCode.ModelRetry,
+            code = if (loading) SystemNoticeCode.LocalModelLoading else SystemNoticeCode.ModelRetry,
             detail = event.displayMessage,
         )
         return finalized.filterNot { it.id == notice.id } + notice

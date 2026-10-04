@@ -31,9 +31,11 @@ android {
         applicationId = "cn.yangrq.weixuan"
         minSdk = 34
         targetSdk = 36
-        // versionCode 规则：yyyyMMdd + 两位当日序号（01 起），发版时随 versionName 一起手动递增。
-        versionCode = 2026092701
-        versionName = "3.0.5"
+        // 首次开源发布：versionName 0.0.1，versionCode 从 1 起算。
+        // （此前内部迭代用 yyyyMMdd+序号 的编码，开源后改为语义化版本；
+        //   versionCode 会低于此前内部构建，覆盖安装需允许降级或先卸载）
+        versionCode = 1
+        versionName = "0.0.1"
 
         // GenieX 本地推理 SDK 仅提供 arm64-v8a 原生库，同时收敛 APK 体积。
         ndk {

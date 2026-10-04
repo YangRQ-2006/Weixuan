@@ -36,6 +36,7 @@ internal object ConversationMarkdownExporter {
         val noticeStopped: String,
         val noticeEmptyResult: String,
         val noticeModelRetry: String,
+        val noticeLocalModelLoading: String = "正在加载本地模型，请稍候",
         val noticeRuntimeFailed: String,
         val noticeInterrupted: String,
         val noticeContextCompaction: String = "上下文压缩",
@@ -52,6 +53,7 @@ internal object ConversationMarkdownExporter {
             SystemNoticeCode.EmptyResult -> noticeEmptyResult
             SystemNoticeCode.ContextCompaction -> noticeContextCompaction
             SystemNoticeCode.ModelRetry -> noticeModelRetry
+            SystemNoticeCode.LocalModelLoading -> noticeLocalModelLoading
             SystemNoticeCode.RuntimeFailed -> noticeRuntimeFailed
             SystemNoticeCode.Interrupted -> noticeInterrupted
         }

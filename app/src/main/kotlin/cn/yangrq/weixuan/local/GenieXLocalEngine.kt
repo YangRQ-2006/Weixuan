@@ -196,7 +196,12 @@ object GenieXLocalEngine : LocalChatEngine {
             }
             _state.value = _state.value.copy(status = LocalEngineStatus.LOADING, message = "自建 runtime 启动中…")
             return withContext(Dispatchers.IO) {
-                val ok = LlamaServerProcess.start(context, modelPath, LocalSettings.DEFAULT_PORT, 8192)
+                val ok = LlamaServerProcess.start(
+                    context,
+                    modelPath,
+                    LocalSettings.DEFAULT_PORT,
+                    LocalMemoryModel.DEFAULT_CTX_CAP,
+                )
                 if (ok) {
                     loadedKey = modelPath
                     _state.value = _state.value.copy(
@@ -205,7 +210,20 @@ object GenieXLocalEngine : LocalChatEngine {
                     )
                     Result.success(Unit)
                 } else {
-                    val msg = "自建 runtime 启动失败或内存不足（已安全拒绝，未影响系统）"
+                    // 精确透出真实原因（2026-09-30）：LlamaServerProcess 已把失败原因记进
+                    // lastFailureReason（内存不足 "至少需要 X MB…当前 Y MB" / 二进制缺失 /
+                    // 就绪超时 / 加载后内存审计不通过 …）。旧实现只给一句泛化文案，用户既不
+                    // 知道差多少内存，也不知道该怎么办。
+                    val detail = LlamaServerProcess.lastFailureReason
+                    val sizeMb = (java.io.File(modelPath).length() / 1024 / 1024).toInt()
+                    val hint = if (sizeMb >= 8000) {
+                        "\n提示：该模型 $sizeMb MB，超出自建 runtime（mmap + 全量权重）的承载范围，" +
+                            "请改用更小的量化模型。"
+                    } else {
+                        ""
+                    }
+                    val msg = (detail ?: "自建 runtime 启动失败（无详细原因）") +
+                        "（已安全拒绝，未影响系统）" + hint
                     _state.value = _state.value.copy(status = LocalEngineStatus.ERROR, message = msg)
                     Result.failure(IllegalStateException(msg))
                 }

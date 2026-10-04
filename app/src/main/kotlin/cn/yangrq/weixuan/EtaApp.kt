@@ -68,25 +68,33 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
         // 而不是连接被拒触发"模型请求暂时中断"重试链（2026-09-24 23:10 故障根因）。
         if (LocalSettings.serverEnabled) {
             applicationScope.launch {
+                // 后端设备探测预热（2026-10-02）——必须在任何推理启动之前完成，否则会出现
+                // 「探测说不能用、其实能用」的错配。
+                // 背景：探测要 dlopen 最重 44MB 的 libggml-vulkan-adreno.so 并起一次
+                // Vulkan 实例，放在模型设置页的组合里做有两个问题：
+                //   ① 页面首次组合时若中途被回收，只会探到第一个口味（实测只探到 HTP0），
+                //      Vulkan 选项就永远不出现；
+                //   ② 每次进页面都要付一次进程启动 + dlopen 的代价。
+                // 放进进程级 IO 作用域预热，结果进 LocalBackend 的进程内缓存，后续全部命中。
+                runCatching {
+                    cn.yangrq.weixuan.local.LocalBackend.entries.forEach {
+                        cn.yangrq.weixuan.local.LocalBackend.isAvailable(this@EtaApp, it)
+                    }
+                }
+                // 模型落位迁移（2026-09-30）——必须在所有引擎分支之前执行。
+                // 把外部存储（FUSE）上的 .gguf 搬到内部存储（原生 f2fs）：llama.cpp 在
+                // FUSE 路径上 O_DIRECT 会读到错误数据而回退 buffered I/O → 每 token 数百次
+                // 大缺页（官方基准 314~1894 次 vs O_DIRECT 6~10 次）→ 大模型加载被拖过
+                // 预算，表现为「模型请求暂时中断，N 秒后重试」+ 整机卡。
+                // 幂等；无 root 时静默退回 FUSE（功能不受影响，只是慢）。
+                runCatching {
+                    val moved = LocalSettings.migrateModelsToInternal(this@EtaApp)
+                    if (moved > 0) {
+                        AndroidAgentLogger.info("已迁移 $moved 个模型到内部存储（启用 O_DIRECT 快路径）")
+                    }
+                }
                 // 自建 llama.cpp runtime（2026-09-25）：llama-server 子进程监听同一端口，
                 // 官方 mmap 按需加载（14B 只驻留几百 MB）+ KV 量化 + flash-attn——解决大模型加载崩溃。
-                // MoE 流式引擎（BigMoeOnEdge，2026-09-27）：模型远大于可用内存时（如
-                // Qwen3-30B-A3B 13–18GB），由常驻 bmoe-cli 按 token 懒加载激活专家 +
-                // 热专家缓存承接，BmoeOpenAiServer 对外提供 OpenAI 兼容接口（Agent 零改动）。
-                // 注意：30B 加载需 20+ 秒且 I/O 密集，**不在 App 启动时加载**，避免启动卡顿；
-                // 只启动桥，模型在首次对话请求（或手动加载）时才拉起。
-                if (LocalSettings.useBmoeEngine) {
-                    val bridge = cn.yangrq.weixuan.local.BmoeOpenAiServer(
-                        cn.yangrq.weixuan.local.LocalSettings.DEFAULT_PORT,
-                        applicationContext,
-                    )
-                    if (bridge.start()) {
-                        AndroidAgentLogger.info("MoE 桥已就绪（懒加载模式）：首次对话时载入模型")
-                    } else {
-                        AndroidAgentLogger.warn("MoE 桥启动失败（端口被占用）")
-                    }
-                    return@launch
-                }
                 if (LocalSettings.useSelfBuiltEngine) {
                     // 模型兜底（2026-09-27）：用户删除/换模型后旧路径会指向不存在的文件，
                     // 导致自动加载直接失败。这里回落到模型目录下的默认 4B（日常最快最稳）。
@@ -94,10 +102,15 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
                     val modelPath = if (configured.isNotBlank() && java.io.File(configured).exists()) {
                         configured
                     } else {
-                        val fallback = java.io.File(
-                            LocalSettings.modelsDir(this@EtaApp),
+                        val internalFallback = java.io.File(
+                            LocalSettings.internalModelsDir(this@EtaApp),
                             LocalSettings.DEFAULT_GGUF_NAME,
                         )
+                        val fallback = if (internalFallback.exists()) {
+                            internalFallback
+                        } else {
+                            java.io.File(LocalSettings.modelsDir(this@EtaApp), LocalSettings.DEFAULT_GGUF_NAME)
+                        }
                         if (fallback.exists()) {
                             LocalSettings.customModelPath = fallback.absolutePath
                             AndroidAgentLogger.info("原模型不可用，已回落到默认 4B：${fallback.name}")

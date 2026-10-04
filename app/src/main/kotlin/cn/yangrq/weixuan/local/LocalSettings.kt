@@ -18,9 +18,9 @@ object LocalSettings {
     const val KEY_AUTO_LOAD = "auto_load_model"
     const val KEY_DRAFT_ENABLED = "speculative_draft_enabled"
     const val KEY_COMPUTE_UNIT = "compute_unit"
+    const val KEY_LOCAL_BACKEND = "local_backend"
     const val KEY_THINKING = "thinking_enabled"
     const val KEY_SELF_BUILT = "self_built_engine"
-    const val KEY_BMOE_ENGINE = "bmoe_moe_engine"
     const val KEY_QAIRT_BUNDLE = "qairt_bundle_enabled"
     const val KEY_GENIEX_LLAMA = "geniex_llama_enabled"
     const val KEY_QAIRT_REVERTED = "qairt_reverted_v2"
@@ -36,7 +36,17 @@ object LocalSettings {
     @Volatile
     private var prefs: SharedPreferences? = null
 
+    /**
+     * 仅为解析「模型目录」而保留的 applicationContext（不持 Activity，无泄漏风险）。
+     * 2026-09-30 新增：让 [customModelPath] 的 getter 能做「内部存储优先」重定向，
+     * 从而让**所有**加载入口（GenieXLocalEngine / EtaApp 自动加载）一次性受益，
+     * 无需改调用点。
+     */
+    @Volatile
+    private var appCtx: Context? = null
+
     fun init(context: Context) {
+        appCtx = context.applicationContext
         if (prefs == null) {
             prefs = context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         }
@@ -117,6 +127,18 @@ object LocalSettings {
         get() = p.getString(KEY_COMPUTE_UNIT, "npu") ?: "npu"
         set(value) = p.edit().putString(KEY_COMPUTE_UNIT, value).apply()
 
+    /**
+     * 自建 runtime 的后端口味（2026-10-02 新增）。
+     *
+     * 只影响 [LlamaServerProcess]（自建 llama.cpp 引擎）；GenieX 路线仍由 [computeUnit] 决定。
+     * 之所以必须显式选择而不是「让它自己挑」：llama.cpp 未给 `--device` 时会把注册表里
+     * 所有 GPU 型设备（本项目 nativeLibraryDir 里同时有 Vulkan 与 Hexagon）一起纳入并按显存
+     * 逐层切分 → 跨设备张量拷贝把 NPU 的收益吃光。详见 [LocalBackend] 的类注释。
+     */
+    var localBackend: String
+        get() = p.getString(KEY_LOCAL_BACKEND, LocalBackend.DEFAULT.id) ?: LocalBackend.DEFAULT.id
+        set(value) = p.edit().putString(KEY_LOCAL_BACKEND, value).apply()
+
     /** 思考模式：模型输出思考过程（流式透传到界面思考块）；默认开启。 */
     var thinkingEnabled: Boolean
         get() = p.getBoolean(KEY_THINKING, true)
@@ -133,15 +155,6 @@ object LocalSettings {
         set(value) = p.edit().putBoolean(KEY_SELF_BUILT, value).apply()
 
     /**
-     * MoE 流式引擎（BigMoeOnEdge）：模型体积远超可用内存时启用（如 Qwen3-30B-A3B，
-     * 13–18GB）。每 token 只从闪存读当前激活的专家 + 热专家缓存，无损，且不会因
-     * page cache 膨胀触发 lowmemorykiller。开启后 Agent 与 UI 无需任何改动。
-     */
-    var useBmoeEngine: Boolean
-        get() = p.getBoolean(KEY_BMOE_ENGINE, false)
-        set(value) = p.edit().putBoolean(KEY_BMOE_ENGINE, value).apply()
-
-    /**
      * QAIRT 预编译 bundle 模式（2026-09-27）：主模型选中 AI Hub 的 Qwen3-4B w4a16 时置真，
      * 表示走 GenieX 的 QAIRT（NPU-only）路径，而非自建 llama.cpp。
      */
@@ -154,9 +167,27 @@ object LocalSettings {
         get() = p.getBoolean(KEY_QAIRT_BUNDLE, false)
         set(value) = p.edit().putBoolean(KEY_QAIRT_BUNDLE, value).apply()
 
-    /** 自定义 .gguf 路径（与 GenieX 模型中心互斥，二者取一）。 */
+    /**
+     * 自定义 .gguf 路径（与 GenieX 模型中心互斥，二者取一）。
+     *
+     * **内部存储优先（2026-09-30）**：若内部目录 `filesDir/models` 里存在同名模型，读取时
+     * 直接返回内部路径。之所以把重定向放在 getter 里——所有加载入口
+     * （`GenieXLocalEngine`、`EtaApp` 自动加载兜底）都读这个属性，
+     * 一处改动即可全覆盖，避免漏掉某个调用点造成「有的走 f2fs、有的还在 FUSE」。
+     * 附带好处：用户偏好里即使仍存着旧的 `/storage/emulated/...` 路径也不会失效。
+     */
     var customModelPath: String
-        get() = p.getString(KEY_CUSTOM_MODEL_PATH, "") ?: ""
+        get() {
+            val raw = p.getString(KEY_CUSTOM_MODEL_PATH, "") ?: ""
+            if (raw.isEmpty()) return raw
+            val ctx = appCtx ?: return raw
+            return runCatching {
+                val name = java.io.File(raw).name
+                if (name.isEmpty()) return@runCatching raw
+                val internal = java.io.File(internalModelsDir(ctx), name)
+                if (internal.isFile && internal.length() > 0) internal.absolutePath else raw
+            }.getOrDefault(raw)
+        }
         set(value) = p.edit().putString(KEY_CUSTOM_MODEL_PATH, value).apply()
 
     /** 默认 GGUF 文件名：4B 在 NPU 上 1–2 秒响应，作为日常默认与失效兜底。 */
@@ -177,6 +208,56 @@ object LocalSettings {
     fun modelsDir(context: android.content.Context): java.io.File {
         val base = context.getExternalFilesDir(null) ?: context.filesDir
         return java.io.File(base, "models").apply { if (!exists()) mkdirs() }
+    }
+
+    /**
+     * 模型内部存储目录（`filesDir/models`）——**原生 f2fs，非 FUSE**。
+     *
+     * 这是让 llama.cpp 的 `O_DIRECT` 真正生效的唯一可靠位置：外部目录
+     * `/storage/emulated/...` 是 FUSE，引擎在该路径上 O_DIRECT 打开成功但读到错误数据，
+     * 只能退回 buffered I/O → 每 token 数百次大缺页（官方基准 314~1894 vs 6~10）。
+     * 注意：本函数**不创建目录**（会被 [customModelPath] 的 getter 调用，不能有副作用）。
+     */
+    fun internalModelsDir(context: android.content.Context): java.io.File =
+        java.io.File(context.filesDir, "models")
+
+    /**
+     * 把外部目录（FUSE）里的 .gguf 迁到内部存储，使 O_DIRECT 生效。幂等、可失败即返回。
+     *
+     * 关键细节：源路径必须用 `/data/media/0/...` 别名，**不能**用 `/storage/emulated/0/...`。
+     * 两者指向同一份文件，但后者要过 FUSE 守护进程——那样 rename 会退化成「跨设备拷贝」
+     * （十几 GB 要拷几分钟且可能被中断）；前者与 `/data/user` 同属 /data 分区，rename 是
+     * **瞬时**的。迁完必须 chown/chmod，否则文件仍是 media_rw 属主，App 读不到。
+     * 无 root 时静默跳过（退回 FUSE，功能不受影响，只是慢）。
+     *
+     * @return 成功迁走的文件数
+     */
+    fun migrateModelsToInternal(context: android.content.Context): Int {
+        val app = context.applicationContext
+        val extDir = modelsDir(app)
+        val intDir = internalModelsDir(app).apply { if (!exists()) mkdirs() }
+        val pending = extDir.listFiles().orEmpty()
+            .filter { it.isFile && it.name.endsWith(".gguf", ignoreCase = true) && it.length() > 0L }
+            .filter { !java.io.File(intDir, it.name).exists() }
+        if (pending.isEmpty()) return 0
+        val extBase = extDir.absolutePath
+        val mediaBase = extBase.replaceFirst("^/storage/emulated/0/".toRegex(), "/data/media/0/")
+        if (mediaBase == extBase) return 0   // 不在预期位置（可能已回落到 filesDir）→ 不动
+        val uid = android.os.Process.myUid()
+        var moved = 0
+        for (f in pending) {
+            val src = "$mediaBase/${f.name}"
+            val dst = "${intDir.absolutePath}/${f.name}"
+            val shell = "mv -f '$src' '$dst' 2>/dev/null && chown $uid:$uid '$dst' && chmod 600 '$dst'"
+            val ok = runCatching {
+                ProcessBuilder("/system/bin/su", "-c", shell)
+                    .redirectErrorStream(true).start().waitFor() == 0
+            }.getOrDefault(false)
+            if (!ok) break
+            val moved0 = java.io.File(dst)
+            if (moved0.isFile && moved0.length() > 0) moved++ else break
+        }
+        return moved
     }
 
     private const val KEY_DOWNLOADS = "catalog_download_ids"

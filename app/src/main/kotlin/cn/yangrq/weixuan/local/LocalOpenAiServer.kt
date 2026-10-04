@@ -14,7 +14,9 @@ import java.net.Socket
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -33,6 +35,13 @@ class LocalOpenAiServer(
 
     companion object {
         private const val TAG = "EtaLocalServer"
+
+        /**
+         * 引擎处于 LOADING 时，请求最多等它多久。
+         * 实测模型加载 ~13 秒（`model loaded` 与进程启动的时间差），给 100 秒余量
+         * 覆盖冷启动 + 内存压力下的慢加载。超过就回 503，交给 Agent 的退避重试兜底。
+         */
+        private const val READY_WAIT_TIMEOUT_MS = 100_000L
     }
 
     private val counter = AtomicLong(0)
@@ -217,12 +226,51 @@ class LocalOpenAiServer(
             return
         }
         if (!engine.isReady) {
-            writeJson(
-                output,
-                503,
-                errorJson("本地模型未加载，请在「本地模型」页面加载模型", "model_not_loaded").toString(),
-            )
-            return
+            // 2026-10-04 修复：引擎**正在加载**时应当等它，而不是把错误丢给用户。
+            //
+            // 实测证据（logcat，同一段 14 秒）：
+            //   12:02:07.003  重试 round=1 code=HTTP_503
+            //   12:02:09.027  重试 round=2 code=HTTP_503
+            //   12:02:13.117  重试 round=3（正在构请求）
+            //   12:02:13.392  LlamaServer: model loaded + listening on 127.0.0.1:18787   ← 模型此刻才加载完
+            //   12:02:21.130  重试 round=3 code=HTTP_503（该请求 12:02:13.1 发出，比加载完成早 0.3 秒）
+            // 根因：`loadModel()` 全项目只在两处调用（EtaApp 启动 autoLoad / UI 按钮），
+            // **Agent 的 run 路径上没有任何"确保引擎就绪"的逻辑**。App 启动时 autoLoad 要 ~13 秒，
+            // 用户在这段窗口里发消息就必然撞上 503 —— 而 Agent 侧只表现为「模型请求重试」。
+            //
+            // 旧行为：直接 503 → 靠 Agent 退避重试（2s/4s/8s）硬熬过去。
+            // 新行为：若是 LOADING 就在这里等它就绪（实测加载 ~13 秒，给 100 秒余量），
+            // 期间不产生任何错误事件。只有"确实没在加载"或"加载失败/超时"才回 503。
+            if (engine.state.value.status == LocalEngineStatus.LOADING) {
+                Log.i(TAG, "本地引擎加载中，请求等待就绪（最多 ${READY_WAIT_TIMEOUT_MS / 1000}s）…")
+                val settled = runBlocking {
+                    withTimeoutOrNull(READY_WAIT_TIMEOUT_MS) {
+                        engine.state.first {
+                            it.status == LocalEngineStatus.READY || it.status == LocalEngineStatus.ERROR
+                        }
+                    }
+                }
+                if (settled?.status != LocalEngineStatus.READY) {
+                    Log.w(TAG, "等待引擎就绪失败：${settled?.status ?: "超时"}")
+                    writeJson(
+                        output,
+                        503,
+                        errorJson(
+                            "本地模型加载中或未就绪：${settled?.message ?: "等待就绪超时"}",
+                            "model_loading",
+                        ).toString(),
+                    )
+                    return
+                }
+                Log.i(TAG, "本地引擎已就绪，继续处理该请求")
+            } else {
+                writeJson(
+                    output,
+                    503,
+                    errorJson("本地模型未加载，请在「本地模型」页面加载模型", "model_not_loaded").toString(),
+                )
+                return
+            }
         }
         if (request.stream) streamChat(output, request) else completeChat(output, request)
     }
@@ -498,10 +546,6 @@ object LocalServerHost {
         // 自建 llama.cpp runtime 模式（2026-09-25）：自有 OpenAI 服务不启动——该端口交给
         // llama-server 子进程监听（Agent 的 baseUrl 保持 127.0.0.1:<preferredPort> 不变）。
         // 修复：此前 UI 页（LocalModelScreen）的两处调用会让自有服务抢占端口 → llama-server 绑定失败。
-        if (LocalSettings.useBmoeEngine) {
-            Log.i(TAG, "MoE 模式：跳过自有 OpenAI 服务（端口 $preferredPort 由 MoE 桥监听）")
-            return preferredPort
-        }
         if (LocalSettings.useSelfBuiltEngine) {
             Log.i(TAG, "自建模式：跳过自有 OpenAI 服务（端口 $preferredPort 交给 llama-server）")
             return preferredPort

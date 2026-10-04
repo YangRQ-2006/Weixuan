@@ -1,15 +1,11 @@
 package cn.yangrq.weixuan.ui.components
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -93,10 +89,11 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowListPopup
 import cn.yangrq.weixuan.ui.design.XuanGlyph
 import cn.yangrq.weixuan.ui.design.XuanGlyphType
+import cn.yangrq.weixuan.ui.design.morph.XuanMorphGlyph
+import cn.yangrq.weixuan.ui.design.morph.XuanMorphIcon
 
 private val SendButtonVisualSize = ChatInputActionIconSize
 private val SendIconSize = 16.dp
-private val StopIconSize = 10.dp
 private val ThinkingIconSize = 21.dp
 private val InputContainerShape = RoundedCornerShape(18.dp)
 
@@ -368,33 +365,20 @@ internal fun AgentChatInputBar(
                                     .background(sendButtonColor),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                AnimatedContent(
-                                    targetState = isStreaming,
-                                    transitionSpec = {
-                                        (fadeIn(tween(130)) + scaleIn(tween(160), initialScale = 0.72f))
-                                            .togetherWith(
-                                                fadeOut(tween(90)) +
-                                                    scaleOut(tween(110), targetScale = 0.72f)
-                                            )
+                                // 微玄「爻形」：发送↔停止沿弹簧物理变形（打断友好），取代交叉淡入淡出。
+                                XuanMorphIcon(
+                                    glyph = if (isStreaming) {
+                                        XuanMorphGlyph.Stop
+                                    } else {
+                                        XuanMorphGlyph.Send
                                     },
-                                    label = "send_stop_icon",
-                                ) { streaming ->
-                                    XuanGlyph(
-                                        type = if (streaming) {
-                                            XuanGlyphType.Stop
-                                        } else {
-                                            XuanGlyphType.Send
-                                        },
-                                        modifier = Modifier.size(
-                                            if (streaming) StopIconSize else SendIconSize
-                                        ),
-                                        tint = when {
-                                            streaming -> MiuixTheme.colorScheme.surface
-                                            canSend -> MiuixTheme.colorScheme.onPrimary
-                                            else -> MiuixTheme.colorScheme.onSurfaceVariantActions
-                                        },
-                                    )
-                                }
+                                    modifier = Modifier.size(SendIconSize),
+                                    tint = when {
+                                        isStreaming -> MiuixTheme.colorScheme.surface
+                                        canSend -> MiuixTheme.colorScheme.onPrimary
+                                        else -> MiuixTheme.colorScheme.onSurfaceVariantActions
+                                    },
+                                )
                             }
                         }
                 }

@@ -6,11 +6,104 @@ import cn.yangrq.weixuan.data.model.OpenAiEndpointMode
 import cn.yangrq.weixuan.local.LocalSettings
 import cn.yangrq.weixuan.data.model.ProviderSourceTypes
 import cn.yangrq.weixuan.data.provider.ProviderSourceRegistry
+import cn.yangrq.weixuan.local.GenieXLocalEngine
+import cn.yangrq.weixuan.local.LlamaServerProcess
+import cn.yangrq.weixuan.local.LocalEngineStatus
+import cn.yangrq.weixuan.local.LocalMemoryModel
+import android.util.Log
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+
+private const val TAG = "OpenAiTools"
+
+/**
+ * 本地工具 schema 的 token 预算（2026-10-04 按实测重定）。
+ *
+ * **实测数据**（脚本见 `scripts/bench/agent_eval.py`，服务端 `usage.prompt_tokens`）：
+ * - 57 个工具的 schema + system + 一句用户话 = **6110 token**，即 ≈**107 token/工具**
+ * - 全部 59 个工具 ≈ **6324 token**，而 `ctx = 6144` → **schema 本身就装不下**
+ * - 把描述全删光也只能降到 ≈4225，留不出对话空间 → "精简描述"这条路**算术上就不成立**
+ *
+ * **预算推导**（`ctx 6144 = 工具 + 系统提示 + 对话历史 + 输出预留`）：
+ * ```
+ * 6144 − 系统提示(~300) − 输出预留(~800) − 对话历史(留 2000)  →  工具 ≤ ~3000
+ * ```
+ * 所以取 3400：既能让精选集通过，又给对话留出 ~2400 的活口。
+ *
+ * ⚠️ 这个常量是**跟着 ctx 走的**：若 `DEFAULT_CTX_CAP` 改了，必须重新推导。
+ */
+private const val LOCAL_TOOLS_TOKEN_BUDGET = 3400
+
+/**
+ * 对话历史在「历史 + 工具」可用额度里的占比（另一半给工具）。
+ *
+ * 额度推导（**全部跟着真实 ctx 走**，见 [localCtx]）：
+ * ```
+ * 可用 = ctx − 输出预留(1024) − 安全余量(512)
+ *  ctx 6144 → 可用 4608 → 历史 2304 / 工具 2304
+ *  ctx 8192 → 可用 6656 → 历史 3328 / 工具 3328（工具再受 LOCAL_TOOLS_TOKEN_BUDGET 上限约束）
+ * ```
+ * 实测印证：`in=6122 / ctx=6144` 时系统提示 + 12 条历史占了 ≈3260 token，
+ * 超出 2304 的配额 ⇒ 会被新的 token 预算裁掉，这正是「运行失败」的修复点。
+ */
+private const val LOCAL_HISTORY_SHARE_PERCENT = 50
+
+/** 单步输出预留（Agent 单步通常 200~800 tokens，留 1024 覆盖带工具参数的长回复）。 */
+private const val LOCAL_OUTPUT_RESERVE_TOKENS = 1024
+
+/** 对话历史与工具估算的误差余量（估算取 chars/3 偏大，这里再留一层，防真实 token 超估）。 */
+private const val LOCAL_PROMPT_SAFETY_TOKENS = 512
+
+/** 工具预算下限：低于这个数就不值得再砍了（再少还不如直接用核心白名单）。 */
+private const val LOCAL_TOOLS_MIN_BUDGET = 600
+
+/** 本地引擎处于 LOADING 时，模型请求最多等它就绪多久（实测加载 ~13 秒，留足余量）。 */
+private const val LOCAL_READY_WAIT_MS = 120_000L
+
+/**
+ * 本地引擎就绪等待 —— 2026-10-04 修复「一发消息就提示模型请求重试」。
+ *
+ * **实测证据**（logcat，同一段 21 秒）：
+ * ```
+ * 12:09:08.778  libllama-server.so: fastrpc/dspqueue 初始化（HTP session 打开中）
+ * 12:09:14.413  重试 round=1  code=HTTP_503
+ * 12:09:16.461  重试 round=2  code=HTTP_503
+ * 12:09:20.525  重试 round=3  code=HTTP_503
+ * 12:09:21.772  LlamaServer: llama-server 就绪：http://127.0.0.1:18787/v1
+ * ```
+ * **503 是 llama-server 子进程自己在加载期间返回的**（不是 App 的包装服务）。
+ * 而 Agent 的 run 路径上没有任何"等引擎就绪"的逻辑，只靠退避重试（2s/4s/8s）硬熬 ——
+ * 用户看到的就是「模型请求重试」。
+ *
+ * 注意 18787 的归属（这是上一次修复改错位置的原因）：
+ * `LocalSettings.DEFAULT_PORT = 18787`、`BuiltinProviders` 的 baseUrl 指向 `127.0.0.1:18787/v1`，
+ * 而自建 runtime 的**子进程 llama-server 也监听 18787** → **Agent 是直连子进程的**，
+ * `LocalOpenAiServer`（App 自己的包装服务）并不在这条链路上。
+ *
+ * 这里只对**回环地址**生效，且只在引擎确实处于 LOADING 时等待：
+ * 网络 provider（云端）完全不受影响；"没在加载"的情况仍按原样返回 503，语义不变。
+ */
+private fun awaitLocalEngineReadyIfLoopback(baseUrl: String) {
+    if (!ProviderUrls.isLoopbackUrl(baseUrl)) return
+    val engine = GenieXLocalEngine
+    if (engine.isReady) return
+    if (engine.state.value.status != LocalEngineStatus.LOADING) return
+    Log.i(TAG, "本地引擎加载中，模型请求等待就绪（最多 ${LOCAL_READY_WAIT_MS / 1000}s）…")
+    val settled = runBlocking {
+        withTimeoutOrNull(LOCAL_READY_WAIT_MS) {
+            engine.state.first {
+                it.status == LocalEngineStatus.READY || it.status == LocalEngineStatus.ERROR
+            }
+        }
+    }
+    Log.i(TAG, "本地引擎等待结束：${settled?.status ?: "超时"}")
+}
 
 internal object OpenAiChatCompletionsProvider : AgentProviderClient {
     private const val MAX_ERROR_CHARS = 600
@@ -64,6 +157,9 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
             .headers(headers)
             .post(requestBody)
             .build()
+
+        // 2026-10-04 修复：本地引擎在加载模型期间会对任何请求回 HTTP 503 —— 发请求前先等它就绪。
+        awaitLocalEngineReadyIfLoopback(config.baseUrl)
 
         val call = AgentHttpClient.modelClient.newCall(httpRequest)
         val binding = runController.register { call.cancel() }
@@ -130,42 +226,221 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
      * 前置 assistant（含 tool_calls）配对完整——否则 llama.cpp 会以 400 拒绝请求。
      * 云端大窗口模型不受影响（消息数未超限时原样返回）。
      */
-    private fun trimHistory(messages: JSONArray, maxCount: Int = 12): JSONArray {
-        if (messages.length() <= maxCount) return messages
-        var start = messages.length() - maxCount
-        while (start > 0 && messages.optJSONObject(start)?.optString("role") == "tool") {
-            start--
+    /**
+     * 按 **token 预算**压缩对话历史 —— 2026-10-04 修复「运行失败」。
+     *
+     * **旧实现的问题**：只按**条数**截断（`maxCount = 12`），完全不看 token 数：
+     * ```kotlin
+     * if (messages.length() <= maxCount) return messages
+     * var start = messages.length() - maxCount
+     * ```
+     * 12 条消息里只要夹着几条 `observe_screen` 的 UI 树 dump（单条可达上千 token），
+     * 就能把上下文吃光。实测代价：
+     * ```
+     * 13:09:14  prompt eval = 12004ms / 6122 tokens       ← 6122 / ctx 6144
+     * 13:09:14  slot release: n_tokens = 6138, truncated = 0
+     * 13:09:15  srv send_error: task id = 21  →  run_failed
+     * ```
+     *
+     * **新实现**：从最新往回累加，累计超出 [LOCAL_HISTORY_TOKEN_BUDGET] 就丢弃更旧的消息。
+     * 另有一条硬要求：**不能以 `role=tool` 开头** —— 它的 `assistant(tool_calls)` 一旦被截掉，
+     * 请求会被判非法（这也是旧实现在此处的处理，保留）。
+     *
+     * 与工具预算的分工：历史先压到 ≤ [LOCAL_HISTORY_TOKEN_BUDGET]，
+     * 工具再拿 `ctx − 历史估算 − 输出预留 − 安全余量`（见 [toolTokenBudget]）。
+     * 两者之和恒 ≤ ctx，不会再出现"历史一长就爆"。
+     */
+    private fun trimHistory(messages: JSONArray): JSONArray {
+        if (messages.length() == 0) return messages
+        val budget = localHistoryBudget()
+        var total = 0
+        var start = messages.length()
+        var i = messages.length() - 1
+        while (i >= 0) {
+            val cost = ((messages.optJSONObject(i)?.toString()?.length ?: 0) / 3) + 4
+            if (total + cost > budget) break
+            total += cost
+            start = i
+            i--
         }
+        // 不能以 tool 结果开头（其配对的 assistant(tool_calls) 已被截掉 → 请求非法）
+        while (start < messages.length() && messages.optJSONObject(start)?.optString("role") == "tool") {
+            start++
+        }
+        // 极端情况：单条就超预算 → 至少保留最后一条，总比空消息列表好
+        if (start >= messages.length()) start = messages.length() - 1
+        if (start == 0) return messages
         val out = JSONArray()
-        for (i in start until messages.length()) {
-            messages.optJSONObject(i)?.let { out.put(it) }
+        for (k in start until messages.length()) {
+            messages.optJSONObject(k)?.let { out.put(it) }
         }
+        Log.i(
+            TAG,
+            "历史按 token 预算压缩：${messages.length()} 条 → ${out.length()} 条（估算 $total token，" +
+                "预算 $budget）",
+        )
         return out
     }
 
-    /** 核心工具白名单：本地模型窗口/内存紧张时只保留高频工具（工具数 >20 时启用过滤）。 */
+    /**
+     * 超预算时优先保留的工具（**按用途精选的 28 个**，不再是原来那 12 个）。
+     *
+     * 为什么换掉原来那份：原白名单只有 12 个基础操作工具，把
+     * `read_file / write_file / list_directory / set_clipboard / get_clipboard /
+     * open_system_panel / skills_list / memory_get / read_image / recent_notifications /
+     * get_setting / set_alarm / set_timer` 全部砍掉了 —— 实测（26 条真实中文语句）显示
+     * 模型在这些场景只能拿近似工具硬顶（`read_file→run_command`、`open_system_panel→press_key`、
+     * `browser_use→launch_app`），**工具选择准确率从 84.6% 掉到 50%**。
+     *
+     * 选取原则：覆盖「观察 → 操作 → 验证」主循环 + 文件/剪贴板 + 最常用的设备控制 + 记忆/技能，
+     * 并刻意排除冗余项（如 `terminal` 与 `run_command` 重复、`open_uri` 已被 `launch_app` 覆盖）。
+     *
+     * ⚠️ **这份名单尚未经过实测校准** —— 按实测 ≈107 token/工具，28 个 ≈3000 token，落在 3400 预算内。
+     * 但"选了这 28 个之后准确率是多少"必须用 `agent_eval.py` 重新测，不能凭感觉认为它更好。
+     */
+    private val preferredToolNames = linkedSetOf(
+        // 观察 / 上下文
+        "get_current_context", "observe_screen", "read_image", "recent_notifications",
+        // 应用
+        "launch_app", "search_apps",
+        // 手势
+        "tap", "tap_element", "long_press_element", "swipe", "scroll",
+        // 文本输入
+        "input_text", "press_key", "set_clipboard", "get_clipboard",
+        // 等待与校验
+        "wait", "wait_for_text",
+        // 文件
+        "read_file", "write_file", "list_directory",
+        // 命令
+        "run_command",
+        // 系统面板与设置
+        "open_system_panel", "get_setting",
+        // 设备
+        "set_alarm", "set_timer",
+        // 记忆与技能
+        "memory_get", "memory_write", "skills_list",
+    )
+
+    /** 核心兜底白名单（比精选集更小，仅当精选集仍超预算时才启用）。 */
     private val coreToolNames = setOf(
         "get_current_context", "launch_app", "search_apps",
         "tap", "tap_element", "input_text", "press_key", "swipe",
         "observe_screen", "wait", "wait_for_text", "run_command",
     )
 
-    private fun compactTools(tools: JSONArray): JSONArray {
+    /**
+     * 工具裁剪 —— 2026-10-04 按实测重做（三层降级）。
+     *
+     * **旧逻辑是负优化**：原来只要 `tools.length() > 40` 就砍成 12 个核心工具，实测：
+     *   · 39 工具 → 选对 **22/26 = 84.6%**（prompt 4786 token，装得下）
+     *   · 白名单 12 工具 → 选对 **13/26 = 50%**
+     * 因为被砍掉的正是模型会用对的工具。
+     *
+     * **新逻辑**：全量装得下就一个都不砍；装不下才退到 28 个精选工具；
+     * 精选仍超预算（ctx 更小或工具更多时）再退到 12 个核心白名单兜底。
+     * 每层都打日志，便于线上核对"模型到底看得到多少工具"。
+     */
+    private fun compactTools(
+        tools: JSONArray,
+        messages: JSONArray,
+        config: AgentModelClient.ModelConfig,
+    ): JSONArray {
         if (tools.length() == 0) return tools
-        val out = JSONArray()
-        for (i in 0 until tools.length()) {
-            val tool = tools.optJSONObject(i) ?: continue
-            val toolName = tool.optJSONObject("function")?.optString("name").orEmpty()
-            // 工具数 >20 时启用白名单过滤：本地小窗口模型装不下全部 schema，保留高频工具即可
-            if (tools.length() > 40 && toolName !in coreToolNames) continue
-            val fn = tool.optJSONObject("function")
-            if (fn != null) {
-                // 完整保留工具描述与参数说明（Agent 多步规划依赖它们，不做压缩）
-            }
-            out.put(tool)
+        // 实测标定：57 工具 ≈ 6110 token、JSON 文本 ≈25200 字符 → 约 4.1 字符/token（以实测为准）。
+        // 这里取 3（估偏大）保守处理：宁可少给，也不要估小了把上下文撑爆。
+        val est = tools.toString().length / 3
+        val budget = toolTokenBudget(messages, config)
+        if (est <= budget) {
+            Log.i(TAG, "工具集完整下发：${tools.length()} 个，估算 $est token（本次预算 $budget）")
+            return tools
         }
+
+        // ① 先按优先级取精选工具。
+        //    注意：**不是所有名字都一定存在** —— `AgentToolCapabilities.project()` 会按权限过滤
+        //    （通知读取 / 短信 / 健康数据等需要特殊授权的会被摘掉）。
+        //    实测某次 59 个运行时工具里，我的 28 个精选只命中 18 个。
+        val out = JSONArray()
+        val byName = HashMap<String, JSONObject>()
+        for (i in 0 until tools.length()) {
+            val t = tools.optJSONObject(i) ?: continue
+            byName[t.optJSONObject("function")?.optString("name").orEmpty()] = t
+        }
+        for (name in preferredToolNames) byName[name]?.let { out.put(it) }
+
+        // ② 预算还有余量就把其余可用工具按原顺序补进来。
+        //    旧写法只用精选名单，命中 18 个后还剩 ~850 token 预算白白闲置，
+        //    而运行时另有 ~41 个可用工具（唤醒/通知/媒体控制等）完全没机会出现。
+        val selected = HashSet<String>()
+        for (i in 0 until out.length()) {
+            selected.add(out.optJSONObject(i)?.optJSONObject("function")?.optString("name").orEmpty())
+        }
+        var chars = out.toString().length
+        for (i in 0 until tools.length()) {
+            val t = tools.optJSONObject(i) ?: continue
+            val n = t.optJSONObject("function")?.optString("name").orEmpty()
+            if (n in selected) continue
+            val cost = t.toString().length + 1
+            if ((chars + cost) / 3 > budget) break
+            out.put(t)
+            chars += cost
+        }
+
+        val estOut = out.toString().length / 3
+        if (out.length() == 0) {
+            Log.w(TAG, "精选名单全部不存在于当前可用工具集，回退为全量（可能超预算，请检查 capabilities）")
+            return tools
+        }
+        val sb = StringBuilder()
+        for (i in 0 until out.length()) {
+            if (i > 0) sb.append(',')
+            sb.append(out.optJSONObject(i)?.optJSONObject("function")?.optString("name"))
+        }
+        Log.w(
+            TAG,
+            "工具集 ${tools.length()} 个估算 $est token 超本次预算 $budget，" +
+                "按优先级填充为 ${out.length()} 个（估算 $estOut token）：$sb",
+        )
         return out
     }
+
+    /**
+     * 本次请求的工具 token 预算 —— **必须扣掉真实的消息体积**（2026-10-04 修复「运行失败」）。
+     *
+     * **踩过的坑**：上一版用固定常量 3400，完全没考虑对话历史。实测代价：
+     * ```
+     * 13:09:14  slot print_timing: prompt eval = 12004ms / 6122 tokens
+     * 13:09:14  slot release: n_tokens = 6138, truncated = 0     ← ctx 6144 已满
+     * 13:09:15  srv send_error: task id = 21                     → 13:09:15.868 run_failed
+     * ```
+     * `in=6122` 里系统提示 + 对话历史就占了 ≈3260 token（我原以为只有 ~300，差了一个数量级），
+     * 27 个工具（≈2860）一加就爆。历史越长越严重 —— **任何固定预算都必然会被历史挤爆**。
+     *
+     * 所以改为动态：`预算 = ctx − 消息估算 − 输出预留 − 安全余量`。
+     * 历史短时自然给得多（上限仍是 [LOCAL_TOOLS_TOKEN_BUDGET]），历史长时自动收缩，
+     * 宁可少给工具也不要让请求进不去上下文。
+     */
+    private fun toolTokenBudget(messages: JSONArray, config: AgentModelClient.ModelConfig): Int {
+        // 云端 provider 上下文大得多，沿用原来的固定上限，避免误伤。
+        if (!ProviderUrls.isLoopbackUrl(config.baseUrl)) return LOCAL_TOOLS_TOKEN_BUDGET
+        val avail = localPromptBudget(localCtx()) - messages.toString().length / 3
+        return avail.coerceIn(LOCAL_TOOLS_MIN_BUDGET, LOCAL_TOOLS_TOKEN_BUDGET)
+    }
+
+    /**
+     * **实际生效**的上下文窗口。
+     * 窗口由内存阶梯 8192/6144/4096 现算（[LocalMemoryModel.plan]），未必等于 `DEFAULT_CTX_CAP`；
+     * 预算必须按真实窗口分配，否则阶梯落到 4096 时按 6144 算的预算会撑爆上下文。
+     */
+    private fun localCtx(): Int =
+        LlamaServerProcess.activeContextSize.takeIf { it > 0 } ?: LocalMemoryModel.DEFAULT_CTX_CAP
+
+    /** 「历史 + 工具」共享的可用额度（已扣掉输出预留与安全余量）。 */
+    private fun localPromptBudget(ctx: Int): Int =
+        (ctx - LOCAL_OUTPUT_RESERVE_TOKENS - LOCAL_PROMPT_SAFETY_TOKENS).coerceAtLeast(1200)
+
+    /** 历史配额 = 可用额度 × [LOCAL_HISTORY_SHARE_PERCENT]，另一半留给工具。 */
+    private fun localHistoryBudget(): Int =
+        (localPromptBudget(localCtx()) * LOCAL_HISTORY_SHARE_PERCENT / 100).coerceAtLeast(600)
 
     private fun buildRequestJson(
         config: AgentModelClient.ModelConfig,
@@ -178,13 +453,16 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
             baseUrl = config.baseUrl,
             providerType = config.providerType,
         )
+        val finalMessages = OpenAiRequestMessages.forChatCompletions(
+            applyLocalThinkingSwitch(trimHistory(messages), config),
+        )
         return JSONObject()
             .put("model", config.model)
             .put("stream", true)
             // 让 llama.cpp 在流式结束时返回 usage（含 completion_tokens），供计算实际速率
             .put("stream_options", JSONObject().put("include_usage", true))
-            .put("messages", OpenAiRequestMessages.forChatCompletions(applyLocalThinkingSwitch(trimHistory(messages), config)))
-            .put("tools", compactTools(tools))
+            .put("messages", finalMessages)
+            .put("tools", compactTools(tools, finalMessages, config))
             .put("tool_choice", "auto")
             .also { request ->
                 if (sourceType != ProviderSourceTypes.OPENROUTER) {

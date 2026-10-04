@@ -61,6 +61,8 @@ enum class SystemNoticeCode(val wireValue: String) {
     EmptyResult("empty_result"),
     RuntimeFailed("runtime_failed"),
     ModelRetry("model_retry"),
+    /** 本地模型冷启动加载中（实测受存储带宽限制，约 20 秒，2026-10-04）。 */
+    LocalModelLoading("local_model_loading"),
     ContextCompaction("context_compaction"),
     Interrupted("interrupted");
 

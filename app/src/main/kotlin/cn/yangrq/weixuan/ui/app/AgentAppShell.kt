@@ -359,5 +359,6 @@ private fun titleForRoute(route: AppRoute?): String = when (route) {
     is AppRoute.ModelProviderDetail -> stringResource(R.string.route_provider_details)
     is AppRoute.ModelProviderNew -> stringResource(R.string.route_new_provider)
     is AppRoute.LocalModel -> "本地模型"
+    is AppRoute.ModelMarket -> "模型市场"
     null -> stringResource(R.string.app_name)
 }

@@ -1,0 +1,968 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "browser_use",
+   "description": "操作 Eta 共享的离屏 Agent 浏览器，不会切换到外部浏览器。一次调用只执行一个 action；网页浏览通常先 navigate，再用 get_readable 提取正文，或用 find_elements 查找可交互元素。需要把 URI 显式交给外部应用时使用 open_uri。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "selector": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string"
+     },
+     "submit": {
+      "type": "string"
+     },
+     "coordinate_x": {
+      "type": "string"
+     },
+     "coordinate_y": {
+      "type": "string"
+     },
+     "amount": {
+      "type": "string"
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "up",
+       "down",
+       "left",
+       "right"
+      ]
+     },
+     "offset": {
+      "type": "integer"
+     },
+     "max_chars": {
+      "type": "integer"
+     },
+     "read_image": {
+      "type": "string"
+     },
+     "timeout_ms": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_current_context",
+   "description": "获取手机当前时间、时区和最近系统位置；涉及现在、今天、明天或所在位置时调用。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "properties": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "search_apps",
+   "description": "搜索手机上已安装的 Android 应用，返回应用名和包名。打开应用前如果不确定包名，先调用这个工具。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string"
+     },
+     "include_system": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "query"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "launch_app",
+   "description": "启动一个已安装 Android 应用。优先提供 package_name；只有应用名时允许模糊匹配，匹配多个会返回候选而不会启动。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "properties": {
+      "type": "string"
+     },
+     "package_name": {
+      "type": "string"
+     },
+     "app_name": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "open_uri",
+   "description": "把一个确定有效的 URI 显式交给 Android 外部应用处理，例如 https、tel、geo 或应用 deep link。它不用于读取网页或网页交互。不要编造 URI。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "uri": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "uri"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "observe_screen",
+   "description": "观察当前手机屏幕，默认只返回前台应用、屏幕尺寸、observation_id 与可见 UI 节点，不附截图。节点为空、目标无法唯一识别、界面以 Canvas/地图/图片/二维码等视觉内容为主，或任务依赖颜色、图像、空间布局时，显式设置 include_screenshot=true；补截图时保持 include_ui_tree=true，以同一次新观察刷新节点和 observation_id，禁止把新截图与旧节点混用。节点动作必须原样携带同一次观察的 observation_id；树被截断但节点语义仍有效时，优先把 max_nodes 提高到 120 后重试，不要仅因截断请求截图。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "properties": {
+      "type": "string"
+     },
+     "include_screenshot": {
+      "type": "string"
+     },
+     "include_ui_tree": {
+      "type": "string"
+     },
+     "max_nodes": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "read_image",
+   "description": "读取用户指定路径或系统相册 URI 中的一张图片，并作为视觉输入提供给模型。同一轮最多调用一次；需要查看多张图片时，等待当前图片返回并观察后，再在下一轮读取下一张。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "tap",
+   "description": "点击坐标。默认使用最近一次 observe_screen 截图里的像素坐标；如果坐标来自 ui_nodes 的 center，请设置 coordinate_space=screen。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "x": {
+      "type": "integer"
+     },
+     "y": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "x",
+     "y"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "tap_area",
+   "description": "点击矩形区域中心。默认使用最近一次 observe_screen 截图里的像素坐标；大按钮、大列表项和可见文字区域优先用这个工具。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "x1": {
+      "type": "integer"
+     },
+     "y1": {
+      "type": "integer"
+     },
+     "x2": {
+      "type": "integer"
+     },
+     "y2": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "x1",
+     "y1",
+     "x2",
+     "y2"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "tap_element",
+   "description": "点击指定观察快照中的 UI 节点。index 与 observation_id 必须来自同一次最近的 observe_screen；若观察已过期，先重新观察。Runtime 会在执行前确认 Eta 无障碍服务已经连接。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "index": {
+      "type": "integer"
+     },
+     "observation_id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "index",
+     "observation_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "long_press",
+   "description": "长按坐标。默认使用最近一次 observe_screen 截图里的像素坐标；如果坐标来自 ui_nodes 的 center，请设置 coordinate_space=screen。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "x": {
+      "type": "integer"
+     },
+     "y": {
+      "type": "integer"
+     },
+     "duration_ms": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "x",
+     "y"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "long_press_element",
+   "description": "长按指定观察快照中的 UI 节点。index 与 observation_id 必须来自同一次最近的 observe_screen；若观察已过期，先重新观察。Runtime 会在执行前确认 Eta 无障碍服务已经连接。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "index": {
+      "type": "integer"
+     },
+     "observation_id": {
+      "type": "string"
+     },
+     "duration_ms": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "index",
+     "observation_id"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "swipe",
+   "description": "从一个坐标滑动到另一个坐标。默认使用最近一次 observe_screen 截图里的像素坐标。向上滑动会让列表向下滚动。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "x1": {
+      "type": "integer"
+     },
+     "y1": {
+      "type": "integer"
+     },
+     "x2": {
+      "type": "integer"
+     },
+     "y2": {
+      "type": "integer"
+     },
+     "duration_ms": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "x1",
+     "y1",
+     "x2",
+     "y2"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "scroll",
+   "description": "按内容浏览方向滚动当前屏幕：down 显示下方内容，up 显示上方内容，left 显示左侧内容，right 显示右侧内容。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "direction": {
+      "type": "string",
+      "enum": [
+       "up",
+       "down",
+       "left",
+       "right"
+      ]
+     }
+    },
+    "required": [
+     "direction"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "scroll_element",
+   "description": "按内容浏览方向滚动指定观察快照中的可滚动 UI 节点：down 显示下方内容，up 显示上方内容，left 显示左侧内容，right 显示右侧内容。index 与 observation_id 必须来自同一次最近的 observe_screen；若观察已过期，先重新观察。Runtime 会在执行前确认 Eta 无障碍服务已经连接。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "index": {
+      "type": "integer"
+     },
+     "observation_id": {
+      "type": "string"
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "up",
+       "down",
+       "left",
+       "right"
+      ]
+     }
+    },
+    "required": [
+     "index",
+     "observation_id",
+     "direction"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "memory_get",
+   "description": "Read persistent cross-conversation memory from MEMORY.md. Core memory and the heading index are already provided at run start, so call this only to inspect details, answer what is remembered, or refresh after a conflict. Use query for just-in-time retrieval instead of reading the whole file.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "properties": {
+      "type": "string"
+     },
+     "query": {
+      "type": "string"
+     },
+     "start_line": {
+      "type": "string"
+     },
+     "max_chars": {
+      "type": "integer"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "memory_write",
+   "description": "Atomically update persistent MEMORY.md. Store only durable cross-conversation facts, preferences, relationships, and ongoing project context; never store secrets, credentials, verification codes, or transient requests. Keep '# 核心记忆' concise, correct stale facts, and prefer replacing an existing section over blindly appending duplicates. Use the revision supplied in the run-start memory context or the latest memory_get result.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "mode": {
+      "type": "string",
+      "enum": [
+       "append",
+       "replace",
+       "paste"
+      ]
+     },
+     "revision": {
+      "type": "integer"
+     },
+     "start_line": {
+      "type": "string"
+     },
+     "end_line": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "mode",
+     "revision"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "skills_list",
+   "description": "List installed skills with their id, name, description, and capabilities. Use when the user asks what skills are available or whether a certain type of skill is installed.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "properties": {
+      "type": "string"
+     },
+     "query": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "skills_read",
+   "description": "Read the full SKILL.md body of an installed skill by id, name, or path. Use when you know a skill might be relevant but its full body was not injected this turn.",
+   "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": [
+     "skillId"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "skills_read_resource",
+   "description": "Read a bounded UTF-8 text resource inside an enabled Skill, such as references/guide.md. The path must be relative to that Skill root; this tool never executes scripts or reads outside the Skill.",
+   "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": [
+     "skillId",
+     "relativePath"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "skills_list_curated",
+   "description": "List installable Skills from the public openai/skills curated catalog. This is read-only. Use the returned commitSha as ref for a subsequent installation so the inspected content cannot change.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "properties": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "skills_inspect_github",
+   "description": "Inspect a public GitHub repository and list every directory containing SKILL.md. This never installs anything. Use the returned commitSha as ref for installation; if multiple candidates match, ask the user to choose exact paths.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "repository": {
+      "type": "string"
+     },
+     "ref": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "repository"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "skills_install_from_github",
+   "description": "Install selected Skill directories from a public GitHub repository. Paths must come from skills_inspect_github. If one replaceable user Skill conflicts, retry that exact repository, commitSha, path, and id with replaceExisting=true; built-in Skills can never be overwritten. Installation does not run bundled scripts, and installed Skills become available next turn.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "repository": {
+      "type": "string"
+     },
+     "ref": {
+      "type": "string"
+     },
+     "paths": {
+      "type": "string"
+     },
+     "items": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "repository",
+     "paths"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "terminal",
+   "description": "Manage terminal sessions on the current device. environment=android runs Android system commands and root operations; environment=linux runs the Alpine or Debian environment selected by the user. Apktool build is unavailable until an ARM64 AAPT2 runtime is installed. Use open_and_exec for one-shot commands. Use open to create a persistent shell session and exec with session_id for multi-step work. Use async=true without session_id for long-running independent commands, then read_async_result with job_id to stream output chunks. Use daemon_start for services that must keep running after the Agent run (listening ports, web panels, watchers): the process detaches from any command shell, logs to a file, and survives until daemon_stop or device reboot. Manage daemons with daemon_list, daemon_logs and daemon_stop by task_id. Use close to stop jobs or close sessions.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string"
+     },
+     "identity": {
+      "type": "string"
+     },
+     "environment": {
+      "type": "string"
+     },
+     "command": {
+      "type": "string"
+     },
+     "cwd": {
+      "type": "string"
+     },
+     "timeout_ms": {
+      "type": "integer"
+     },
+     "merge_stderr": {
+      "type": "string"
+     },
+     "session_id": {
+      "type": "string"
+     },
+     "job_id": {
+      "type": "string"
+     },
+     "task_id": {
+      "type": "string"
+     },
+     "async": {
+      "type": "string"
+     },
+     "offset_chars": {
+      "type": "string"
+     },
+     "max_chars": {
+      "type": "integer"
+     },
+     "close_if_done": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "run_command",
+   "description": "在 Android 设备上用非交互 Root Shell 执行命令。适合系统信息、包管理、文件检查、Linux 命令流水线。每次调用都是新 shell；不要运行交互式或长期驻留命令。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "command": {
+      "type": "string"
+     },
+     "cwd": {
+      "type": "string"
+     },
+     "timeout_seconds": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "command"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "read_file",
+   "description": "读取 Android 文件内容。适合读取配置、日志、小文本文件；大文件用 offset_bytes/max_bytes 分段读取。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string"
+     },
+     "offset_bytes": {
+      "type": "string"
+     },
+     "max_bytes": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "write_file",
+   "description": "写入 Android 文件。可覆盖或追加；会自动创建父目录。用于明确需要修改文件的任务。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "append": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "path",
+     "content"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "list_directory",
+   "description": "列出 Android 目录内容。默认 /data/local/tmp/eta，输出类似 ls -l。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "properties": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "show_hidden": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "input_text",
+   "description": "向真正获得输入焦点的输入框键入不超过 1000 字符的文本。默认 mode=append，会在当前光标插入或替换选区；密码等不可读输入框会拒绝重建，请用 replace_text 提供完整值。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "append",
+       "replace",
+       "paste"
+      ]
+     },
+     "index": {
+      "type": "integer"
+     },
+     "observation_id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "replace_text",
+   "description": "把当前聚焦输入框或指定 editable 节点的文本替换为给定内容。指定 index 时，index 与 observation_id 必须来自同一次最近的 observe_screen；若观察已过期，先重新观察。需要启用无障碍服务。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "index": {
+      "type": "integer"
+     },
+     "observation_id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "clear_text",
+   "description": "清空当前聚焦输入框或指定 editable 节点。指定 index 时，index 与 observation_id 必须来自同一次最近的 observe_screen；若观察已过期，先重新观察。需要启用无障碍服务。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "properties": {
+      "type": "string"
+     },
+     "index": {
+      "type": "integer"
+     },
+     "observation_id": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "set_clipboard",
+   "description": "把文本写入系统剪贴板。适合准备粘贴长文本、中文、emoji 或特殊字符。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "get_clipboard",
+   "description": "读取系统剪贴板文本。Android 版本或后台限制可能导致读取失败。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "properties": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "paste_text",
+   "description": "确认真实输入焦点后按当前选区输入长文本；目标不支持直接设置时才回退系统剪贴板粘贴。无焦点时不会覆盖剪贴板；密码等不可读字段请改用 replace_text 提供完整值。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "press_key",
+   "description": "按系统按键或全局动作。BACK/HOME/RECENTS/NOTIFICATIONS/QUICK_SETTINGS 优先走无障碍全局动作；ENTER 优先走输入法回车。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "button": {
+      "type": "string",
+      "enum": [
+       "BACK",
+       "HOME",
+       "RECENTS",
+       "NOTIFICATIONS",
+       "ENTER",
+       "DELETE",
+       "VOLUME_UP",
+       "VOLUME_DOWN",
+       "POWER"
+      ]
+     }
+    },
+    "required": [
+     "button"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "wait",
+   "description": "等待一段时间，让动画、网络加载或页面跳转完成。不要用它代替 wait_for_text/wait_for_package 的可验证等待。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "properties": {
+      "type": "string"
+     },
+     "duration_ms": {
+      "type": "integer"
+     }
+    }
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "wait_for_text",
+   "description": "等待当前屏幕出现指定文本或描述，适合点击后确认页面已到达、列表加载完成、弹窗出现。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "timeout_ms": {
+      "type": "integer"
+     },
+     "include_desc": {
+      "type": "string"
+     },
+     "match": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "wait_for_package",
+   "description": "等待指定 Android package 到前台，适合 launch_app/open_uri 后确认目标应用已打开。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "package_name": {
+      "type": "string"
+     },
+     "timeout_ms": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "package_name"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "open_system_panel",
+   "description": "打开通知栏或快捷设置面板。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "panel": {
+      "type": "string",
+      "enum": [
+       "notifications",
+       "quick_settings"
+      ]
+     }
+    },
+    "required": [
+     "panel"
+    ]
+   }
+  }
+ }
+]

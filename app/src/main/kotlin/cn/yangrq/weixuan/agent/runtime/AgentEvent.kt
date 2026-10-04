@@ -63,14 +63,35 @@ internal sealed interface AgentEvent {
         val detail: String = "",
     ) : AgentEvent {
         val displayMessage: String
-            get() = if (detail.isBlank()) {
-                "模型请求暂时中断，${delayMs / 1000} 秒后重试（$attempt/$maxAttempts）；此前工具结果已保留。"
-            } else {
-                "模型请求暂时中断：$detail，${delayMs / 1000} 秒后重试（$attempt/$maxAttempts）；此前工具结果已保留。"
+            get() = when {
+                // 2026-10-04：本地模型冷启动加载复用本事件通道（见 LOCAL_MODEL_LOADING_CODE），
+                // 但它**不是失败**，必须给出不同文案 —— 否则悬浮窗/小爱/overlay 三处都会把它
+                // 渲染成"请求中断、N 秒后重试"。把判断放在这里，一处修好全部渲染点。
+                reasonCode == LOCAL_MODEL_LOADING_CODE ->
+                    detail.ifBlank { "正在加载本地模型，请稍候…" }
+                detail.isBlank() ->
+                    "模型请求暂时中断，${delayMs / 1000} 秒后重试（$attempt/$maxAttempts）；此前工具结果已保留。"
+                else ->
+                    "模型请求暂时中断：$detail，${delayMs / 1000} 秒后重试（$attempt/$maxAttempts）；此前工具结果已保留。"
             }
 
         override fun toLogLine(): String =
             "model_retry_scheduled round=$round, attempt=$attempt, delay_ms=$delayMs, code=${reasonCode.toSafeLogToken()}"
+    }
+
+    companion object {
+        /**
+         * 「本地模型加载中」提示用的 reasonCode。
+         *
+         * **为什么复用 [ModelRetryScheduled] 而不是新增事件**：该事件的 wire 序列化（AgentRuntimeWire
+         * 双向）与全部 UI 渲染链路（chat projector / overlay / 小爱 / 悬浮窗）都已贯通，新增事件要动
+         * 6~7 个文件且收益完全相同。代价是语义上略绕，故由本常量 + `displayMessage` 分支收口。
+         *
+         * 背景：加载实测受存储带宽限制（2.9GB ÷ ~150MB/s ≈ 20 秒，见
+         * `scripts/bench/loadfactor_test.sh`），耗时省不掉，但原先这 17~20 秒**完全静默**，
+         * 用户只感到"卡住/等很久"。
+         */
+        const val LOCAL_MODEL_LOADING_CODE = "LOCAL_MODEL_LOADING"
     }
 
     data class ProviderRequestStarted(

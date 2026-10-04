@@ -86,6 +86,15 @@ sealed interface AppRoute : NavKey {
     /** 本地模型（GenieX NPU/GPU）配置页。 */
     @Serializable
     data object LocalModel : AppRoute
+
+    /**
+     * 模型市场（2026-10-04 从 [LocalModel] 页剥离为独立页面）。
+     *
+     * 原先把「引擎状态 / 主模型设置 / 模型管理 / 模型市场」全塞在一页（742 行），
+     * 既要配引擎又要挑模型。现在市场独立成页，从「设置 → 模型市场」进入。
+     */
+    @Serializable
+    data object ModelMarket : AppRoute
 }
 
 @Serializable

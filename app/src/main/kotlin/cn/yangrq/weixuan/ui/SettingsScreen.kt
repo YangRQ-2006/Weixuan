@@ -231,6 +231,19 @@ private fun SettingsPageContent(
                     )
 
                     EtaPreferenceDivider()
+                    EtaArrowPreference(
+                        title = "模型市场",
+                        summary = "浏览并下载端侧模型（含可看图的多模态模型），可后台续传",
+                        startAction = {
+                            EtaPreferenceIcon(
+                                glyph = XuanGlyphType.Download,
+                                tint = EtaPreferenceColors.Green,
+                            )
+                        },
+                        onClick = { onNavigate(AppRoute.ModelMarket) },
+                    )
+
+                    EtaPreferenceDivider()
                     SwitchPref(
                         context = context,
                         prefs = agentPrefs,

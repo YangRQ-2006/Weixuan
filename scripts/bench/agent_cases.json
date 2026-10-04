@@ -1,0 +1,31 @@
+{
+  "_说明": "微玄 4B Agent 工具调用评测集。每条：用户语句 → 期望调用的工具（accept 里的任意一个都算对）+ 参数判据。no_tool=true 表示这轮不该调用任何工具（测过度触发）。",
+  "cases": [
+    {"id":"launch_app_1","say":"帮我打开微信","accept":["launch_app"],"must_args":[]},
+    {"id":"launch_app_2","say":"我要用支付宝付款，帮我把它打开","accept":["launch_app","open_uri"],"must_args":[]},
+    {"id":"search_apps_1","say":"我手机上装了哪些浏览器？","accept":["search_apps"],"must_args":["query"]},
+    {"id":"time_1","say":"现在几点了？","accept":["get_current_context"],"must_args":[]},
+    {"id":"observe_1","say":"看看屏幕上有什么","accept":["observe_screen"],"must_args":[]},
+    {"id":"observe_2","say":"截个屏","accept":["observe_screen"],"must_args":[]},
+    {"id":"tap_element_1","say":"点击屏幕上的搜索框","accept":["tap_element","tap","tap_area"],"must_args":[]},
+    {"id":"tap_coord_1","say":"点一下坐标 (540, 1200)","accept":["tap"],"must_args":["x","y"],"arg_expect":{"x":540,"y":1200}},
+    {"id":"input_text_1","say":"在搜索框里输入 今天天气","accept":["input_text","paste_text"],"must_args":["text"],"arg_contains":{"text":"今天天气"}},
+    {"id":"scroll_1","say":"向下滚动一下","accept":["scroll"],"must_args":["direction"],"arg_contains":{"direction":"down"}},
+    {"id":"press_key_1","say":"返回上一页","accept":["press_key"],"must_args":["button"],"arg_contains":{"button":"BACK"}},
+    {"id":"wait_1","say":"等 3 秒","accept":["wait"],"must_args":[]},
+    {"id":"wait_text_1","say":"等屏幕上出现「登录成功」","accept":["wait_for_text"],"must_args":["text"],"arg_contains":{"text":"登录成功"}},
+    {"id":"clip_set_1","say":"把「你好世界」放进剪贴板","accept":["set_clipboard"],"must_args":["text"],"arg_contains":{"text":"你好世界"}},
+    {"id":"clip_get_1","say":"读一下剪贴板里是什么","accept":["get_clipboard"],"must_args":[]},
+    {"id":"panel_1","say":"打开通知栏","accept":["open_system_panel"],"must_args":["panel"]},
+    {"id":"run_cmd_1","say":"用 root shell 执行 ls -l /data/local/tmp","accept":["run_command"],"must_args":["command"],"arg_contains":{"command":"ls"}},
+    {"id":"read_file_1","say":"读取 /sdcard/notes.txt 的内容","accept":["read_file"],"must_args":["path"],"arg_contains":{"path":"notes.txt"}},
+    {"id":"write_file_1","say":"把 hello 写进 /sdcard/a.txt","accept":["write_file"],"must_args":["path","content"],"arg_contains":{"content":"hello"}},
+    {"id":"list_dir_1","say":"列出 /sdcard/Download 里有什么文件","accept":["list_directory"],"must_args":[]},
+    {"id":"longpress_1","say":"长按屏幕上那个图标","accept":["long_press_element","long_press"],"must_args":[]},
+    {"id":"browser_1","say":"用浏览器打开 example.com 看看","accept":["browser_use","open_uri"],"must_args":[]},
+    {"id":"memory_1","say":"我上次说过的咖啡偏好是什么？","accept":["memory_get"],"must_args":[]},
+    {"id":"skills_1","say":"我装了哪些技能？","accept":["skills_list"],"must_args":[]},
+    {"id":"no_tool_1","say":"你好，你是谁？","accept":[],"no_tool":true},
+    {"id":"no_tool_2","say":"用一句话解释什么是递归","accept":[],"no_tool":true}
+  ]
+}
