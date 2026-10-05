@@ -45,6 +45,7 @@ import cn.yangrq.weixuan.agent.device.RootAccess
 import cn.yangrq.weixuan.core.AndroidAgentLogger
 import cn.yangrq.weixuan.data.repository.RuntimeConfigRepository
 import cn.yangrq.weixuan.ui.AppearanceSettingsScreen
+import cn.yangrq.weixuan.ui.IconPreviewScreen
 import cn.yangrq.weixuan.ui.SettingsScreen
 import cn.yangrq.weixuan.ui.components.MiuixDialogActions
 import cn.yangrq.weixuan.ui.model.AgentChatAction
@@ -607,6 +608,9 @@ fun AgentAppRoot(
             }
             entry<AppRoute.AppearanceSettings>(swipeDismiss = swipeDismiss) {
                 AppearanceSettingsScreen(onBack = ::popRoute)
+            }
+            entry<AppRoute.IconPreview>(swipeDismiss = swipeDismiss) {
+                IconPreviewScreen(onBack = ::popRoute)
             }
             entry<AppRoute.DataBackup>(swipeDismiss = swipeDismiss) {
                 DataBackupScreen(

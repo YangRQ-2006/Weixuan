@@ -20,6 +20,36 @@ DexKit 的 JVM 接口等非 `Core/` 代码采用 [Apache License 2.0](https://gi
 
 Eta 的功能图标使用 AndroidX Compose Material Icons 的 Rounded 系列，通过 `material-icons-extended` 依赖提供。图标及其 AndroidX 实现采用 [Apache License 2.0](https://github.com/androidx/androidx/blob/androidx-main/LICENSE.txt)，来源见 [Material Design Icons](https://github.com/google/material-design-icons)。
 
+## Tabler Icons
+
+微玄的功能图标底座采用 [Tabler Icons](https://github.com/tabler/tabler-icons)。图标以**内联 ImageVector 数据**形式保存于 `app/src/main/kotlin/cn/yangrq/weixuan/ui/design/tabler/TablerGlyph.kt`（42 枚 / 125 条路径），由 `tools/gen_tabler_glyphs.py` 从上游 outline 资源提取生成，**不引入运行时依赖**（不使用资源 AAR，也便于按渲染尺寸做描边光学补偿）。
+
+除 6 枚微玄自绘「爻线」品牌符号（Gate / Model / Skills / Memory / Mcp / Character）外，其余功能图标均取自 Tabler。Tabler 采用 [MIT License](https://github.com/tabler/tabler-icons/blob/master/LICENSE)：
+
+```
+MIT License
+
+Copyright (c) 2020-2026 Paweł Kuna
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## 应用图标
 
 Eta 的应用图标取材自 Google [AI Edge Gallery](https://github.com/google-ai-edge/gallery) 的应用图标，转换为 VectorDrawable 并保留安全留白，通知图标为其单色变体。AI Edge Gallery 采用 [Apache License 2.0](https://github.com/google-ai-edge/gallery/blob/main/LICENSE)。

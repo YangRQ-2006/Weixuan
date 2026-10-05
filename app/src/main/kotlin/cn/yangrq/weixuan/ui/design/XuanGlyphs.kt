@@ -38,9 +38,40 @@ internal fun XuanGlyph(
     strokeWidth: Dp = 2.dp,
 ) {
     val color = if (tint == Color.Unspecified) MiuixTheme.colorScheme.onBackground else tint
+    val tabler = type.tablerGlyph
     Canvas(modifier = modifier) {
-        val s = size.minDimension / 24f
-        drawGlyph(type, s, strokeWidth.toPx(), color)
+        if (tabler == null) {
+            // 品牌爻线：保留自绘（描边不随尺寸缩放，可见线宽恒定）
+            drawXuanGlyph(type, size.minDimension / 24f, strokeWidth.toPx(), color)
+        } else {
+            // 其余图标：Tabler 底座 + 描边光学补偿
+            drawTablerGlyph(
+                glyph = tabler,
+                color = color,
+                strokeWidth24 = TablerPaths.strokeFor(
+                    renderDp = this.size.minDimension / density,
+                    baseStroke24 = strokeWidth.value,
+                ),
+            )
+        }
+    }
+}
+
+/**
+ * 强制走「爻线」自绘路径，不受 Tabler 分发影响。
+ *
+ * 仅供 [cn.yangrq.weixuan.ui.IconPreviewScreen] 做新旧对比；业务代码请用 [XuanGlyph]。
+ */
+@Composable
+internal fun XuanGlyphLegacy(
+    type: XuanGlyphType,
+    size: Dp,
+    tint: Color = Color.Unspecified,
+    strokeWidth: Dp = 2.dp,
+) {
+    val color = if (tint == Color.Unspecified) MiuixTheme.colorScheme.onBackground else tint
+    Canvas(modifier = Modifier.size(size)) {
+        drawXuanGlyph(type, this.size.minDimension / 24f, strokeWidth.toPx(), color)
     }
 }
 
@@ -53,7 +84,7 @@ internal fun XuanGlyph(
 ) = XuanGlyph(type, Modifier.size(size), tint, strokeWidth)
 
 @Suppress("CyclomaticComplexMethod", "LongMethod")
-private fun DrawScope.drawGlyph(type: XuanGlyphType, s: Float, w: Float, c: Color) {
+private fun DrawScope.drawXuanGlyph(type: XuanGlyphType, s: Float, w: Float, c: Color) {
     fun l(x1: Float, y1: Float, x2: Float, y2: Float) {
         drawLine(c, Offset(x1 * s, y1 * s), Offset(x2 * s, y2 * s), w, StrokeCap.Round)
     }

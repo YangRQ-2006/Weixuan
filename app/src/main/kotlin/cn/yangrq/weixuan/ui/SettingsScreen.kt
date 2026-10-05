@@ -6,36 +6,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.provider.Settings
 import android.widget.Toast
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.AccessibilityNew
-import androidx.compose.material.icons.rounded.AccountTree
-import androidx.compose.material.icons.rounded.Code
-import androidx.compose.material.icons.rounded.Dashboard
-import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material.icons.rounded.Extension
-import androidx.compose.material.icons.rounded.GppMaybe
-import androidx.compose.material.icons.rounded.Hearing
-import androidx.compose.material.icons.rounded.Inventory
-import androidx.compose.material.icons.rounded.Inventory2
-import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Memory
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.PowerSettingsNew
-import androidx.compose.material.icons.rounded.Psychology
-import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Smartphone
-import androidx.compose.material.icons.rounded.SupportAgent
-import androidx.compose.material.icons.rounded.SwipeUp
-import androidx.compose.material.icons.rounded.Terminal
-import androidx.compose.material.icons.rounded.TheaterComedy
-import androidx.compose.material.icons.rounded.TouchApp
-import androidx.compose.material.icons.rounded.VerifiedUser
-import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -202,6 +172,24 @@ private fun SettingsPageContent(
         onBack = onBack,
     ) {
             // ── LLM 提供商 ──────────────────────────────────────────────
+            // ── 图标系统（设计验收用）──────────────────────────────────
+            item(key = "section_icon_preview") {
+                EtaPreferenceGroupTitle("图标系统")
+                EtaPreferenceGroup {
+                    EtaArrowPreference(
+                        title = "图标对比预览",
+                        summary = "爻线自绘与 Tabler 底座同尺寸并排对比",
+                        startAction = {
+                            EtaPreferenceIcon(
+                                glyph = XuanGlyphType.Settings,
+                                tint = EtaPreferenceColors.Blue,
+                            )
+                        },
+                        onClick = { onNavigate(AppRoute.IconPreview) },
+                    )
+                }
+            }
+
             item(key = "section_agent") {
                 EtaPreferenceGroupTitle(stringResource(R.string.xuan_section_pivot))
                 EtaPreferenceGroup {
@@ -316,6 +304,21 @@ private fun SettingsPageContent(
                         title = stringResource(R.string.settings_tools_list),
                         startAction = { EtaPreferenceIcon(XuanGlyphType.Tools, tint = EtaPreferenceColors.Green) },
                         onClick = { onNavigate(AppRoute.Tools) },
+                    )
+
+                    EtaPreferenceDivider()
+                    // 纯文本模式（2026-10-05）：一键切换「速度优先 / 能力优先」。
+                    // 开启后不发送任何工具定义（工具 schema 实测约 4800 token，占 Agent prompt 的绝大部分），
+                    // 首轮 prefill 从 9 秒量级降到亚秒级，decode 也不再被长上下文拖慢；
+                    // 代价是助手无法再操作手机/调用工具。实现见 AgentModelClient.toolsFor()。
+                    SwitchPref(
+                        context = context,
+                        prefs = agentPrefs,
+                        title = "纯文本模式",
+                        summary = "不向模型发送任何工具定义，只做纯文本回答（速度优先）。开启后助手无法操作手机或调用工具。",
+                        key = Prefs.Keys.AGENT_PLAIN_TEXT,
+                        glyph = XuanGlyphType.Tools,
+                        iconTint = EtaPreferenceColors.Green,
                     )
 
                     EtaPreferenceDivider()
@@ -481,7 +484,6 @@ private fun SettingsPageContent(
                     }
                 }
             }
-
 
             if (prefs != null || hasConnectedFramework) {
                 // ── 一圈即搜 ────────────────────────────────────────────────
@@ -692,7 +694,6 @@ private fun SettingsPageContent(
 }
 
 // ── 系统化确认对话框 ─────────────────────────────────────────────────────────
-
 
 // ── 带图标的布尔开关 ─────────────────────────────────────────────────────────
 

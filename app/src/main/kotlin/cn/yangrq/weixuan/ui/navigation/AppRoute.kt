@@ -95,6 +95,14 @@ sealed interface AppRoute : NavKey {
      */
     @Serializable
     data object ModelMarket : AppRoute
+
+    /**
+     * 图标对比预览（爻线自绘 vs Tabler 底座），仅设计验收用。
+     *
+     * 入口：设置页 →「图标系统 → 图标对比预览」。
+     */
+    @Serializable
+    data object IconPreview : AppRoute
 }
 
 @Serializable
