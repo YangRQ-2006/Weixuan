@@ -26,9 +26,12 @@
 
 ## Demo
 
-<img src="docs/Screenshots/weixuan-demo.gif" width="300" alt="WeiXuan: tell your phone what to do, in one sentence">
+| Tell your phone what to do | Tool calling |
+|:---:|:---:|
+| <img src="docs/Screenshots/weixuan-demo.gif" width="240" alt="WeiXuan: tell your phone what to do, in one sentence"> | <img src="docs/Screenshots/weixuan-demo-tools.gif" width="240" alt="WeiXuan: tool calling in action"> |
+| Say what you want; the model observes the screen and taps for you | The model decides which tools to call and reports each result |
 
-*Say what you want in one sentence; the model observes the screen, taps for you, and reports back — entirely offline.*
+*Entirely offline: inference, screen reading, tapping, and tool calls all happen on-device.*
 
 ---
 

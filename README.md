@@ -26,9 +26,12 @@
 
 ## 演示
 
-<img src="docs/Screenshots/weixuan-demo.gif" width="300" alt="微玄：用一句话指挥手机完成任务">
+| 一句话指挥手机 | 工具调用 |
+|:---:|:---:|
+| <img src="docs/Screenshots/weixuan-demo.gif" width="240" alt="微玄：用一句话指挥手机完成任务"> | <img src="docs/Screenshots/weixuan-demo-tools.gif" width="240" alt="微玄：工具调用过程"> |
+| 你说要做什么，模型自己观察屏幕、模拟点按 | 模型自行决定调用哪些工具，并逐条回报结果 |
 
-*你说要做什么，模型自己观察屏幕、模拟点按，再把结果回报给你 —— 全程离线。*
+*全程离线：推理、看屏幕、点按、调用工具，都在手机本地完成。*
 
 ---
 
