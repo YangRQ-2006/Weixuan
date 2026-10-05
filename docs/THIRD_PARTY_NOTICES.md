@@ -4,6 +4,10 @@
 
 微玄是 [Eta](https://github.com/Mangi-11/Eta) 的衍生作品。Eta 采用 **[PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)**（非商业）许可；作为衍生作品，本项目（微玄）**沿用同一许可**，许可证全文见仓库根目录 [`LICENSE`](../LICENSE)。
 
+> Required Notice: Copyright © 2026 蛮吉 (Mangi-11).
+
+以上通知行是 PolyForm Noncommercial 1.0.0「Notices」条款要求随软件一同传递的声明（原文见 [`LICENSE`](../LICENSE) 末尾），请勿移除。
+
 这意味着微玄**不是** OSI 定义的开源软件：允许个人学习、研究及其它非商业用途下的使用、修改与分发，**不允许商业使用**。如需商业使用，请分别联系上游作者与本项目作者取得授权。
 
 ## 终端原生组件
