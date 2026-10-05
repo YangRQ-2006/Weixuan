@@ -206,7 +206,8 @@ The in-app "Model Market" offers the following **15** models across three tiers 
 | Llama-3.2-3B-Instruct · Q4_K_M | 1.93 GB | Lightweight English generalist |
 | Gemma-3-4B-it · Q4_K_M | 2.38 GB | Balanced Chinese/English, natural multi-turn chat |
 | Phi-4-mini-instruct · Q4_K_M | 2.38 GB | Strong at reasoning / maths |
-| **Qwen3-4B · Q4_K_M** | **2.38 GB** | ⭐ **Top pick**: measured tool-calling accuracy above 80% |
+| **Spark-X2.5-4B · Q4_K_M** | **2.42 GB** | ⭐ **Top pick**: agent-tuned; sliding-window attention keeps long contexts fast — measured **18 tok/s** on this device (text-only, no vision) |
+| Qwen3-4B · Q4_K_M | 2.38 GB | The balanced choice: measured tool-calling accuracy above 80%, plus image input |
 
 ### Advanced · Above 4B (≈6GB Free RAM Required)
 
@@ -223,9 +224,11 @@ The in-app "Model Market" offers the following **15** models across three tiers 
 > so they will not appear in the list.
 > Some advanced entries have not yet been individually verified by loading on a real-device NPU; if one fails, please open an issue.
 
-**One-line advice for new users: start with Qwen3-4B.**
+**One-line advice for new users: start with Spark-X2.5-4B.**
 
-- Its measured **tool-calling accuracy exceeds 80%** on this device (evaluated on 26 real Chinese instructions), enough to drive everyday tasks
+- Measured **18 tok/s** on this device (with **on-demand tool loading** enabled) — the fastest 4B-class model we have tested; it pulls further ahead as the context grows
+- It is **text-only** (no vision). Its tool-calling accuracy is still being evaluated — fall back if you hit instability
+- Alternative **Qwen3-4B**: measured **tool-calling accuracy exceeds 80%** on this device (26 real Chinese instructions) and it accepts image input
 - Its 2.38GB size loads reliably on 16GB devices
 - Want faster → switch to 1.7B / 1.5B; want smarter → move up to the advanced tier (clear background apps first)
 
@@ -237,14 +240,23 @@ The figures below are measured on a **Xiaomi 16GB device (Snapdragon 8 Elite Gen
 
 | Item | Measured |
 |------|------|
-| Decoding speed (4B model) | **6 ~ 11 tok/s** (slower with longer prompts) |
-| First token (prompt prefill) | about **600 ~ 1000 tok/s** |
+| Decoding speed (**Spark-X2.5-4B + on-demand tool loading**) | **about 18 tok/s** ⭐ our fastest tested combination |
+| Decoding speed (Spark-X2.5-4B, on-demand loading off, 5000+ token prompt) | about 9 ~ 10 tok/s |
+| Decoding speed (Qwen3-4B) | **6 ~ 11 tok/s** (slower with longer prompts) |
+| First token (prompt prefill) | about **600 ~ 1000 tok/s**; as low as **0.5 s** on a KV prefix hit |
 | Prefix reuse | **99%** reuse within a session (later rounds prefill in only tens of milliseconds) |
-| First model load | **15 ~ 25 seconds** (2~4GB read from storage, limited by storage bandwidth) |
+| First model load | **6 ~ 25 seconds** (2~4GB read from storage; depends on storage bandwidth and device temperature) |
 | Memory usage (4B) | about 2.9 GB (weights + vision tower + KV) |
+
+> **What is "on-demand tool loading"?** WeiXuan ships 50+ tools, and it used to send every tool definition
+> with every request (about 6000 tokens), dragging decoding down to roughly 4 tok/s. With it enabled only 16
+> commonly used tools stay resident; the rest are **looked up by the model on demand and loaded automatically**,
+> bringing the prompt down to about 3200 tokens — measured on this device: **decoding 4.2 → 14.5 tok/s, first
+> token in 0.51 s, with no loss of tool capabilities**. Find it under **Settings → Tool capabilities → On-demand tool loading**.
 
 **Why it gets slower the longer you chat**: each generated token requires reading the entire KV cache, and a longer context means more to read.
 On this device we measured roughly **1.4 tok/s slower decoding per 1000 tokens of context**. That is why the context window setting is a trade-off between speed and memory.
+(Spark-X2.5-4B uses sliding-window attention, so it degrades far less on long contexts — one reason it is faster here.)
 
 ---
 
