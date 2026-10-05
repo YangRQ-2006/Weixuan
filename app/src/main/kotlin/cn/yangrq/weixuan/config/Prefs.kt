@@ -43,6 +43,27 @@ internal object Prefs {
         const val AGENT_DEVICE_SENSITIVE_READ_TOOLS = "agent_device_sensitive_read_tools"
         const val AGENT_DEVICE_SENSITIVE_ACTION_TOOLS = "agent_device_sensitive_action_tools"
         const val AGENT_THINKING_ENABLED = "agent_thinking_enabled"
+
+        /**
+         * 纯文本模式（免工具直答）：不向模型发送任何工具定义。
+         *
+         * 动机（2026-10-05 实测）：Agent prompt 实测 5140 token，其中约 4800 是工具 schema；
+         * 带工具时首轮 prefill 要 9.05 秒、decode 也只有 7.17 t/s（5.1k 上下文）。
+         * 关掉工具后 prompt 掉到几百 token，首字延迟与整体速度都显著改善，
+         * 代价是助手不能再操作手机（纯聊天/问答）。
+         */
+        const val AGENT_PLAIN_TEXT = "agent_plain_text"
+
+        /**
+         * 工具按需发现（速度优先的工具模式）。
+         *
+         * 动机（2026-10-05 实测）：运行时 57 个工具常驻 prompt ≈ 5900 token，而 ctx 只有 6144
+         * ⇒ decode 被长上下文拖到 4.2 t/s、首字还要付 ~8.8s 全量 prefill。
+         * 开启后只常驻「核心工具 + 已发现工具 + find_tools」，其余工具在需要时通过 find_tools 现查现挂，
+         * 常驻工具块降到约 1.5k token 量级 —— **能力不减**（任何工具都能被找到并调用），
+         * 代价是冷门工具多一轮往返（+1~2s）。实现见 `AgentToolDiscovery`。
+         */
+        const val AGENT_TOOL_DISCOVERY = "agent_tool_discovery"
         const val AGENT_RUNTIME_CONFIG_JSON = "agent_runtime_config_json"
 
         /** 全部布尔开关及其默认值。 */
@@ -61,7 +82,9 @@ internal object Prefs {
             AGENT_DEVICE_DIRECT_TOOLS to true,
             AGENT_DEVICE_SENSITIVE_READ_TOOLS to true,
             AGENT_DEVICE_SENSITIVE_ACTION_TOOLS to true,
-            AGENT_THINKING_ENABLED to true
+            AGENT_THINKING_ENABLED to true,
+            AGENT_PLAIN_TEXT to false,
+            AGENT_TOOL_DISCOVERY to false
         )
 
         /** 由 Eta Runtime 最终裁决、不要求 Xposed 框架在线的开关。 */
@@ -72,6 +95,8 @@ internal object Prefs {
             AGENT_DEVICE_SENSITIVE_READ_TOOLS,
             AGENT_DEVICE_SENSITIVE_ACTION_TOOLS,
             AGENT_THINKING_ENABLED,
+            AGENT_PLAIN_TEXT,
+            AGENT_TOOL_DISCOVERY,
         )
     }
 

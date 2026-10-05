@@ -143,7 +143,10 @@ internal object AgentConversationCodec {
         JSONObject()
             .put("role", "tool")
             .put("tool_call_id", toolCall.id)
-            .put("content", result.content)
+            // 工具结果进对话前统一过一遍字符预算：手机端 ctx 只有 6144 token，工具 schema 已占约 4800，
+            // 无上限的工具输出（dumpsys/日志/深 UI 树可达上万字符）会把下一轮 prompt 撑爆 ——
+            // 表现就是 prefill 变长、decode 掉速、机身发烫。详见 AgentToolResultBudget。
+            .put("content", AgentToolResultBudget.truncate(result.content, toolCall.name))
 
     fun parseToolCalls(message: JSONObject): List<AgentModelClient.ToolCall> {
         val rawCalls = message.optJSONArray("tool_calls") ?: return emptyList()

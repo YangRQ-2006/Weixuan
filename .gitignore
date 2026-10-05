@@ -34,3 +34,7 @@ google-services.json
 
 # 外部源码参考，仅供阅读，不参与当前仓库版本管理
 /reference/
+
+# —— 构建产物与本地缓存（勿入库）——
+dist/release/
+__pycache__/

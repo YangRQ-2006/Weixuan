@@ -1,0 +1,609 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "device_query",
+   "description": "读取设备状态与系统数据。action 决定读什么。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "get_current_context",
+       "get_setting",
+       "get_health_summary",
+       "recent_notifications",
+       "search_notification_history",
+       "recent_app_activity",
+       "app_usage_summary",
+       "list_alarms",
+       "list_active_timers",
+       "read_sms_code",
+       "get_logcat",
+       "wifi_credentials"
+      ],
+      "description": "get_current_context: 获取手机当前时间、时区和最近系统位置；涉及现在、今天、明天或所在位置时调用。；get_setting: 读取一个 Android Settings 值。结果可能包含设备标识等敏感信息，原始结果不会持久化。；get_health_summary: 汇总系统健康数据中的步数、睡眠、运动、心率、体重和血氧；不返回原始测量序列。；recent_notifications: 读取当前通知栏中的通知标题与正文。结果不写入持久会话。；search_notification_history: 检索 Eta 在用户授予通知使用权后记录的最近 7 天通知。原始结果不写入持久会话。；recent_app_activity: 读取最近打开应用的时间顺序，需要系统使用情况访问权。；app_usage_summary: 按前台时长汇总最近应用使用情况，需要系统使用情况访问权。；list_alarms: 读取 ColorOS 时钟中的闹钟计划。；list_active_timers: 读取 ColorOS 时钟中正在运行或暂停的计时器。；read_sms_code: 从最近短信中只提取 4 到 8 位验证码、发送方和时间，不返回完整短信正文。；get_logcat: 读取最近系统日志。query 只在已读取日志中做文本过滤，不会进入 Shell。；wifi_credentials: 读取手机保存的 Wi‑Fi 名称与密码。原始结果不会持久化。"
+     },
+     "namespace": {
+      "type": "string"
+     },
+     "key": {
+      "type": "string"
+     },
+     "days": {
+      "type": "integer"
+     },
+     "package_name": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer"
+     },
+     "query": {
+      "type": "string"
+     },
+     "max_age_hours": {
+      "type": "string"
+     },
+     "enabled_only": {
+      "type": "string"
+     },
+     "max_age_minutes": {
+      "type": "string"
+     },
+     "max_lines": {
+      "type": "string"
+     },
+     "ssid": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "device_action",
+   "description": "修改设备状态或触发系统动作（闹钟/计时器/音量/媒体/设置/应用状态/系统面板）。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string"
+     },
+     "hour": {
+      "type": "integer"
+     },
+     "minute": {
+      "type": "integer"
+     },
+     "label": {
+      "type": "string"
+     },
+     "repeat_days": {
+      "type": "string"
+     },
+     "vibrate": {
+      "type": "string"
+     },
+     "duration_seconds": {
+      "type": "string"
+     },
+     "stream": {
+      "type": "string"
+     },
+     "percent": {
+      "type": "string"
+     },
+     "namespace": {
+      "type": "string"
+     },
+     "key": {
+      "type": "string"
+     },
+     "value": {
+      "type": "string"
+     },
+     "target": {
+      "type": "string"
+     },
+     "enabled": {
+      "type": "string"
+     },
+     "package_name": {
+      "type": "string"
+     },
+     "panel": {
+      "type": "string",
+      "enum": [
+       "notifications",
+       "quick_settings"
+      ]
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "ui_observe",
+   "description": "观察屏幕与等待界面变化（观察、等待、等文本、等应用）。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "observe_screen",
+       "wait",
+       "wait_for_text",
+       "wait_for_package"
+      ],
+      "description": "observe_screen: 观察当前手机屏幕，默认只返回前台应用、屏幕尺寸、observation_id 与可见 UI 节点，不附截图。节点为空、目标无法唯一识别、界面以 Canvas/地图/图片/二维码等视觉内容为主，或任务依赖颜色、图像、空间布局时，显式设置 include_screenshot=true；补截图时保持 include_ui_tree=true，以同一次新观察刷新节点和 observation_id，禁止把新截图与旧节点混用。节点动作必须原样携带同一次观察的 observation_id；树被截断但节点语义仍有效时，优先把 max_nodes 提高到 120 后重试，不要仅因截断请求截图。；wait: 等待一段时间，让动画、网络加载或页面跳转完成。不要用它代替 wait_for_text/wait_for_package 的可验证等待。；wait_for_text: 等待当前屏幕出现指定文本或描述，适合点击后确认页面已到达、列表加载完成、弹窗出现。；wait_for_package: 等待指定 Android package 到前台，适合 launch_app/open_uri 后确认目标应用已打开。"
+     },
+     "include_screenshot": {
+      "type": "string"
+     },
+     "include_ui_tree": {
+      "type": "string"
+     },
+     "max_nodes": {
+      "type": "integer"
+     },
+     "duration_ms": {
+      "type": "integer"
+     },
+     "text": {
+      "type": "string"
+     },
+     "timeout_ms": {
+      "type": "integer"
+     },
+     "include_desc": {
+      "type": "string"
+     },
+     "match": {
+      "type": "string"
+     },
+     "package_name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "ui_touch",
+   "description": "对屏幕做触控操作（点击、长按、滑动、滚动；可按坐标、区域或节点）。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "tap",
+       "tap_area",
+       "tap_element",
+       "long_press",
+       "long_press_element",
+       "swipe",
+       "scroll",
+       "scroll_element"
+      ],
+      "description": "tap: 点击坐标。默认使用最近一次 observe_screen 截图里的像素坐标；如果坐标来自 ui_nodes 的 center，请设置 coordinate_space=screen。；tap_area: 点击矩形区域中心。默认使用最近一次 observe_screen 截图里的像素坐标；大按钮、大列表项和可见文字区域优先用这个工具。；tap_element: 点击指定观察快照中的 UI 节点。index 与 observation_id 必须来自同一次最近的 observe_screen；若观察已过期，先重新观察。Runtime 会在执行前确认 Eta 无障碍服务已经连接。；long_press: 长按坐标。默认使用最近一次 observe_screen 截图里的像素坐标；如果坐标来自 ui_nodes 的 center，请设置 coordinate_space=screen。；long_press_element: 长按指定观察快照中的 UI 节点。index 与 observation_id 必须来自同一次最近的 observe_screen；若观察已过期，先重新观察。Runtime 会在执行前确认 Eta 无障碍服务已经连接。；swipe: 从一个坐标滑动到另一个坐标。默认使用最近一次 observe_screen 截图里的像素坐标。向上滑动会让列表向下滚动。；scroll: 按内容浏览方向滚动当前屏幕：down 显示下方内容，up 显示上方内容，left 显示左侧内容，right 显示右侧内容。；scroll_element: 按内容浏览方向滚动指定观察快照中的可滚动 UI 节点：down 显示下方内容，up 显示上方内容，left 显示左侧内容，right 显示右侧内容。index 与 observation_id 必须来自同一次最近的 observe_screen；若观察已过期，先重新观察。Runtime 会在执行前确认 Eta 无障碍服务已经连接。"
+     },
+     "x": {
+      "type": "integer"
+     },
+     "y": {
+      "type": "integer"
+     },
+     "x1": {
+      "type": "integer"
+     },
+     "y1": {
+      "type": "integer"
+     },
+     "x2": {
+      "type": "integer"
+     },
+     "y2": {
+      "type": "integer"
+     },
+     "index": {
+      "type": "integer"
+     },
+     "observation_id": {
+      "type": "string"
+     },
+     "duration_ms": {
+      "type": "integer"
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "up",
+       "down",
+       "left",
+       "right"
+      ]
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "ui_text",
+   "description": "文字输入与键盘/剪贴板操作。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "input_text",
+       "replace_text",
+       "clear_text",
+       "set_clipboard",
+       "get_clipboard",
+       "paste_text",
+       "press_key"
+      ],
+      "description": "input_text: 向真正获得输入焦点的输入框键入不超过 1000 字符的文本。默认 mode=append，会在当前光标插入或替换选区；密码等不可读输入框会拒绝重建，请用 replace_text 提供完整值。；replace_text: 把当前聚焦输入框或指定 editable 节点的文本替换为给定内容。指定 index 时，index 与 observation_id 必须来自同一次最近的 observe_screen；若观察已过期，先重新观察。需要启用无障碍服务。；clear_text: 清空当前聚焦输入框或指定 editable 节点。指定 index 时，index 与 observation_id 必须来自同一次最近的 observe_screen；若观察已过期，先重新观察。需要启用无障碍服务。；set_clipboard: 把文本写入系统剪贴板。适合准备粘贴长文本、中文、emoji 或特殊字符。；get_clipboard: 读取系统剪贴板文本。Android 版本或后台限制可能导致读取失败。；paste_text: 确认真实输入焦点后按当前选区输入长文本；目标不支持直接设置时才回退系统剪贴板粘贴。无焦点时不会覆盖剪贴板；密码等不可读字段请改用 replace_text 提供完整值。；press_key: 按系统按键或全局动作。BACK/HOME/RECENTS/NOTIFICATIONS/QUICK_SETTINGS 优先走无障碍全局动作；ENTER 优先走输入法回车。"
+     },
+     "text": {
+      "type": "string"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "append",
+       "replace",
+       "paste"
+      ]
+     },
+     "index": {
+      "type": "integer"
+     },
+     "observation_id": {
+      "type": "string"
+     },
+     "button": {
+      "type": "string",
+      "enum": [
+       "BACK",
+       "HOME",
+       "RECENTS",
+       "ENTER",
+       "DELETE"
+      ]
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "app_launch",
+   "description": "查找并启动应用或打开链接。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "search_apps",
+       "launch_app",
+       "open_uri"
+      ],
+      "description": "search_apps: 搜索手机上已安装的 Android 应用，返回应用名和包名。打开应用前如果不确定包名，先调用这个工具。；launch_app: 启动一个已安装 Android 应用。优先提供 package_name；只有应用名时允许模糊匹配，匹配多个会返回候选而不会启动。；open_uri: 把一个确定有效的 URI 显式交给 Android 外部应用处理，例如 https、tel、geo 或应用 deep link。它不用于读取网页或网页交互。不要编造 URI。"
+     },
+     "query": {
+      "type": "string"
+     },
+     "include_system": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer"
+     },
+     "package_name": {
+      "type": "string"
+     },
+     "app_name": {
+      "type": "string"
+     },
+     "uri": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "file",
+   "description": "读写文件与查看图片。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "read_file",
+       "write_file",
+       "list_directory",
+       "read_image"
+      ],
+      "description": "read_file: 读取 Android 文件内容。适合读取配置、日志、小文本文件；大文件用 offset_bytes/max_bytes 分段读取。；write_file: 写入 Android 文件。可覆盖或追加；会自动创建父目录。用于明确需要修改文件的任务。；list_directory: 列出 Android 目录内容。默认 /data/local/tmp/eta，输出类似 ls -l。；read_image: 读取用户指定路径或系统相册 URI 中的一张图片，并作为视觉输入提供给模型。同一轮最多调用一次；需要查看多张图片时，等待当前图片返回并观察后，再在下一轮读取下一张。"
+     },
+     "path": {
+      "type": "string"
+     },
+     "offset_bytes": {
+      "type": "string"
+     },
+     "max_bytes": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "append": {
+      "type": "string"
+     },
+     "show_hidden": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "shell",
+   "description": "执行终端/命令行命令。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string"
+     },
+     "identity": {
+      "type": "string"
+     },
+     "environment": {
+      "type": "string"
+     },
+     "command": {
+      "type": "string"
+     },
+     "cwd": {
+      "type": "string"
+     },
+     "timeout_ms": {
+      "type": "integer"
+     },
+     "merge_stderr": {
+      "type": "string"
+     },
+     "session_id": {
+      "type": "string"
+     },
+     "job_id": {
+      "type": "string"
+     },
+     "task_id": {
+      "type": "string"
+     },
+     "async": {
+      "type": "string"
+     },
+     "offset_chars": {
+      "type": "string"
+     },
+     "max_chars": {
+      "type": "integer"
+     },
+     "close_if_done": {
+      "type": "string"
+     },
+     "timeout_seconds": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "memory",
+   "description": "读写长期记忆。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "memory_get",
+       "memory_write"
+      ],
+      "description": "memory_get: Read persistent cross-conversation memory from MEMORY.md. Core memory and the heading index are already provided at run start, so call this only to inspect details, answer what is remembered, or refresh after a conflict. Use query for just-in-time retrieval instead of reading the whole file.；memory_write: Atomically update persistent MEMORY.md. Store only durable cross-conversation facts, preferences, relationships, and ongoing project context; never store secrets, credentials, verification codes, or transient requests. Keep '# 核心记忆' concise, correct stale facts, and prefer replacing an existing section over blindly appending duplicates. Use the revision supplied in the run-start memory context or the latest memory_get result."
+     },
+     "query": {
+      "type": "string"
+     },
+     "start_line": {
+      "type": "string"
+     },
+     "max_chars": {
+      "type": "integer"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "append",
+       "replace",
+       "paste"
+      ]
+     },
+     "revision": {
+      "type": "integer"
+     },
+     "end_line": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "skills",
+   "description": "技能库的浏览、阅读、检视与安装。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "skills_list",
+       "skills_read",
+       "skills_read_resource",
+       "skills_list_curated",
+       "skills_inspect_github",
+       "skills_install_from_github"
+      ],
+      "description": "skills_list: List installed skills with their id, name, description, and capabilities. Use when the user asks what skills are available or whether a certain type of skill is installed.；skills_read: Read the full SKILL.md body of an installed skill by id, name, or path. Use when you know a skill might be relevant but its full body was not injected this turn.；skills_read_resource: Read a bounded UTF-8 text resource inside an enabled Skill, such as references/guide.md. The path must be relative to that Skill root; this tool never executes scripts or reads outside the Skill.；skills_list_curated: List installable Skills from the public openai/skills curated catalog. This is read-only. Use the returned commitSha as ref for a subsequent installation so the inspected content cannot change.；skills_inspect_github: Inspect a public GitHub repository and list every directory containing SKILL.md. This never installs anything. Use the returned commitSha as ref for installation; if multiple candidates match, ask the user to choose exact paths.；skills_install_from_github: Install selected Skill directories from a public GitHub repository. Paths must come from skills_inspect_github. If one replaceable user Skill conflicts, retry that exact repository, commitSha, path, and id with replaceExisting=true; built-in Skills can never be overwritten. Installation does not run bundled scripts, and installed Skills become available next turn."
+     },
+     "query": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "integer"
+     },
+     "repository": {
+      "type": "string"
+     },
+     "ref": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "paths": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ },
+ {
+  "type": "function",
+  "function": {
+   "name": "browser",
+   "description": "浏览器操作。",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "selector": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string"
+     },
+     "submit": {
+      "type": "string"
+     },
+     "coordinate_x": {
+      "type": "string"
+     },
+     "coordinate_y": {
+      "type": "string"
+     },
+     "amount": {
+      "type": "string"
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "up",
+       "down",
+       "left",
+       "right"
+      ]
+     },
+     "offset": {
+      "type": "integer"
+     },
+     "max_chars": {
+      "type": "integer"
+     },
+     "read_image": {
+      "type": "string"
+     },
+     "timeout_ms": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "action"
+    ]
+   }
+  }
+ }
+]

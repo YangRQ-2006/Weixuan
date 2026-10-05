@@ -3,6 +3,7 @@ package cn.yangrq.weixuan.agent.model
 import cn.yangrq.weixuan.agent.memory.AgentMemoryContext
 import cn.yangrq.weixuan.agent.skill.SkillContext
 import cn.yangrq.weixuan.agent.roleplay.RoleplayRunContext
+import cn.yangrq.weixuan.config.Prefs
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -34,6 +35,26 @@ internal object AgentPromptBuilder {
         roleplayContext: RoleplayRunContext? = null,
     ): JSONArray {
         val messages = JSONArray()
+        // ── 纯文本模式（2026-10-05）────────────────────────────────────────────
+        // 工具已全部关闭（见 AgentModelClient.toolsFor() 返回空集），下面这些「工具取证 / 终端 /
+        // 浏览器 / 屏幕观察 / 记忆注入」指令既无法执行、又吃掉大量 token。
+        // 实测依据：即使 tools=0，prompt 仍有 2525 token（首轮 prefill 3.9s）——绝大部分来自这里；
+        // 换成极简系统提示后 prompt 掉到百 token 级，首字延迟与长上下文 decode 损耗一起下降。
+        if (Prefs.isEnabled(Prefs.Keys.AGENT_PLAIN_TEXT)) {
+            val plainMessages = JSONArray()
+            if (roleplayContext == null && config.systemPrompt.isNotBlank()) {
+                plainMessages.put(systemMessage(config.systemPrompt))
+            }
+            plainMessages.put(
+                systemMessage(
+                    "你是微玄（WeiXuan）。用户询问你的身份时说明你是微玄。" +
+                        "当前配置的模型：${JSONObject.quote(config.model)}；询问所用模型时按当前配置回答，不推断未确认的部署版本或能力。" +
+                        "回答使用用户的语言，直接、简洁、自然：简单问题直接给结论，需要解释时再展开，不刻意奉承，发现错误直接承认并修正。" +
+                        "当前处于纯文本模式，本轮没有任何工具可用、也无法操作手机；不要提及工具、执行计划或设备操作。"
+                )
+            )
+            return plainMessages
+        }
         if (roleplayContext == null && config.systemPrompt.isNotBlank()) {
             messages.put(systemMessage(config.systemPrompt))
         }

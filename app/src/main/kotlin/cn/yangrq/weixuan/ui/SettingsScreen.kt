@@ -322,6 +322,20 @@ private fun SettingsPageContent(
                     )
 
                     EtaPreferenceDivider()
+                    // 工具按需发现（2026-10-05）：解决"57 个工具常驻 prompt ≈5900 token → decode 4.2 t/s"。
+                    // 只常驻核心工具 + find_tools，其余工具由模型按需查询后自动加入下一轮工具列表 ——
+                    // 能力一个不少，常驻工具块降到约 1.5k token。实现见 AgentToolDiscovery。
+                    SwitchPref(
+                        context = context,
+                        prefs = agentPrefs,
+                        title = "工具按需加载",
+                        summary = "只常驻常用工具，其余工具由助手按需查询后自动加载。可显著加快回复（上下文更短），冷门工具会多一次往返。",
+                        key = Prefs.Keys.AGENT_TOOL_DISCOVERY,
+                        glyph = XuanGlyphType.Tools,
+                        iconTint = EtaPreferenceColors.Green,
+                    )
+
+                    EtaPreferenceDivider()
                     SwitchPref(
                         context = context,
                         prefs = agentPrefs,

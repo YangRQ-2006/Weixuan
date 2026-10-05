@@ -1,0 +1,81 @@
+{
+ "device_query": {
+  "get_current_context": "get_current_context",
+  "get_setting": "get_setting",
+  "get_health_summary": "get_health_summary",
+  "recent_notifications": "recent_notifications",
+  "search_notification_history": "search_notification_history",
+  "recent_app_activity": "recent_app_activity",
+  "app_usage_summary": "app_usage_summary",
+  "list_alarms": "list_alarms",
+  "list_active_timers": "list_active_timers",
+  "read_sms_code": "read_sms_code",
+  "get_logcat": "get_logcat",
+  "wifi_credentials": "wifi_credentials"
+ },
+ "device_action": {
+  "set_alarm": "set_alarm",
+  "set_timer": "set_timer",
+  "media_control": "media_control",
+  "set_volume": "set_volume",
+  "set_setting": "set_setting",
+  "set_device_state": "set_device_state",
+  "app_state_control": "app_state_control",
+  "open_system_panel": "open_system_panel"
+ },
+ "ui_observe": {
+  "observe_screen": "observe_screen",
+  "wait": "wait",
+  "wait_for_text": "wait_for_text",
+  "wait_for_package": "wait_for_package"
+ },
+ "ui_touch": {
+  "tap": "tap",
+  "tap_area": "tap_area",
+  "tap_element": "tap_element",
+  "long_press": "long_press",
+  "long_press_element": "long_press_element",
+  "swipe": "swipe",
+  "scroll": "scroll",
+  "scroll_element": "scroll_element"
+ },
+ "ui_text": {
+  "input_text": "input_text",
+  "replace_text": "replace_text",
+  "clear_text": "clear_text",
+  "set_clipboard": "set_clipboard",
+  "get_clipboard": "get_clipboard",
+  "paste_text": "paste_text",
+  "press_key": "press_key"
+ },
+ "app_launch": {
+  "search_apps": "search_apps",
+  "launch_app": "launch_app",
+  "open_uri": "open_uri"
+ },
+ "file": {
+  "read_file": "read_file",
+  "write_file": "write_file",
+  "list_directory": "list_directory",
+  "read_image": "read_image"
+ },
+ "shell": {
+  "terminal": "terminal",
+  "run_command": "run_command"
+ },
+ "memory": {
+  "memory_get": "memory_get",
+  "memory_write": "memory_write"
+ },
+ "skills": {
+  "skills_list": "skills_list",
+  "skills_read": "skills_read",
+  "skills_read_resource": "skills_read_resource",
+  "skills_list_curated": "skills_list_curated",
+  "skills_inspect_github": "skills_inspect_github",
+  "skills_install_from_github": "skills_install_from_github"
+ },
+ "browser": {
+  "browser_use": "browser_use"
+ }
+}

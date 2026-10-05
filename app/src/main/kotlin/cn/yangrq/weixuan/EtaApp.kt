@@ -3,6 +3,7 @@ package cn.yangrq.weixuan
 import android.app.Application
 import android.os.Handler
 import android.os.Looper
+import cn.yangrq.weixuan.agent.model.AgentToolResultBudget
 import cn.yangrq.weixuan.agent.skill.SkillRuntime
 import cn.yangrq.weixuan.agent.device.RootAccess
 import cn.yangrq.weixuan.agent.terminal.TerminalRuntime
@@ -52,6 +53,8 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
             return
         }
         TerminalRuntime.initialize(this)
+        // 工具结果全文落盘目录（超长结果截断后给出文件路径，模型可按需取回）——见 AgentToolResultBudget。
+        AgentToolResultBudget.configure(this)
         RootAccess.initialize(this)
         SettingsDataStore.init(this)
         val predictiveBackEnabled = runBlocking(Dispatchers.IO) {
@@ -68,6 +71,9 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
         // 而不是连接被拒触发"模型请求暂时中断"重试链（2026-09-24 23:10 故障根因）。
         if (LocalSettings.serverEnabled) {
             applicationScope.launch {
+                // 预热耗时基线（2026-10-04）：把「进程起来 → 后端探测 → 模型就绪」拆开计时。
+                // 实测冷启动到就绪 ≈ 20s（前置约 6.6s + 模型加载约 13.3s），需要知道前置里花在哪。
+                val warmStartMs = android.os.SystemClock.elapsedRealtime()
                 // 后端设备探测预热（2026-10-02）——必须在任何推理启动之前完成，否则会出现
                 // 「探测说不能用、其实能用」的错配。
                 // 背景：探测要 dlopen 最重 44MB 的 libggml-vulkan-adreno.so 并起一次
@@ -120,6 +126,7 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
                         }
                     }
                     if (modelPath.isNotBlank() && java.io.File(modelPath).exists()) {
+                        val preloadStartMs = android.os.SystemClock.elapsedRealtime()
                         // 自动加载重试（2026-09-28 调整）：从 5 次 × 30 秒收敛到 3 次 × 5 秒。
                         // 原设计为"等系统回收内存后自行成功"，但 150 秒的等待对调试/日常都太久；
                         // 内存不足时应由用户清理后台（日志仍会明确提示）。
@@ -145,9 +152,38 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
                                 cn.yangrq.weixuan.local.LocalSettings.DEFAULT_PORT,
                             )
                         }
+                        // 慢重试阶段（2026-10-04 加）：实测冷启动到就绪 ≈ 6.6s 前置 + 13.3s 加载。
+                        // 旧实现在快重试 15 秒后**彻底放弃**，于是用户发问时才现加载 —— 他感知到的
+                        // 「加上工具要等 20 秒 / 正在加载模型」正是这段。用户通常几十秒后才真正发问，
+                        // 因此这里继续以 15 秒为间隔续试（约 3 分钟上限），让「发问前就已就绪」成为常态；
+                        // 仍然失败则保持原行为（日志明确指引手动加载），不做无限等待。
+                        var slow = 0
+                        while (!ok && slow < 12 && LocalSettings.serverEnabled) {
+                            slow++
+                            AndroidAgentLogger.info(
+                                "自建 runtime 慢重试 $slow/12（15 秒一次，约 3 分钟）：发问前就绪即可免去临场加载",
+                            )
+                            kotlinx.coroutines.delay(15_000)
+                            if (cn.yangrq.weixuan.local.LlamaServerProcess.isRunning()) {
+                                ok = true
+                                break
+                            }
+                            ok = cn.yangrq.weixuan.local.LlamaServerProcess.start(
+                                this@EtaApp,
+                                modelPath,
+                                cn.yangrq.weixuan.local.LocalSettings.DEFAULT_PORT,
+                            )
+                        }
                         AndroidAgentLogger.info(
-                            if (ok) "自建 runtime 已就绪（llama-server :${LocalSettings.port}/v1）"
-                            else "自建 runtime 多次重试仍未就绪：请清理后台后打开「本地模型」页手动加载",
+                            if (ok) {
+                                val nowMs = android.os.SystemClock.elapsedRealtime()
+                                val loadCost = nowMs - preloadStartMs
+                                val frontCost = preloadStartMs - warmStartMs
+                                "自建 runtime 已就绪（llama-server :${LocalSettings.port}/v1），" +
+                                    "预热总用时 ${nowMs - warmStartMs}ms（前置 ${frontCost}ms + 加载 ${loadCost}ms）"
+                            } else {
+                                "自建 runtime 多次重试仍未就绪：请清理后台后打开「本地模型」页手动加载"
+                            },
                         )
                     } else {
                         AndroidAgentLogger.warn("自建 runtime：未配置模型文件（customModelPath 为空）")
