@@ -28,6 +28,7 @@ import cn.yangrq.weixuan.config.PowerAssistantTarget
 import cn.yangrq.weixuan.config.Prefs
 import cn.yangrq.weixuan.data.repository.ProviderRepository
 import cn.yangrq.weixuan.data.repository.RuntimeConfigRepository
+import cn.yangrq.weixuan.local.LocalSettings
 import cn.yangrq.weixuan.ui.design.XuanGlyphType
 import cn.yangrq.weixuan.ui.app.EnhancementSettingsHistory
 import cn.yangrq.weixuan.ui.app.rememberDeviceCapabilities
@@ -173,23 +174,6 @@ private fun SettingsPageContent(
     ) {
             // ── LLM 提供商 ──────────────────────────────────────────────
             // ── 图标系统（设计验收用）──────────────────────────────────
-            item(key = "section_icon_preview") {
-                EtaPreferenceGroupTitle("图标系统")
-                EtaPreferenceGroup {
-                    EtaArrowPreference(
-                        title = "图标对比预览",
-                        summary = "爻线自绘与 Tabler 底座同尺寸并排对比",
-                        startAction = {
-                            EtaPreferenceIcon(
-                                glyph = XuanGlyphType.Settings,
-                                tint = EtaPreferenceColors.Blue,
-                            )
-                        },
-                        onClick = { onNavigate(AppRoute.IconPreview) },
-                    )
-                }
-            }
-
             item(key = "section_agent") {
                 EtaPreferenceGroupTitle(stringResource(R.string.xuan_section_pivot))
                 EtaPreferenceGroup {
@@ -229,6 +213,23 @@ private fun SettingsPageContent(
                             )
                         },
                         onClick = { onNavigate(AppRoute.ModelMarket) },
+                    )
+
+                    EtaPreferenceDivider()
+                    EtaArrowPreference(
+                        title = "本地推理服务器",
+                        summary = if (LocalSettings.localServerEnabled) {
+                            "已开启 · ${LocalSettings.localServerHost()}:${LocalSettings.localServerPort}"
+                        } else {
+                            "已关闭 · 把手机当成 OpenAI 兼容的私有推理服务器对外提供"
+                        },
+                        startAction = {
+                            EtaPreferenceIcon(
+                                glyph = XuanGlyphType.Globe,
+                                tint = EtaPreferenceColors.Blue,
+                            )
+                        },
+                        onClick = { onNavigate(AppRoute.LocalServer) },
                     )
 
                     EtaPreferenceDivider()

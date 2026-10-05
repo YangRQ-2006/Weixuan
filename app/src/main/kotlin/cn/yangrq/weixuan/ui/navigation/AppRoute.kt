@@ -97,12 +97,14 @@ sealed interface AppRoute : NavKey {
     data object ModelMarket : AppRoute
 
     /**
-     * 图标对比预览（爻线自绘 vs Tabler 底座），仅设计验收用。
+     * 本地推理服务器（2026-10-05 从 [LocalModel] 页剥离为独立二级设置页）。
      *
-     * 入口：设置页 →「图标系统 → 图标对比预览」。
+     * 原先服务器模式的配置藏在「本地模型」页里，用户反馈"藏得太深"；现在单独成页，
+     * 入口放在「设置」显著位置（与「本地模型」并列）。
      */
     @Serializable
-    data object IconPreview : AppRoute
+    data object LocalServer : AppRoute
+
 }
 
 @Serializable

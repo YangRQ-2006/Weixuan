@@ -45,7 +45,6 @@ import cn.yangrq.weixuan.agent.device.RootAccess
 import cn.yangrq.weixuan.core.AndroidAgentLogger
 import cn.yangrq.weixuan.data.repository.RuntimeConfigRepository
 import cn.yangrq.weixuan.ui.AppearanceSettingsScreen
-import cn.yangrq.weixuan.ui.IconPreviewScreen
 import cn.yangrq.weixuan.ui.SettingsScreen
 import cn.yangrq.weixuan.ui.components.MiuixDialogActions
 import cn.yangrq.weixuan.ui.model.AgentChatAction
@@ -60,6 +59,7 @@ import cn.yangrq.weixuan.ui.navigation.AgentNavigator
 import cn.yangrq.weixuan.ui.navigation.AppRoute
 import cn.yangrq.weixuan.ui.pages.providers.ModelProviderDetailScreen
 import cn.yangrq.weixuan.ui.pages.local.LocalModelScreen
+import cn.yangrq.weixuan.ui.pages.local.LocalServerScreen
 import cn.yangrq.weixuan.ui.pages.local.ModelMarketScreen
 import cn.yangrq.weixuan.ui.pages.providers.ModelProviderListScreen
 import cn.yangrq.weixuan.ui.screens.backup.DataBackupScreen
@@ -609,9 +609,6 @@ fun AgentAppRoot(
             entry<AppRoute.AppearanceSettings>(swipeDismiss = swipeDismiss) {
                 AppearanceSettingsScreen(onBack = ::popRoute)
             }
-            entry<AppRoute.IconPreview>(swipeDismiss = swipeDismiss) {
-                IconPreviewScreen(onBack = ::popRoute)
-            }
             entry<AppRoute.DataBackup>(swipeDismiss = swipeDismiss) {
                 DataBackupScreen(
                     context = context,
@@ -668,12 +665,18 @@ fun AgentAppRoot(
                 LocalModelScreen(
                     onBack = ::popRoute,
                     onOpenMarket = { pushRoute(AppRoute.ModelMarket) },
+                    onOpenServer = { pushRoute(AppRoute.LocalServer) },
                 )
             }
             entry<AppRoute.ModelMarket>(swipeDismiss = swipeDismiss) {
                 ModelMarketScreen(
                     onBack = ::popRoute,
                     onOpenLocalModels = { pushRoute(AppRoute.LocalModel) },
+                )
+            }
+            entry<AppRoute.LocalServer>(swipeDismiss = swipeDismiss) {
+                LocalServerScreen(
+                    onBack = ::popRoute,
                 )
             }
             entry<AppRoute.McpServers>(swipeDismiss = swipeDismiss) {

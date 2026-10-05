@@ -57,24 +57,6 @@ internal fun XuanGlyph(
     }
 }
 
-/**
- * 强制走「爻线」自绘路径，不受 Tabler 分发影响。
- *
- * 仅供 [cn.yangrq.weixuan.ui.IconPreviewScreen] 做新旧对比；业务代码请用 [XuanGlyph]。
- */
-@Composable
-internal fun XuanGlyphLegacy(
-    type: XuanGlyphType,
-    size: Dp,
-    tint: Color = Color.Unspecified,
-    strokeWidth: Dp = 2.dp,
-) {
-    val color = if (tint == Color.Unspecified) MiuixTheme.colorScheme.onBackground else tint
-    Canvas(modifier = Modifier.size(size)) {
-        drawXuanGlyph(type, this.size.minDimension / 24f, strokeWidth.toPx(), color)
-    }
-}
-
 @Composable
 internal fun XuanGlyph(
     type: XuanGlyphType,
