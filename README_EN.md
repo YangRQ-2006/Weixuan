@@ -174,6 +174,50 @@ during which the chat screen shows "Loading local model, please wait". When load
 - **Switch models at any time**: different models suit different tasks (lightweight ones are fast, larger ones are smarter)
 - Models can be uninstalled to free memory; when unused, uninstalling them is recommended to leave the system headroom
 
+### Run as an Inference Server
+
+**One-liner: your phone *is* a private AI server — the model runs on-device, so your data never leaves the device.**
+
+WeiXuan's built-in `llama-server` natively speaks the OpenAI-compatible API (`/v1/chat/completions`, `/v1/models`, ...). Turn on "Local inference server" and any app on the same phone — or any device on your LAN — can call the on-device model with a standard OpenAI API.
+
+**How to enable**
+
+1. Go to **Settings → Local inference server** (a dedicated secondary page);
+2. Turn on the **Server mode** switch (off by default);
+3. (Optional) pick **Bind scope**: `localhost 127.0.0.1` (default, safest) or `LAN 0.0.0.0` (visible to your Wi-Fi; an **API key is then mandatory**);
+4. (Optional) change **port** (default `18787`), **concurrent slots** (default `1`) or the **API key**;
+5. Tap **"Restart engine to apply"** so the listen parameters take effect;
+6. Recommended: in the **"Keep-alive (background survival)"** section, tap **"Turn off battery optimization"**.
+
+**Client usage**
+
+| Item | Value |
+|------|-------|
+| base_url (localhost) | `http://127.0.0.1:18787/v1` |
+| base_url (LAN) | `http://<phone-LAN-IP>:18787/v1` (send `Authorization: Bearer <key>`) |
+| Model name | Use the `id` returned by `GET /v1/models` (usually the base name of the loaded `.gguf`) |
+
+```bash
+# One-line self-check: is the server up, and what is the model id?
+curl -s http://127.0.0.1:18787/v1/models
+```
+
+**Capability boundaries (as-is, no marketing)**
+
+| Item | Reality |
+|------|---------|
+| `-np 4` | **Not** 4x throughput. Each extra slot multiplies KV-cache memory and lowers per-stream speed; **`1` is recommended for personal use** |
+| Single-stream speed | A 4B quantized model runs at roughly **9-17 tok/s** (varies with context length and device state) |
+| Cold start | Loading a model takes seconds to tens of seconds; long prompts also need prefill time |
+| Good for | Personal / low-frequency use, occasional LAN use by yourself or family, private APIs for other local apps |
+| Not for | Many users hammering it concurrently, or server-grade sustained QPS |
+
+**Background survival (keep-alive)**: when the server is on, WeiXuan uses a **foreground service + persistent notification + lightweight watchdog**; if the engine is killed while server mode is still on, it is auto-restarted (exponential backoff, gives up after 5 consecutive failures and notifies you). A wake lock is held **only while the engine is actually running** and self-expires. On Xiaomi / HyperOS you must **manually** set battery policy to *No restrictions*, allow **Autostart**, and lock the app in Recents.
+
+Full client examples, measured concurrency notes, thermal protection, keep-alive details and FAQ: [`docs/SERVER_MODE.md`](docs/SERVER_MODE.md).
+
+<!-- TODO: screenshot - the "Local inference server" settings page (with the keep-alive section) plus a successful `curl /v1/models` return -->
+
 ### Tuning Behavior
 
 | Setting | Effect |

@@ -2,6 +2,7 @@ package cn.yangrq.weixuan.local
 
 import android.content.Context
 import android.util.Log
+import cn.yangrq.weixuan.config.LocalServerPrefs
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -10,7 +11,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * 自建 llama.cpp runtime（llama-server 子进程）管理器。
@@ -214,6 +219,11 @@ object LlamaServerProcess {
     ): Boolean {
         if (isRunning()) {
             loadState = LoadState.READY
+            // 引擎已在运行也可能是从旧状态恢复（如进程内早于本次调用就已启动）：
+            // 这里补一次看门狗启动（幂等，门控不满足时直接返回），确保服务器模式下始终有热保护。
+            ensureThermalWatchdog(context, modelPath, port)
+            // 补一次保活武装（幂等；门控不满足时 LocalServerKeepAlive 会直接返回）。
+            LocalServerKeepAlive.onEngineReady(context.applicationContext, modelPath, port)
             return true
         }
         // ── 后端口味解析（2026-10-02）──────────────────────────────────────────
@@ -378,11 +388,43 @@ object LlamaServerProcess {
         if (slotName == null) Log.w(TAG, "slot 缓存目录不可用，跳过前缀 KV 复用")
         if (slotName != null) pruneStaleSlots(slotDir, slotName)
 
+        // ── 本地推理服务器模式（2026-10-05）─────────────────────────────────────
+        // 把原先写死的 `--host 127.0.0.1` / `--port` / `-np 1` 改为可配置，并可选追加
+        // `--api-key`。默认值（关闭 / 仅本机 / 18787 / 单槽 / 无 key）与改造前**逐字节一致**，
+        // 见 [cn.yangrq.weixuan.config.LocalServerPrefs] —— 关掉服务器模式时一个字节都不变。
+        //
+        // 为什么把「关」也写成显式分支：调用方（EtaApp / GenieXLocalEngine）在旧代码里传的是
+        // 常量 DEFAULT_PORT，若这里无条件改用设置端口，等于把参数化的决定权从调用方挪走；
+        // 用 serverMode 门控可保证「未开启 = 完全走旧路径」，是这次改动最重要的安全约束。
+        val serverMode = LocalSettings.localServerEnabled
+        val listenHost = if (serverMode && LocalSettings.localServerLan) "0.0.0.0" else "127.0.0.1"
+        val listenPort = if (serverMode) LocalSettings.localServerPort else port
+        val slots = if (serverMode) LocalSettings.localServerSlots else LocalServerPrefs.DEFAULT_SLOTS
+        // 局域网强制鉴权：ensureLocalServerApiKey 在 lan 且空时会自动生成并落盘。
+        val apiKey = if (serverMode) LocalSettings.ensureLocalServerApiKey() else ""
+        val apiKeyArgs = if (apiKey.isNotBlank()) listOf("--api-key", apiKey) else emptyList()
+        if (serverMode) {
+            Log.i(
+                TAG,
+                "服务器模式已启用：host=$listenHost port=$listenPort slots=$slots " +
+                    "apiKey=${if (apiKey.isBlank()) "无（仅本机）" else "已设置"}",
+            )
+            if (slots > 1) {
+                // 明示代价：llama.cpp 的 -np 是「并行槽」，不是「吞吐倍增器」。多槽会按槽数
+                // 倍增 KV cache 显存/内存（实测单槽 f16 KV ≈147KB/token），单流速度反而下降。
+                Log.w(
+                    TAG,
+                    "并发槽数 slots=$slots：KV cache 内存按槽数倍增，单流 decode 会下降，" +
+                        "总吞吐远达不到线性 $slots 倍；内存吃紧时可能加载失败。个人使用建议 1。",
+                )
+            }
+        }
+
         val cmd = listOf(
             bin.absolutePath,
             "-m", modelPath,
-            "--host", "127.0.0.1",
-            "--port", port.toString(),
+            "--host", listenHost,
+            "--port", listenPort.toString(),
             "-c", ctx.toString(),
             "-t", threads.toString(),
             // KV 类型由 LocalMemoryModel 按 GGUF 架构账本决定（优先 f16：HTP 上快 2.5 倍）
@@ -395,7 +437,8 @@ object LlamaServerProcess {
             // schema（约 5941 tokens）完全不变，只有历史增量。默认实测 cache_n=1 即全量重算
             // （NPU 254 tok/s 下约 23 秒/轮）。开启后复用公共前缀 KV，让 prefill 只算增量。
             "--cache-reuse", "256",
-            "-np", "1",
+            // -np：并行槽数（默认 1；服务器模式的并发槽数设置，见上方 serverMode 分支）
+            "-np", slots.toString(),
             // ★ 后端锁定（2026-10-02 关键修复）────────────────────────────────────
             // 不传 --device 时，llama.cpp 的 default device selection（src/llama.cpp:184-280）
             // 会把注册表里**所有** GGML_BACKEND_DEVICE_TYPE_GPU 的设备都纳入 model->devices，
@@ -404,7 +447,7 @@ object LlamaServerProcess {
             // 两者都会被注册成 GPU 设备 → 权重被切给两个设备 → 每跨一次设备边界就多一次
             // 主机侧张量拷贝。显式 --device 把设备列表收敛成唯一一个，彻底消除隐性 hybrid。
             // CPU 口味传 "none"：llama.cpp 的特殊值，语义=不启用任何加速设备（纯 CPU）。
-        ) + speculativeArgs + mmprojArgs + deviceArgs + slotArgs
+        ) + speculativeArgs + mmprojArgs + deviceArgs + slotArgs + apiKeyArgs
         Log.i(TAG, "启动 llama-server（n_threads=$threads）：${cmd.joinToString(" ")}")
         return runCatching {
             val pb = ProcessBuilder(cmd).redirectErrorStream(true)
@@ -471,13 +514,13 @@ object LlamaServerProcess {
             val readyBudgetMs = if (fileMb > 3000) 180_000L else 90_000L
             val deadline = System.currentTimeMillis() + readyBudgetMs
             while (System.currentTimeMillis() < deadline) {
-                if (probe(port)) {
+                if (probe(listenPort)) {
                     // 加载后实测审计（2026-09-30 新增）：预检只是估算，这里用真实可用内存兜底，
                     // 余量不足立即卸载——这是防「加载成功但拖垮系统」这类事故的最后一道防线。
                     val afterMb = readAvailMb()
                     Log.i(
                         TAG,
-                        "llama-server 就绪：http://127.0.0.1:$port/v1" +
+                        "llama-server 就绪：http://$listenHost:$listenPort/v1" +
                             "（加载后可用 ${afterMb}MB，Δ${plan.availMb - afterMb}MB，" +
                             "其中权重 ${plan.residentMb}MB + KV 估算 ${plan.kvMb}MB）",
                     )
@@ -490,14 +533,23 @@ object LlamaServerProcess {
                         )
                     }
                     loadState = LoadState.READY
-                    activePort = port
+                    activePort = listenPort
                     activeSlotName = slotName
                     // 跨重启恢复系统提示 KV（best-effort）：命中时省掉一段冷 prefill。
                     // 放在置 READY 之前，避免 Agent 立刻发请求把 slot 占住导致 restore 返回 busy。
-                    if (slotName != null) slotApi(port, "restore", slotName)
+                    if (slotName != null) slotApi(listenPort, "restore", slotName)
                     lastFailureReason = null
                     // 起后台任务：等到槽里真有 KV 了就把快照落盘，供下次启动恢复（方案 A）
-                    if (slotName != null) scheduleSlotSave(port, slotName, slotDir)
+                    if (slotName != null) scheduleSlotSave(listenPort, slotName, slotDir)
+                    // 热保护看门狗：**只在服务器模式开启且用户未关闭热保护时**才会真正起协程
+                    //（见 ensureThermalWatchdog 开头的两道门控）。未开启服务器模式的用户不会
+                    // 走到这里启动任何轮询任务 → 行为与旧版逐字节一致。
+                    ensureThermalWatchdog(context, modelPath, port)
+                    // 保活加固（2026-10-05）：**只在服务器模式开启时**才会真正动作
+                    //（前台服务 + 克制 wakelock + 看门狗 + root 加固）。门控在
+                    // LocalServerKeepAlive.onEngineReady 第一行；未开启服务器模式的用户
+                    // 不写键、不起服务、不持锁、不起协程 → 行为逐字节不变。
+                    LocalServerKeepAlive.onEngineReady(context.applicationContext, modelPath, listenPort)
                     return@runCatching true
                 }
                 if (!p.isAlive) {
@@ -527,6 +579,9 @@ object LlamaServerProcess {
         activeSlotName = null
         loadState = LoadState.IDLE
         lastFailureReason = null
+        // 保活解除（2026-10-05）：引擎已停 → 收起前台服务、释放唤醒锁、停看门狗，并解除「武装」
+        //（避免看门狗把用户/热断路器**有意停掉**的引擎又拉回来）。未开启服务器模式时本调用是 no-op。
+        LocalServerKeepAlive.onEngineStopped()
     }
 
     /** 把子进程最近的输出压成一行，供失败原因里携带（最多 6 行，避免刷爆 UI）。 */
@@ -634,6 +689,149 @@ object LlamaServerProcess {
             slotDir.listFiles { f -> f.isFile && f.name != keep }?.forEach { f ->
                 Log.i(TAG, "清理过期 slot 缓存：${f.name}（${f.length() / 1048576}MB）")
                 f.delete()
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  热断路器 / 功耗与热保护（服务器模式专用，2026-10-05）
+    // ══════════════════════════════════════════════════════════════════════════
+    //
+    // 与「聊天」相比，服务器模式是**持续负载**：模型常驻内存、请求随时可能进来（甚至被
+    // 同 WiFi 设备连续打），更容易把 SoC 顶到高温。这里用一个**迟滞**热断路器兜底：
+    // 温度 > 暂停阈值(默认 85°C) → 卸载模型（stop）立刻止热；温度 < 恢复阈值(默认 70°C)
+    // → 用上次的模型路径重新拉起引擎。两阈值之间是死区，杜绝阈值附近反复开关。
+    //
+    // ★ 只在服务器模式开启（LocalSettings.localServerEnabled）且热保护开关开启时才启动 ★
+    //   未开启服务器模式的用户不会启动任何轮询协程，行为与今天一字节不变。
+
+    /** 热断路器状态：正常 / 已因高温暂停。暴露给 UI 展示。 */
+    enum class ThermalGuardState { NORMAL, PAUSED_HOT }
+
+    private const val THERMAL_TAG = "LlamaThermalGuard"
+
+    /** 看门狗采样间隔（~15 秒）。 */
+    private const val THERMAL_POLL_MS = 15_000L
+
+    @Volatile
+    var thermalGuardState: ThermalGuardState = ThermalGuardState.NORMAL
+        private set
+
+    /** 最近一次采样到的 SoC 温度（°C），0f 表示未知/读取失败。 */
+    @Volatile
+    var lastTemperatureC: Float = 0f
+        private set
+
+    private val _thermalGuardStateFlow = MutableStateFlow(ThermalGuardState.NORMAL)
+
+    /** 供 Compose 收集的断路器状态流（UI 展示「正常 / 已暂停因高温」）。 */
+    val thermalGuardStateFlow: StateFlow<ThermalGuardState> = _thermalGuardStateFlow.asStateFlow()
+
+    /**
+     * 看门狗专用应用级 scope。
+     *
+     * 复用「对象级长生命周期 scope」这一既有模式（与本文件的 [slotScope] 一致），
+     * **不新建 Service**；之所以不复用 [slotScope]，是因为 [stop] 会取消 [slotSaveJob]，
+     * 而断路器自己会调用 stop()（暂停），必须把看门狗与 slot 保存任务的生命周期解耦。
+     */
+    private val thermalScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Volatile
+    private var thermalJob: Job? = null
+
+    /** 记录最近一次成功加载的模型路径/端口，供断路器「恢复」时重新拉起引擎。 */
+    @Volatile
+    private var lastModelPath: String? = null
+    @Volatile
+    private var lastStartPort: Int = -1
+
+    private fun setThermalState(state: ThermalGuardState) {
+        if (thermalGuardState != state) {
+            Log.i(THERMAL_TAG, "断路器状态：$thermalGuardState → $state")
+        }
+        thermalGuardState = state
+        _thermalGuardStateFlow.value = state
+    }
+
+    /**
+     * 读 SoC 温度（°C）。**复用** [LocalResourceGuard] 的既有实现（读 `/sys/class/thermal`
+     * 下 cpu/cpullc、gpu、npu 等 thermal zone，已剔除 trip-point 假温度与越界读数）。
+     * 读取失败/无有效传感器时返回 0f —— 「宁可不保护，也不能因探测异常把服务停掉」。
+     */
+    private fun readSocTemperatureC(): Float =
+        runCatching { LocalResourceGuard().maxTemperatureC() }.getOrDefault(0f)
+
+    /**
+     * 启动热保护看门狗（幂等）。**两道门控**：①服务器模式必须开启；②热保护开关必须开启。
+     * 任一不满足直接返回，绝不启动协程 —— 这是「未开启该功能的用户行为一字节不变」的保证。
+     */
+    private fun ensureThermalWatchdog(context: Context, modelPath: String, port: Int) {
+        lastModelPath = modelPath
+        lastStartPort = port
+        if (!LocalSettings.localServerEnabled) return          // 门控①：服务器模式
+        val appCtx = context.applicationContext
+        if (!LocalServerPrefs.thermalGuardEnabled(appCtx)) return // 门控②：热保护开关
+        if (thermalJob?.isActive == true) return               // 已在运行，勿重复启动
+        val path = modelPath
+        thermalJob = thermalScope.launch {
+            Log.i(
+                THERMAL_TAG,
+                "热保护看门狗已启动（每 ${THERMAL_POLL_MS / 1000}s 采样；" +
+                    "暂停 ${LocalServerPrefs.tempPauseC(appCtx)}°C / 恢复 ${LocalServerPrefs.tempResumeC(appCtx)}°C）",
+            )
+            while (isActive) {
+                delay(THERMAL_POLL_MS)
+                // 运行期门控：用户随时可能在设置页关掉服务器模式或热保护 → 立刻退出，不留后台任务
+                if (!LocalSettings.localServerEnabled || !LocalServerPrefs.thermalGuardEnabled(appCtx)) {
+                    Log.i(THERMAL_TAG, "服务器模式/热保护已关闭，看门狗退出")
+                    break
+                }
+                val pauseC = LocalServerPrefs.tempPauseC(appCtx)
+                val resumeC = LocalServerPrefs.tempResumeC(appCtx)
+                val temp = readSocTemperatureC()
+                lastTemperatureC = temp
+
+                if (temp <= 0f) {
+                    // ★ 温度读取失败 → **不动作**：宁可不保护，也不能因探测异常把服务停掉。
+                    Log.w(THERMAL_TAG, "温度读取失败（temp=$temp），本轮不动作")
+                    continue
+                }
+
+                when (thermalGuardState) {
+                    ThermalGuardState.NORMAL -> {
+                        // 引擎已不在运行（用户手动停止/加载失败）→ 看门狗收工，避免"复活"用户停掉的服务
+                        if (!isRunning()) {
+                            Log.i(THERMAL_TAG, "引擎未运行，看门狗退出")
+                            break
+                        }
+                        // 迟滞上沿：严格高于暂停阈值才暂停
+                        if (temp > pauseC) {
+                            Log.w(
+                                THERMAL_TAG,
+                                "温度保护：已暂停本地推理服务（${temp.toInt()}°C > ${pauseC}°C），" +
+                                    "降至 ${resumeC}°C 以下自动恢复",
+                            )
+                            setThermalState(ThermalGuardState.PAUSED_HOT)
+                            stop() // 卸载模型止热（注意：stop 不会取消本看门狗）
+                        }
+                    }
+                    ThermalGuardState.PAUSED_HOT -> {
+                        // 迟滞下沿：严格低于恢复阈值才恢复
+                        if (temp < resumeC) {
+                            Log.i(THERMAL_TAG, "温度保护：已恢复本地推理服务（${temp.toInt()}°C < ${resumeC}°C）")
+                            setThermalState(ThermalGuardState.NORMAL)
+                            val ok = runCatching { start(appCtx, path, lastStartPort) }
+                                .getOrElse {
+                                    Log.e(THERMAL_TAG, "温度恢复后重新拉起引擎失败：${it.message}")
+                                    false
+                                }
+                            if (!ok) {
+                                Log.w(THERMAL_TAG, "恢复未成功（loadState=$loadState）：待下轮温度仍低时重试")
+                                setThermalState(ThermalGuardState.PAUSED_HOT)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
