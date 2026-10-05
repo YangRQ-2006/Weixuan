@@ -26,10 +26,11 @@
 
 ## Demo
 
-| Tell your phone what to do | Tool calling |
+| Text chat | Agent capability |
 |:---:|:---:|
-| <img src="docs/Screenshots/weixuan-demo.gif" width="240" alt="WeiXuan: tell your phone what to do, in one sentence"> | <img src="docs/Screenshots/weixuan-demo-tools.gif" width="240" alt="WeiXuan: tool calling in action"> |
-| Say what you want; the model observes the screen and taps for you | The model decides which tools to call and reports each result |
+| <img src="docs/Screenshots/weixuan-demo.gif" width="240" alt="WeiXuan: on-device text chat"> | <img src="docs/Screenshots/weixuan-demo-tools.gif" width="240" alt="WeiXuan: agent capability (tool calling)"> |
+| Chat directly with the on-device model: plain-text Q&A, no tools involved | Agent capability: the model observes the screen, decides which tools to call (tap / type / launch apps) and reports each result |
+
 
 *Entirely offline: inference, screen reading, tapping, and tool calls all happen on-device.*
 

@@ -26,10 +26,11 @@
 
 ## 演示
 
-| 一句话指挥手机 | 工具调用 |
+| 文本对话 | Agent 能力 |
 |:---:|:---:|
-| <img src="docs/Screenshots/weixuan-demo.gif" width="240" alt="微玄：用一句话指挥手机完成任务"> | <img src="docs/Screenshots/weixuan-demo-tools.gif" width="240" alt="微玄：工具调用过程"> |
-| 你说要做什么，模型自己观察屏幕、模拟点按 | 模型自行决定调用哪些工具，并逐条回报结果 |
+| <img src="docs/Screenshots/weixuan-demo.gif" width="240" alt="微玄：与本地大模型文本对话"> | <img src="docs/Screenshots/weixuan-demo-tools.gif" width="240" alt="微玄：Agent 能力（工具调用）"> |
+| 和本地大模型直接对话：纯文本问答，不调用工具 | Agent 能力：模型自行观察屏幕、决定调用哪些工具（点按 / 输入 / 启动应用），并逐条回报结果 |
+
 
 *全程离线：推理、看屏幕、点按、调用工具，都在手机本地完成。*
 
