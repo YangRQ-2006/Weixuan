@@ -3,7 +3,7 @@
 > 版本：v1 · 2026-09-30
 > 对象：`/workspace/Eta`（包 `cn.yangrq.weixuan`，git remote `YangRQ-2006/Weixuan`）
 > 技术栈：Kotlin + Jetpack Compose + **Miuix KMP 0.9.4-rc01**（`top.yukonga.miuix.kmp`）+ Miuix Nav
-> 上游：ETA（`github.com/Mangi-11/Eta`，Apache-2.0）
+> 上游：ETA（`github.com/Mangi-11/Eta`，**PolyForm Noncommercial 1.0.0**，非商业）
 
 ---
 

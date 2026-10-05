@@ -1,5 +1,11 @@
 # 第三方声明
 
+## Eta（上游基座）
+
+微玄是 [Eta](https://github.com/Mangi-11/Eta) 的衍生作品。Eta 采用 **[PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)**（非商业）许可；作为衍生作品，本项目（微玄）**沿用同一许可**，许可证全文见仓库根目录 [`LICENSE`](../LICENSE)。
+
+这意味着微玄**不是** OSI 定义的开源软件：允许个人学习、研究及其它非商业用途下的使用、修改与分发，**不允许商业使用**。如需商业使用，请分别联系上游作者与本项目作者取得授权。
+
 ## 终端原生组件
 
 Eta 的免 Root Linux 后端以独立进程运行 [PRoot](https://github.com/termux/proot)，并静态链接 [talloc](https://talloc.samba.org/) 与 [libandroid-shmem](https://github.com/termux/libandroid-shmem)。PRoot 源码采用 GPL-2.0-or-later；talloc 采用 LGPL-3.0-or-later；libandroid-shmem 采用 BSD-3-Clause。附带的组合 PRoot 可执行程序按 GPL-3.0-or-later 分发，各组件版权与许可证保留。

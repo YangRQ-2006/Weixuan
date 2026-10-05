@@ -178,6 +178,11 @@ adb install -r app-debug.apk
 - 支持**随时切换模型**：不同模型适合不同任务（轻量模型快、大模型聪明）
 - 模型可以卸载释放内存；不使用时建议卸载，给系统留余量
 
+### 把手机当成 AI 服务器
+
+- 微玄内置的 `llama-server` 原生支持 OpenAI 接口：开启「本地推理服务器」后，同机 App / 局域网设备都能用标准 API 调用本机模型，**数据不出设备**
+- 默认仅本机（`127.0.0.1`）；局域网绑定必须配 API Key。接入方法、能力边界与安全提示见 [`docs/SERVER_MODE.md`](docs/SERVER_MODE.md)
+
 ### 调节行为
 
 | 设置项 | 作用 |
@@ -347,7 +352,7 @@ app/src/main/jniLibs/arm64-v8a/
 
 微玄站在这些优秀开源项目的肩膀上 —— 其中 **[Eta](https://github.com/Mangi-11/Eta) 是本项目的上游基座**，微玄的主体工作都是在它之上进行的改造：
 
-- [Eta](https://github.com/Mangi-11/Eta)（Apache-2.0）—— **上游基座**：系统级 AI 助手框架。微玄的架构、交互范式与大部分实现均由此而来
+- [Eta](https://github.com/Mangi-11/Eta)（**PolyForm Noncommercial 1.0.0**，非商业）—— **上游基座**：系统级 AI 助手框架。微玄的架构、交互范式与大部分实现均由此而来
 - [llama.cpp](https://github.com/ggml-org/llama.cpp)（MIT）—— 端侧 LLM 推理引擎；本项目自建运行时由其源码经 Android NDK 交叉编译而来
 - [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery)（Apache-2.0）—— 模型管理 UI 基础
 - [Tabler Icons](https://github.com/tabler/tabler-icons)（MIT）—— 功能图标底座（以 ImageVector 内联，见 `ui/design/tabler/`）
@@ -356,5 +361,6 @@ app/src/main/jniLibs/arm64-v8a/
 
 完整第三方声明（含许可证原文）见 [`docs/THIRD_PARTY_NOTICES.md`](docs/THIRD_PARTY_NOTICES.md)。
 
-本项目以 [AGPL-3.0](LICENSE) 许可开源 —— 可自由使用、修改、分发；
-**衍生作品若对外提供服务，需同样以 AGPL-3.0 开源**。
+本项目以 **[PolyForm Noncommercial License 1.0.0](LICENSE)** 发布 —— 个人学习、研究及其他**非商业**用途可自由使用、修改、分发。
+
+> ⚠️ **关于许可的如实说明**：微玄是 [Eta](https://github.com/Mangi-11/Eta) 的衍生作品，而上游同样采用 PolyForm Noncommercial 1.0.0。作为衍生作品，微玄**必须沿用非商业许可**，因此本项目**不是** OSI 定义的开源软件（source-available，而非 open source）。若需商业使用，请分别向上游作者与本项目作者取得授权。

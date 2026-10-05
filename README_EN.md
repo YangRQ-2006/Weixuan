@@ -344,7 +344,7 @@ app/src/main/jniLibs/arm64-v8a/
 
 WeiXuan stands on the shoulders of these excellent open-source projects — among them, **[Eta](https://github.com/Mangi-11/Eta) is this project's upstream base**, and the bulk of WeiXuan's work is built on top of it:
 
-- [Eta](https://github.com/Mangi-11/Eta) (Apache-2.0) — **upstream base**: a system-level AI assistant framework. WeiXuan's architecture, interaction paradigm, and much of its implementation come from it
+- [Eta](https://github.com/Mangi-11/Eta) (**PolyForm Noncommercial 1.0.0**, noncommercial) — **upstream base**: a system-level AI assistant framework. WeiXuan's architecture, interaction paradigm, and much of its implementation come from it
 - [llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT) — on-device LLM inference engine; this project's self-built runtime is cross-compiled from its source via the Android NDK
 - [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery) (Apache-2.0) — basis for the model management UI
 - [Tabler Icons](https://github.com/tabler/tabler-icons) (MIT) — functional icon foundation (inlined as ImageVectors, see `ui/design/tabler/`)
@@ -353,5 +353,6 @@ WeiXuan stands on the shoulders of these excellent open-source projects — amon
 
 Full third-party notices (including licence texts) are in [`docs/THIRD_PARTY_NOTICES.md`](docs/THIRD_PARTY_NOTICES.md).
 
-This project is open-sourced under the [AGPL-3.0](LICENSE) licence — free to use, modify and distribute;
-**derivative works that are offered to users over a network must also be released under AGPL-3.0**.
+This project is released under the **[PolyForm Noncommercial License 1.0.0](LICENSE)** — free to use, modify and distribute for personal, research and other **noncommercial** purposes.
+
+> ⚠️ **An honest note on licensing**: WeiXuan is a derivative work of [Eta](https://github.com/Mangi-11/Eta), which is itself licensed under PolyForm Noncommercial 1.0.0. As a derivative work, WeiXuan **must keep the noncommercial licence**, so this project **is not** OSI open source (source-available, not open source). For commercial use, please obtain permission from both the upstream author and this project's author.
