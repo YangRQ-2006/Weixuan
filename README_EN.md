@@ -353,4 +353,5 @@ WeiXuan stands on the shoulders of these excellent open-source projects — amon
 
 Full third-party notices (including licence texts) are in [`docs/THIRD_PARTY_NOTICES.md`](docs/THIRD_PARTY_NOTICES.md).
 
-This project is open-sourced under the [Apache-2.0](LICENSE) licence.
+This project is open-sourced under the [AGPL-3.0](LICENSE) licence — free to use, modify and distribute;
+**derivative works that are offered to users over a network must also be released under AGPL-3.0**.

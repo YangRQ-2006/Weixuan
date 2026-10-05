@@ -356,4 +356,5 @@ app/src/main/jniLibs/arm64-v8a/
 
 完整第三方声明（含许可证原文）见 [`docs/THIRD_PARTY_NOTICES.md`](docs/THIRD_PARTY_NOTICES.md)。
 
-本项目以 [Apache-2.0](LICENSE) 许可开源。
+本项目以 [AGPL-3.0](LICENSE) 许可开源 —— 可自由使用、修改、分发；
+**衍生作品若对外提供服务，需同样以 AGPL-3.0 开源**。
