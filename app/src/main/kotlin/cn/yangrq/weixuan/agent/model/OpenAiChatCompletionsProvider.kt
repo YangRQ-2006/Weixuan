@@ -11,6 +11,7 @@ import cn.yangrq.weixuan.local.LlamaServerProcess
 import cn.yangrq.weixuan.local.LocalEngineStatus
 import cn.yangrq.weixuan.local.LocalMemoryModel
 import android.util.Log
+import java.util.UUID
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -157,14 +158,15 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
             .also { ProviderRequestHeaders.mergeInto(it, config.baseUrl, config.customHeaders, request.sessionId) }
             .build()
 
-        val requestBody = buildRequestJson(config, request.messages, request.effectiveTools).apply {
+        val requestJson = buildRequestJson(config, request.messages, request.effectiveTools).apply {
             if (!request.purpose.allowsTools) {
                 remove("tools")
                 remove("tool_choice")
             }
         }
-            .toString()
-            .toRequestBody(JSON_MEDIA_TYPE)
+        val existingToolCallIds = ChatToolCallHistory.referencedIds(request.messages) +
+            requestJson.optJSONArray("messages")?.let(ChatToolCallHistory::referencedIds).orEmpty()
+        val requestBody = requestJson.toString().toRequestBody(JSON_MEDIA_TYPE)
 
         val httpRequest = Request.Builder()
             .url(url)
@@ -192,7 +194,9 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
                     throw AgentModelFailure.http(code, errorBody)
                 }
 
-                val assistantMessage = readStreamingAssistantMessage(response.body.byteStream(), runController, onEvent)
+                val assistantMessage = readStreamingAssistantMessage(
+                    response.body.byteStream(), runController, existingToolCallIds, onEvent,
+                )
                 onEvent(ProviderEvent.Completed(assistantMessage.optString("finish_reason").ifBlank { null }))
                 return ProviderResponse(assistantMessage)
             }
@@ -495,6 +499,7 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
     private fun readStreamingAssistantMessage(
         stream: java.io.InputStream?,
         runController: AgentRunController,
+        existingToolCallIds: Set<String>,
         onEvent: (ProviderEvent) -> Unit
     ): JSONObject {
         if (stream == null) error("模型接口未返回响应流")
@@ -595,7 +600,9 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
                         )
                     }
                 }
-                if (item.has("id") && !item.isNull("id")) call.id = item.optString("id")
+                if (item.has("id") && !item.isNull("id")) {
+                    item.optString("id").takeIf(String::isNotBlank)?.let { call.id = it }
+                }
                 if (item.has("type") && !item.isNull("type")) call.type = item.optString("type").ifBlank { "function" }
                 val function = item.optJSONObject("function")
                 val nameDelta = function?.takeIf { it.has("name") && !it.isNull("name") }?.optString("name").orEmpty()
@@ -620,6 +627,7 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
         if (!sawDone && finishReason == null) throw AgentModelFailure.incompleteStream("模型接口 SSE 流未正常结束")
 
         finishActiveVisibleBlock()
+        resolveToolCallIds(toolCalls.values, existingToolCallIds)
         toolCalls.values.sortedBy { it.contentIndex }.forEach { call ->
             onEvent(
                 ProviderEvent.BlockEnd(
@@ -659,13 +667,40 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
                     message.put(
                         "tool_calls",
                         JSONArray().also { array ->
-                            toolCalls.values.sortedBy { it.index }.forEachIndexed { position, call ->
-                                array.put(call.toJson(position))
+                            toolCalls.values.sortedBy { it.index }.forEach { call ->
+                                array.put(call.toJson())
                             }
                         }
                     )
                 }
             }
+    }
+
+    /**
+     * 统一确定本回合所有工具调用的 ID。
+     *
+     * 服务端给了 ID 就保留；没给或给了空串的，用**唯一且不与历史冲突**的 ID 补齐，
+     * 保证「结束事件 / 落库历史 / 下一回合回传」三处使用同一个 ID。
+     * 前缀沿用上游的 `call_eta_`（ID 对服务端不透明，保持与上游行为一致）。
+     */
+    private fun resolveToolCallIds(calls: Collection<StreamingToolCall>, existingIds: Set<String>) {
+        if (calls.isEmpty()) return
+        val reservedIds = existingIds.toMutableSet().apply {
+            calls.mapNotNullTo(this) { it.id }
+        }
+        val assignedIds = existingIds.toMutableSet()
+        val prefix = "call_eta_${UUID.randomUUID().toString().replace("-", "")}_"
+        var nextId = 0
+        calls.sortedBy { it.index }.forEach { call ->
+            if (call.id?.let(assignedIds::add) != true) {
+                var generated: String
+                do {
+                    generated = "$prefix${nextId++}"
+                } while (!reservedIds.add(generated))
+                call.id = generated
+                assignedIds += generated
+            }
+        }
     }
 
     private data class StreamingToolCall(
@@ -676,10 +711,10 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
         val name: StringBuilder = StringBuilder(),
         val arguments: StringBuilder = StringBuilder()
     ) {
-        fun toJson(position: Int): JSONObject {
+        fun toJson(): JSONObject {
             val functionName = name.toString().trim()
             return JSONObject()
-                .put("id", id ?: "tool_call_$position")
+                .put("id", requireNotNull(id))
                 .put("type", type.ifBlank { "function" })
                 .put(
                     "function",

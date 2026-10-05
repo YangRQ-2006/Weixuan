@@ -7,13 +7,21 @@ import org.json.JSONObject
 internal object OpenAiRequestMessages {
     fun forChatCompletions(source: JSONArray): JSONArray {
         val system = collectInstructions(source, SYSTEM_ROLES)
+        val copied = JSONArray().also { messages ->
+            for (index in 0 until source.length()) {
+                val item = source.opt(index)
+                messages.put(if (item is JSONObject) JSONObject(item.toString()) else item)
+            }
+        }
+        // system 合并前保留原始边界，不能把跨消息的工具结果误配为完整批次。
+        ChatToolCallHistory.repairCompleteBatches(copied)
         return JSONArray().also { messages ->
             if (system.isNotBlank()) {
                 messages.put(JSONObject().put("role", "system").put("content", system))
             }
-            for (index in 0 until source.length()) {
-                val message = source.optJSONObject(index) ?: continue
-                if (message.optString("role") !in SYSTEM_ROLES) messages.put(JSONObject(message.toString()).apply {
+            for (index in 0 until copied.length()) {
+                val message = copied.optJSONObject(index) ?: continue
+                if (message.optString("role") !in SYSTEM_ROLES) messages.put(message.apply {
                     remove("_eta_context_summary")
                     remove("_eta_compacted_users")
                     remove("_eta_summary_through_user")
