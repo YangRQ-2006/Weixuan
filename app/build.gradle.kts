@@ -76,7 +76,9 @@ if (wantsReleaseBuild && !hasReleaseSigning) {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+        // 排查：原为 25（Gradle 9.6.1 官方支持到 24）。release 独有的 R8 + 打包链在
+        // 不受支持的 JDK 上卡死/产出异常 APK，故改用 AGP 9 官方支持的 21 验证。
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -179,7 +181,6 @@ dependencies {
     implementation(libs.miuix.blur)
     implementation(libs.miuix.nav)
     implementation(libs.miuix.preference)
-    implementation(libs.material.icons.extended)
     implementation(libs.androidx.navigationevent)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

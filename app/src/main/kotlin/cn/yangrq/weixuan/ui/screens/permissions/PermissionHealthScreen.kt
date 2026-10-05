@@ -2,20 +2,6 @@ package cn.yangrq.weixuan.ui.screens.permissions
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AccessibilityNew
-import androidx.compose.material.icons.rounded.AccountTree
-import androidx.compose.material.icons.rounded.Dashboard
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Key
-import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.LocationOn
-import androidx.compose.material.icons.rounded.Memory
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.QueryStats
-import androidx.compose.material.icons.rounded.Shield
-import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource

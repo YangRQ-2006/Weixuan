@@ -1,8 +1,6 @@
 package cn.yangrq.weixuan.ui.components
 
 import android.os.LocaleList
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Language
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue

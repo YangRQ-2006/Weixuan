@@ -12,16 +12,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.Extension
-import androidx.compose.material.icons.rounded.TheaterComedy
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import cn.yangrq.weixuan.ui.design.XuanColors
 import cn.yangrq.weixuan.ui.design.XuanGlyph
@@ -31,7 +26,6 @@ import cn.yangrq.weixuan.ui.design.XuanStroke
 import top.yukonga.miuix.kmp.basic.CardColors
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
-import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -157,8 +151,9 @@ internal fun EtaPreferenceGroupTitle(text: String, modifier: Modifier = Modifier
 }
 
 /**
- * 微玄：设置页图标支持自绘「爻线」图形（XuanGlyphType）。
- * 与下方 ImageVector 重载并列，便于逐项把 Material 图标换成微玄图形语言。
+ * 微玄：设置页图标 —— 自绘「爻线」品牌符号或 Tabler 底座，见 [XuanGlyph]。
+ *
+ * 去 Material 依赖时，原先并存的 `ImageVector` 重载已删除（实测零调用）。
  */
 @Composable
 internal fun EtaPreferenceIcon(
@@ -174,28 +169,6 @@ internal fun EtaPreferenceIcon(
         XuanGlyph(
             type = glyph,
             modifier = Modifier.size(24.dp),
-            tint = if (enabled) tint else MiuixTheme.colorScheme.disabledOnSurface,
-        )
-    }
-}
-
-@Composable
-internal fun EtaPreferenceIcon(
-    icon: ImageVector,
-    modifier: Modifier = Modifier,
-    tint: Color = MiuixTheme.colorScheme.onBackground,
-    enabled: Boolean = true,
-) {
-    // 满幅轮廓稍作光学校正，但所有图标都占相同宽度，保证正文和分割线对齐。
-    val glyphSize = when (icon) {
-        Icons.Rounded.Extension, Icons.Rounded.TheaterComedy, Icons.AutoMirrored.Rounded.MenuBook -> 22.dp
-        else -> EtaPreferenceDefaults.IconSize
-    }
-    Box(modifier.size(EtaPreferenceDefaults.IconSize), contentAlignment = Alignment.Center) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(glyphSize),
             tint = if (enabled) tint else MiuixTheme.colorScheme.disabledOnSurface,
         )
     }
