@@ -433,6 +433,22 @@ object LlamaServerProcess {
                 File(nativeDir, LocalBackend.HEXAGON_ADAPTER).takeIf { it.exists() }
                     ?.let { pb.environment()["WEIXUAN_HEXAGON_BACKEND"] = it.absolutePath }
                     ?: Log.w(TAG, "Hexagon 适配器插件缺失，NPU 口味可能退化为 CPU")
+                // 权重 repack 并行化（2026-10-05）：预编译 HTP 后端的权重重打包是**单线程**的，
+                // 2.3GB 权重实测要 ~5.4s，占首次加载的大头。libhex_repack_preload.so 通过
+                // LD_PRELOAD 拦截公开 API ggml_backend_tensor_set（零写入预编译 .so），
+                // 命中"HTP 权重整张量上传"时用多线程完成同一 tiled 布局转换。
+                // 实测：首次加载 8.49s → 5.97s（−29.7%）；输出与基线逐字一致（temperature=0 对照）。
+                // 回退：删掉该 .so 即自动失效。
+                File(nativeDir, "libhex_repack_preload.so").takeIf { it.exists() }?.let {
+                    pb.environment()["LD_PRELOAD"] = it.absolutePath
+                    Log.i(TAG, "已启用并行 repack 预加载：${it.absolutePath}")
+                }
+                // 【已撤销 2026-10-05】曾在此注入 GGML_HEXAGON_OPPOLL=1 / OPQUEUE=64。
+                // 撤销原因：初测（~20 token 上下文的空 KV 场景）显示 decode +8.9%，但在**真实长 prompt**
+                // 下复测为负优化——同一 900-token prompt：OPPOLL=0 时 prefill 853 t/s / decode 12.81 t/s，
+                // OPPOLL=1 时降到 759 t/s / 12.10 t/s（忙轮询占住 CPU 核，拖慢 host 侧给 DSP 备料）。
+                // 结论：该开关收益依赖上下文长度、不可靠，不进入默认路径。若将来要重试，
+                // 必须用**接近真实 Agent prompt（5k token 级）**做同机背靠背对照。
             }
             val p = pb.start()
             process = p

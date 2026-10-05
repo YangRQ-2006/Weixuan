@@ -147,7 +147,36 @@ internal class AgentModelRetry(
             cn.yangrq.weixuan.local.LlamaServerProcess.LoadState.READY -> return
             cn.yangrq.weixuan.local.LlamaServerProcess.LoadState.LOADING -> Unit
             // 本进程没在管本地模型（未启用 / 已被系统杀掉）→ 维持旧行为，交给原有错误处理
-            else -> return
+            else -> {
+                // ★ 首启引导（2026-10-05）：IDLE 且模型目录里一个 gguf 都没有 = 用户刚装好 App、
+                // 还没下载任何模型（首次启动的必经状态）。旧行为是把请求打到并不存在的服务上，
+                // 用户只得到一句看不懂的连接错误。这里直接给可执行的指引。
+                //
+                // 注意探测失败时按"有模型"处理（getOrDefault(true)）——引导检查**绝不允许**
+                // 成为正常请求的阻断因素。
+                val hasAnyModel = runCatching {
+                    // Context-free：本类拿不到 Context，LocalSettings.init() 已缓存 appCtx；
+                    // 返回 null（尚未初始化）时按"不确定"处理 → 不阻断请求。
+                    val dir = cn.yangrq.weixuan.local.LocalSettings.internalModelsDirOrNull()
+                        ?: return@runCatching true
+                    dir.listFiles { f ->
+                        f.name.endsWith(".gguf", true) && !f.name.startsWith("mmproj-")
+                    }?.isNotEmpty() == true
+                }.getOrDefault(true)
+                if (!hasAnyModel) {
+                    throw AgentModelFailure(
+                        code = "LOCAL_MODEL_MISSING",
+                        retryable = false,
+                        message = "还没有下载任何本地模型，无法开始对话。\n\n" +
+                            "请打开「模型市场」下载一个模型即可：\n" +
+                            "· 推荐 **Spark-X2.5-4B**（2.42GB）—— Agent 专用，本机实测 17.4 t/s\n" +
+                            "· 想让它能看屏幕 → Qwen3-VL-4B（2.38GB + 视觉塔 0.43GB）\n" +
+                            "· 先用小体积试水 → Qwen3-0.6B（0.38GB）",
+                        recoveryAllowed = false,
+                    )
+                }
+                return
+            }
         }
 
         val deadline = System.currentTimeMillis() + LOCAL_READY_WAIT_MS

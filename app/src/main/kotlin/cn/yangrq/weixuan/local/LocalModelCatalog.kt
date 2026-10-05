@@ -186,8 +186,21 @@ object LocalModelCatalog {
             tier = ModelTier.MAIN,
         ),
         LocalCatalogModel(
+            id = "spark-x2.5-4b-q4km",
+            title = "Spark-X2.5-4B · Q4_K_M（推荐）",
+            summary = "2.42GB｜**Agent 专用**模型（原厂适配 Codex / Claude Code / OpenClaw " +
+                "等 harness）。滑动窗口注意力（窗口 512）让长上下文 decode 几乎不衰减 —— " +
+                "本机实测 **17.4 t/s**，比 Qwen3-4B（14.6 t/s）快 19%，且 5140 token 的 Agent " +
+                "prompt 下优势更大（全注意力模型会掉到 7 t/s 量级）。纯文本，无视觉。",
+            fileName = "Spark-X2.5-4B-Q4_K_M.gguf",
+            sizeMb = 2480,
+            urls = linksFrom("XHToken", "Spark-X2.5-4B-GGUF", "Spark-X2.5-4B-Q4_K_M.gguf") +
+                listOf("$MS/XHToken/Spark-X2.5-4B-GGUF/resolve/master/Spark-X2.5-4B-Q4_K_M.gguf"),
+            tier = ModelTier.MAIN,
+        ),
+        LocalCatalogModel(
             id = "qwen3-4b-q4km",
-            title = "Qwen3-4B · Q4_K_M（推荐）",
+            title = "Qwen3-4B · Q4_K_M",
             summary = "2.38GB｜4B 均衡档；工具调用准确率实测 80%+，日常系统级 Agent 首选",
             fileName = "Qwen3-4B-Q4_K_M.gguf",
             sizeMb = 2382,

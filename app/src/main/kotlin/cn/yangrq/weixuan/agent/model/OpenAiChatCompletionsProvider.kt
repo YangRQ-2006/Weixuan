@@ -41,6 +41,20 @@ private const val TAG = "OpenAiTools"
 private const val LOCAL_TOOLS_TOKEN_BUDGET = 3400
 
 /**
+ * 工具预算的**量化档位**（2026-10-04 修复「带工具每轮都重算整个前缀」）。
+ *
+ * **问题**：工具集由 [toolTokenBudget] 决定，而该预算原本是**连续值**（随对话长度逐轮漂移）
+ * → 每轮下发给 llama-server 的 `tools` JSON 都可能不同。Qwen3 模板把 tools 渲染在
+ * `messages[0]` 之后（`system 文本 → "# Tools" → 工具 JSON`），**工具块一变，llama-server 的
+ * prompt 前缀缓存从该处起全部失效** → 整个 ~4.8k token 前缀重算（实测 HTP prefill 184 t/s ⇒ 单次约 26s）。
+ *
+ * **改法**：向下取到最近的档位。同档内多轮预算相同 ⇒ 工具集字节稳定 ⇒ 前缀缓存可命中；
+ * 只有跨档时才付一次重算。档位上限仍为 [LOCAL_TOOLS_TOKEN_BUDGET]、下限仍为 [LOCAL_TOOLS_MIN_BUDGET]，
+ * 因此**上下文安全性不变**（连续裁剪那版是修「运行失败」的，不能被回退）。
+ */
+private val LOCAL_TOOLS_BUDGET_TIERS = intArrayOf(3400, 3000, 2600, 2200, 1800, 1400, 1000, 600)
+
+/**
  * 对话历史在「历史 + 工具」可用额度里的占比（另一半给工具）。
  *
  * 额度推导（**全部跟着真实 ctx 走**，见 [localCtx]）：
@@ -423,7 +437,11 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
         // 云端 provider 上下文大得多，沿用原来的固定上限，避免误伤。
         if (!ProviderUrls.isLoopbackUrl(config.baseUrl)) return LOCAL_TOOLS_TOKEN_BUDGET
         val avail = localPromptBudget(localCtx()) - messages.toString().length / 3
-        return avail.coerceIn(LOCAL_TOOLS_MIN_BUDGET, LOCAL_TOOLS_TOKEN_BUDGET)
+        // 向下取到最近的档位：同档内多轮工具集**字节稳定** → llama-server 前缀缓存可命中
+        // （见 LOCAL_TOOLS_BUDGET_TIERS；跨档才付一次重算）。
+        // 连最小档都不够（历史异常膨胀）时退回原来的连续裁剪，保证请求一定进得去上下文。
+        return LOCAL_TOOLS_BUDGET_TIERS.firstOrNull { it <= avail }
+            ?: avail.coerceIn(LOCAL_TOOLS_MIN_BUDGET, LOCAL_TOOLS_TOKEN_BUDGET)
     }
 
     /**

@@ -81,16 +81,25 @@ enum class LocalBackend(
 
     /**
      * GPU：Adreno Vulkan。**本机唯一可用的 GPU 路线**（已实测 Vulkan0 可用）。
-     * 注意：Adreno 上出现过输出精度问题，切到这个口味后必须实读输出校验正确性。
+     *
+     * ⚠️ **不要指望它更快**（2026-10-05 实测+推算定案）：decode 是**内存带宽受限**——
+     * 每生成一个 token 都必须把全部权重读一遍，而 NPU 与 GPU 读的是**同一颗 LPDDR5X**，
+     * 因此两者上限相同。定量证据：Spark-X2.5-4B（2.6GB）实测 17.4 t/s × 2.6GB ≈ **45GB/s**，
+     * 已贴近 LPDDR5X 的有效带宽上限；同机含 GPU 的混合配置实测 **慢 2.7×**（8.8 → 3.3 t/s）。
+     * 另外 NPU 的能效远高于 GPU，切 GPU 会直接加重发烫。
+     * **用途仅限排查**：当怀疑 HTP 后端有问题（如算子不支持）时，用它做对照实验。
+     * 另注：Adreno 上出现过输出精度问题，切到这个口味后必须实读输出校验正确性。
      */
     GPU_VULKAN(
         id = "vulkan",
-        label = "GPU（Adreno Vulkan）",
+        label = "GPU（Adreno Vulkan · 实验，不保证更快）",
         device = "Vulkan0",
         devicePrefix = "Vulkan",
         dlPlugin = "libggml-vulkan-adreno.so",
         requiresHexagonAdapter = false,
-        detail = "Adreno 840 直连（19.1GB 可用）；首次使用请核对输出是否正常",
+        detail = "实验性，仅供排查 HTP 问题。decode 受内存带宽限制，NPU 与 GPU 同一颗" +
+            " LPDDR5X —— 实测已贴近带宽上限（17.4 t/s × 2.6GB ≈ 45GB/s），换后端无法突破；" +
+            "含 GPU 的混合配置实测慢 2.7×。且 Adreno 有输出精度风险，切换后请核对输出。",
     ),
 
     /**

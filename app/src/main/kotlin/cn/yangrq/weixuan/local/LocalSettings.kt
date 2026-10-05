@@ -191,7 +191,7 @@ object LocalSettings {
         set(value) = p.edit().putString(KEY_CUSTOM_MODEL_PATH, value).apply()
 
     /** 默认 GGUF 文件名：4B 在 NPU 上 1–2 秒响应，作为日常默认与失效兜底。 */
-    const val DEFAULT_GGUF_NAME = "Qwen3-4B-Q4_K_M.gguf"
+    const val DEFAULT_GGUF_NAME = "Spark-X2.5-4B-Q4_K_M.gguf"
 
     var customTokenizerPath: String
         get() = p.getString(KEY_CUSTOM_TOKENIZER_PATH, "") ?: ""
@@ -220,6 +220,14 @@ object LocalSettings {
      */
     fun internalModelsDir(context: android.content.Context): java.io.File =
         java.io.File(context.filesDir, "models")
+
+    /**
+     * Context-free 便捷入口：用 [init] 时缓存的 `appCtx`。
+     *
+     * 给拿不到 Context 的调用点用（例如 `AgentModelRetry` 的首启引导检查）。
+     * 尚未初始化时返回 null —— 调用方应把 null 当作"不确定"而不是"没有模型"。
+     */
+    fun internalModelsDirOrNull(): java.io.File? = appCtx?.let { internalModelsDir(it) }
 
     /**
      * 把外部目录（FUSE）里的 .gguf 迁到内部存储，使 O_DIRECT 生效。幂等、可失败即返回。

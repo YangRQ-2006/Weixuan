@@ -135,6 +135,11 @@ internal object AgentModelClient {
         ).length()
         fun toolsFor(capabilities: AgentToolCapabilities): JSONArray {
             if (rewriteReply) return JSONArray()
+            // 纯文本模式（2026-10-05）：完全不发送工具定义，走免工具直答。
+            // 工具 schema 实测约 4800 token（占 Agent prompt 5140 的绝大部分），去掉后
+            // 首轮 prefill 从 9.05s 量级降到亚秒级；decode 也不再受长上下文拖累。
+            // 副作用：助手失去操作设备的能力（纯文本问答），由用户在设置里自行选择。
+            if (Prefs.isEnabled(Prefs.Keys.AGENT_PLAIN_TEXT)) return JSONArray()
             val tools = AgentToolCatalog.build(
                 terminalTools = config.terminalTools,
                 browserTools = config.browserTools,
