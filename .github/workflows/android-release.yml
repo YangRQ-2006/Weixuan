@@ -38,11 +38,25 @@ jobs:
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
         with:
           packages: ""
-          log-accepted-android-sdk-licenses: false
+          # 必须为 true：android-actions/setup-android 的 sdkmanager 安装要求先接受许可
+          log-accepted-android-sdk-licenses: true
 
-      - name: 安装 Android SDK 37（可选，失败不阻塞 Debug 构建）
-        continue-on-error: true
-        run: sdkmanager --channel=3 "platforms;android-37.0"
+      - name: 安装 Android SDK 平台（compileSdk 37）
+        # 2026-10-05 修复：原先用 `--channel=3 platforms;android-37.0` + continue-on-error=true，
+        # 预览通道的包名/可用性会被 Google 随时改动 → 安装静默失败 → compileSdk 37 找不到目标
+        # → gradlew 编译失败（表现为"连纯文档提交也打红叉"）。现在：先试稳定通道，再退预览通道，
+        # 并且**不再吞掉失败**（失败就早失败，且错误可读）。
+        run: |
+          echo "=== 可用平台（诊断） ==="
+          sdkmanager --list 2>/dev/null | grep -E "platforms;android-3[6-9]" || true
+          if sdkmanager "platforms;android-37" 2>&1; then
+            echo "已安装 platforms;android-37（稳定通道）"
+          else
+            echo "::warning::稳定通道没有 android-37，回退预览通道 android-37.0"
+            sdkmanager --channel=3 "platforms;android-37.0"
+          fi
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" || true
 
       - name: 还原发布证书（未配置 Secrets 时降级为仅构建 Debug）
         id: signing
@@ -71,12 +85,26 @@ jobs:
           WEIXUAN_RELEASE_STORE_PASSWORD: ${{ secrets.WEIXUAN_RELEASE_STORE_PASSWORD }}
           WEIXUAN_RELEASE_KEY_ALIAS: ${{ secrets.WEIXUAN_RELEASE_KEY_ALIAS }}
           WEIXUAN_RELEASE_KEY_PASSWORD: ${{ secrets.WEIXUAN_RELEASE_KEY_PASSWORD }}
+        # 2026-10-05：输出 tee 到文件，失败时把最后 100 行写进 $GITHUB_STEP_SUMMARY ——
+        # 这样不用下载需要鉴权的 job 日志，直接读 check-run summary 就能看到真实错误。
         run: |
+          set +e
           if [[ "${{ steps.signing.outputs.has_signing }}" == "true" ]]; then
-            ./gradlew --no-daemon --no-configuration-cache :app:assembleDebug :app:assembleRelease
+            ./gradlew --no-daemon --no-configuration-cache :app:assembleDebug :app:assembleRelease 2>&1 | tee /tmp/build.log
           else
-            ./gradlew --no-daemon --no-configuration-cache :app:assembleDebug
+            ./gradlew --no-daemon --no-configuration-cache :app:assembleDebug 2>&1 | tee /tmp/build.log
           fi
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            {
+              echo "## ❌ Gradle 构建失败（退出码 $rc）"
+              echo ""
+              echo '```'
+              tail -100 /tmp/build.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $rc
 
       - name: 验证并整理 APK
         id: apk
