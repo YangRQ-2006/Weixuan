@@ -1,3 +1,5 @@
+**简体中文** · [English](README_EN.md)
+
 # 微玄 (WeiXuan) · v0.0.1
 
 > **玄之又玄，众妙之门。** —— 《道德经》第一章
@@ -8,6 +10,7 @@
 
 ## 目录
 
+- [演示](#演示)
 - [它能做什么](#它能做什么)
 - [我的手机能跑吗](#我的手机能跑吗)
 - [快速开始（4 步）](#快速开始4-步)
@@ -18,6 +21,14 @@
 - [开发者：构建](#开发者构建)
 - [技术栈](#技术栈)
 - [致谢与许可](#致谢与许可)
+
+---
+
+## 演示
+
+<img src="docs/Screenshots/weixuan-demo.gif" width="300" alt="微玄：用一句话指挥手机完成任务">
+
+*你说要做什么，模型自己观察屏幕、模拟点按，再把结果回报给你 —— 全程离线。*
 
 ---
 
@@ -320,12 +331,15 @@ app/src/main/jniLibs/arm64-v8a/
 
 ## 致谢与许可
 
-微玄站在这些优秀开源项目的肩膀上：
+微玄站在这些优秀开源项目的肩膀上 —— 其中 **[Eta](https://github.com/Mangi-11/Eta) 是本项目的上游基座**，微玄的主体工作都是在它之上进行的改造：
 
+- [Eta](https://github.com/Mangi-11/Eta)（Apache-2.0）—— **上游基座**：系统级 AI 助手框架。微玄的架构、交互范式与大部分实现均由此而来
 - [llama.cpp](https://github.com/ggml-org/llama.cpp)（MIT）—— 端侧 LLM 推理引擎；本项目自建运行时由其源码经 Android NDK 交叉编译而来
-- [Eta](https://github.com/Mangi-11/Eta)（Apache-2.0）—— 系统级 AI 助手框架
 - [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery)（Apache-2.0）—— 模型管理 UI 基础
+- [Tabler Icons](https://github.com/tabler/tabler-icons)（MIT）—— 功能图标底座（以 ImageVector 内联，见 `ui/design/tabler/`）
 - Qualcomm GenieX / QAIRT —— Hexagon NPU 运行时；本项目复用其 Hexagon 后端动态库接入 HTP
 - [Qwen3](https://github.com/QwenLM/Qwen3)（Apache-2.0）· [Gemma](https://ai.google.dev/gemma) · [Phi](https://huggingface.co/microsoft) · [Llama](https://www.llama.com/) · [DeepSeek-R1](https://github.com/deepseek-ai/DeepSeek-R1) —— 模型与量化来自各自作者
+
+完整第三方声明（含许可证原文）见 [`docs/THIRD_PARTY_NOTICES.md`](docs/THIRD_PARTY_NOTICES.md)。
 
 本项目以 [Apache-2.0](LICENSE) 许可开源。
