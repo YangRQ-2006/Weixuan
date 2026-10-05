@@ -94,8 +94,12 @@ android {
         // 首次开源发布：versionName 0.0.1，versionCode 从 1 起算。
         // （此前内部迭代用 yyyyMMdd+序号 的编码，开源后改为语义化版本；
         //   versionCode 会低于此前内部构建，覆盖安装需允许降级或先卸载）
-        versionCode = 1
-        versionName = "0.0.1"
+        // 0.0.2：版本号 +1（versionCode 2），本轮主题为「本地推理服务器模式」系列功能
+        // （OpenAI 兼容接口 / 独立二级设置页 / 并发槽位 / 热断路器 / 保活加固）。
+        //   注意：沿用 1 起算的 versionCode 会低于早期内部（yyyyMMdd 编码）构建，
+        //   覆盖安装仍需允许降级或先卸载，此处刻意保持不变，避免与已发布 0.0.1 语义冲突。
+        versionCode = 2
+        versionName = "0.0.2"
 
         // GenieX 本地推理 SDK 仅提供 arm64-v8a 原生库，同时收敛 APK 体积。
         ndk {

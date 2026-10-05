@@ -2,6 +2,7 @@ package cn.yangrq.weixuan.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import cn.yangrq.weixuan.config.LocalServerPrefs
 
 /**
  * 本地模型设置（使用独立 SharedPreferences，避免与 Eta 上游 Prefs/DataStore 相互影响）。
@@ -101,6 +102,76 @@ object LocalSettings {
     var port: Int
         get() = p.getInt(KEY_PORT, DEFAULT_PORT)
         set(value) = p.edit().putInt(KEY_PORT, value).apply()
+
+    // ── 本地推理服务器模式（2026-10-05）───────────────────────────────────────
+    // 键名与默认值**集中定义**在 [cn.yangrq.weixuan.config.LocalServerPrefs]（见那里的注释）。
+    // 默认值刻意等于 [LlamaServerProcess] 改造前写死的参数（127.0.0.1 / 18787 / -np 1 / 无 key），
+    // 因此**不开启服务器模式时行为与旧版逐字节一致**；服务器模式是 opt-in（默认关）。
+
+    /** 服务器模式总开关。**默认 false**：不开启则 llama-server 按旧参数启动。 */
+    var localServerEnabled: Boolean
+        get() = p.getBoolean(LocalServerPrefs.KEY_ENABLED, LocalServerPrefs.DEFAULT_ENABLED)
+        set(value) = p.edit().putBoolean(LocalServerPrefs.KEY_ENABLED, value).apply()
+
+    /** false=仅本机 127.0.0.1（默认）；true=绑 0.0.0.0（同 WiFi 可见）。 */
+    var localServerLan: Boolean
+        get() = p.getBoolean(LocalServerPrefs.KEY_LAN, LocalServerPrefs.DEFAULT_LAN)
+        set(value) = p.edit().putBoolean(LocalServerPrefs.KEY_LAN, value).apply()
+
+    /** 监听端口，默认 18787。越界值回落到默认端口，避免非法端口把子进程打挂。 */
+    var localServerPort: Int
+        get() = p.getInt(LocalServerPrefs.KEY_PORT, LocalServerPrefs.DEFAULT_PORT)
+            .takeIf { it in LocalServerPrefs.MIN_PORT..LocalServerPrefs.MAX_PORT }
+            ?: LocalServerPrefs.DEFAULT_PORT
+        set(value) = p.edit().putInt(
+            LocalServerPrefs.KEY_PORT,
+            value.coerceIn(LocalServerPrefs.MIN_PORT, LocalServerPrefs.MAX_PORT),
+        ).apply()
+
+    /** 并发槽数（llama.cpp `-np`），默认 1，范围 1..4。 */
+    var localServerSlots: Int
+        get() = p.getInt(LocalServerPrefs.KEY_SLOTS, LocalServerPrefs.DEFAULT_SLOTS)
+            .coerceIn(LocalServerPrefs.MIN_SLOTS, LocalServerPrefs.MAX_SLOTS)
+        set(value) = p.edit().putInt(
+            LocalServerPrefs.KEY_SLOTS,
+            value.coerceIn(LocalServerPrefs.MIN_SLOTS, LocalServerPrefs.MAX_SLOTS),
+        ).apply()
+
+    /** API Key，默认空。非空时 [LlamaServerProcess] 会追加 `--api-key <key>`。 */
+    var localServerApiKey: String
+        get() = p.getString(LocalServerPrefs.KEY_API_KEY, LocalServerPrefs.DEFAULT_API_KEY).orEmpty()
+        set(value) = p.edit().putString(LocalServerPrefs.KEY_API_KEY, value).apply()
+
+    /** 期望绑定的 host：局域网开 => 0.0.0.0，否则 127.0.0.1。仅在服务器模式开启时被采用。 */
+    fun localServerHost(): String = if (localServerLan) "0.0.0.0" else "127.0.0.1"
+
+    /** 生成一个 32 位十六进制随机 API Key 并保存（供「一键生成」与「开局域网自动兜底」）。 */
+    fun generateLocalServerApiKey(): String {
+        val bytes = ByteArray(16)
+        java.security.SecureRandom().nextBytes(bytes)
+        val key = bytes.joinToString("") { "%02x".format(it) }
+        localServerApiKey = key
+        return key
+    }
+
+    /**
+     * 取「可用」的 API Key：**局域网开启且当前为空时自动生成一个并保存**。
+     *
+     * 这是安全兜底——局域网裸奔等于同 WiFi 下任何人都能白嫖你的手机算力/烧你的电，
+     * 所以只要绑定到 0.0.0.0 就必须有一个 key。仅本机（或已有 key）时原样返回。
+     */
+    fun ensureLocalServerApiKey(): String {
+        val existing = localServerApiKey
+        if (!localServerLan) return existing
+        if (existing.isNotBlank()) return existing
+        return generateLocalServerApiKey()
+    }
+
+    /**
+     * 服务器对外发布的 base_url 提示（本机回环）。用于设置页展示「该填什么 base_url」。
+     * 注意端口用服务器模式端口（[localServerPort]），而非 GenieX 路径的 [port]。
+     */
+    fun localServerLocalBaseUrl(): String = "http://127.0.0.1:$localServerPort/v1"
 
     var modelName: String
         get() = p.getString(KEY_MODEL_NAME, DEFAULT_MODEL_NAME) ?: DEFAULT_MODEL_NAME

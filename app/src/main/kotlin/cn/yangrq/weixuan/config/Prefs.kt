@@ -201,3 +201,125 @@ internal object Prefs {
         if (updateRemote) runCatching { remoteEditor.commit() }
     }
 }
+
+/**
+ * 「本地推理服务器」模式（2026-10-05）的偏好契约 —— **在此集中定义键名与默认值**。
+ *
+ * 为什么不并进 [Prefs]：`Prefs` 管的是 Xposed Hook 消费的 RemotePreferences（跨进程、由
+ * LSPosed 下发，见 [Prefs.GROUP]），而服务器模式是 Eta Runtime 自己的本地设置（与其它
+ * 本地模型设置一起存于 `eta_local_model` 文件，只由 App 进程读写）。两者生命周期与消费方
+ * 完全不同，混在一起会把本地开关也拖进 Hook 的初始化链路。这里只声明**契约**（键名 + 默认值），
+ * 实际读写由 [cn.yangrq.weixuan.local.LocalSettings] 完成，供 [cn.yangrq.weixuan.local.LlamaServerProcess]
+ * 与「本地模型」设置页共同消费。
+ *
+ * ⚠️ **默认值即「与旧行为逐字节一致」的保证**：默认关闭（opt-in）、只绑 `127.0.0.1`、
+ * 端口 `18787`、单槽 `-np 1`、无 API Key —— 正好等于 [cn.yangrq.weixuan.local.LlamaServerProcess]
+ * 改造前写死的参数。任何一处默认值被改动都会改变升级用户的既有行为，务必同步更新此注释与
+ * `docs/SERVER_MODE.md`。
+ */
+internal object LocalServerPrefs {
+    /** 服务器模式总开关。**默认 false**：不开启时 llama-server 完全按旧参数启动。 */
+    const val KEY_ENABLED = "local_server_enabled"
+
+    /** 绑定范围。false=仅本机 127.0.0.1（默认）；true=绑 0.0.0.0（局域网可见）。 */
+    const val KEY_LAN = "local_server_lan"
+
+    /** 监听端口。默认 18787（= 改造前的写死端口，也是内置 Provider baseUrl 的端口）。 */
+    const val KEY_PORT = "local_server_port"
+
+    /** 并发槽数（llama.cpp `-np`）。默认 1（= 改造前的写死值）。 */
+    const val KEY_SLOTS = "local_server_slots"
+
+    /** 调用鉴权 key。默认空 = 不追加 `--api-key`（= 改造前的行为）。 */
+    const val KEY_API_KEY = "local_server_api_key"
+
+    const val DEFAULT_ENABLED = false
+    const val DEFAULT_LAN = false
+    const val DEFAULT_PORT = 18787
+    const val DEFAULT_SLOTS = 1
+    const val DEFAULT_API_KEY = ""
+
+    /** `-np` 取值范围：多槽会按槽数倍增 KV cache（实测单槽 f16 KV ≈147KB/token），4 足够个人低频使用。 */
+    const val MIN_SLOTS = 1
+    const val MAX_SLOTS = 4
+
+    /** 端口合法范围（避开特权端口与常见保留段）。 */
+    const val MIN_PORT = 1024
+    const val MAX_PORT = 65535
+
+    // ── 功耗与热保护（2026-10-05）────────────────────────────────────────────
+    //
+    // 动机：服务器模式与「聊天」不同 —— 它是**持续负载**（模型常驻内存 + 请求可能随时进来，
+    // 甚至被同 WiFi 设备连续打），比有间隙的聊天更容易把 SoC 顶到高温、触发系统级热节流
+    // 甚至热失控。因此给服务器模式配一个**热断路器**：温度过高就把本地推理服务暂停
+    // （卸载模型 → 立刻止热），温度降下来再自动恢复。
+    //
+    // ★ 最高优先约束：**热保护只在服务器模式开启（local_server_enabled=true）时生效**。
+    //   看门狗（见 LlamaServerProcess）在启动前先判 `LocalSettings.localServerEnabled`，
+    //   未开启服务器模式的用户**根本不会启动任何轮询协程**，行为与今天一字节不变。
+    //   开关默认 true 是为了「一开服务器模式就有保护」，而不是让未开启者也受影响。
+    //
+    // 迟滞（hysteresis）：暂停阈值(85) 与恢复阈值(70) 之间留出 15°C 的**死区**，
+    // 避免温度在单一阈值附近抖动导致引擎「暂停→恢复→暂停」反复开关（每次开关都要
+    // 重新加载 GB 级模型，代价极高）。必须满足 恢复阈值 < 暂停阈值。
+
+    /** 热保护总开关（服务器模式专用）。默认 true，仅在 [KEY_ENABLED]=true 时被消费。 */
+    const val KEY_THERMAL_GUARD = "local_server_thermal_guard"
+
+    /** 暂停阈值（°C）：温度**高于**它即卸载模型止热。默认 85。 */
+    const val KEY_TEMP_PAUSE_C = "local_server_temp_pause_c"
+
+    /** 恢复阈值（°C）：暂停后温度**低于**它才重新拉起引擎。默认 70（必须 < 暂停阈值）。 */
+    const val KEY_TEMP_RESUME_C = "local_server_temp_resume_c"
+
+    const val DEFAULT_THERMAL_GUARD = true
+    const val DEFAULT_TEMP_PAUSE_C = 85
+    const val DEFAULT_TEMP_RESUME_C = 70
+
+    /** 阈值合法范围（°C）：低于 40 会误伤日常使用，高于 120 无意义。 */
+    const val MIN_TEMP_C = 40
+    const val MAX_TEMP_C = 120
+
+    /**
+     * 热保护偏好的**读写实现**就地放在本对象里，而不是搬进
+     * [cn.yangrq.weixuan.local.LocalSettings]。
+     *
+     * 原因：热保护只被「服务器模式看门狗」（LlamaServerProcess）与「本地推理服务器」设置页
+     * 消费，把**契约**（键名 / 默认值）与这两个小访问器放在同一处最好维护；它们与
+     * [cn.yangrq.weixuan.local.LocalSettings] **共用同一个 SharedPreferences 文件**
+     * （`eta_local_model`，见 [LocalSettings.FILE]），因此任何入口读到/写到的都是同一份值
+     * （同一进程内 getSharedPreferences 返回同一实例，无缓存不一致问题）。
+     */
+    private const val PREFS_FILE = "eta_local_model"
+
+    private fun serverPrefs(context: Context): SharedPreferences =
+        context.applicationContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+
+    /** 热保护是否开启（默认 true）。调用方须自行确认服务器模式已开启。 */
+    fun thermalGuardEnabled(context: Context): Boolean =
+        serverPrefs(context).getBoolean(KEY_THERMAL_GUARD, DEFAULT_THERMAL_GUARD)
+
+    fun setThermalGuardEnabled(context: Context, enabled: Boolean) {
+        serverPrefs(context).edit().putBoolean(KEY_THERMAL_GUARD, enabled).apply()
+    }
+
+    /** 暂停阈值，越界值回落到默认 85，避免非法值让断路器永不触发或误触发。 */
+    fun tempPauseC(context: Context): Int =
+        serverPrefs(context).getInt(KEY_TEMP_PAUSE_C, DEFAULT_TEMP_PAUSE_C)
+            .coerceIn(MIN_TEMP_C, MAX_TEMP_C)
+
+    fun setTempPauseC(context: Context, value: Int) {
+        serverPrefs(context).edit()
+            .putInt(KEY_TEMP_PAUSE_C, value.coerceIn(MIN_TEMP_C, MAX_TEMP_C)).apply()
+    }
+
+    /** 恢复阈值，越界值回落到默认 70。 */
+    fun tempResumeC(context: Context): Int =
+        serverPrefs(context).getInt(KEY_TEMP_RESUME_C, DEFAULT_TEMP_RESUME_C)
+            .coerceIn(MIN_TEMP_C, MAX_TEMP_C)
+
+    fun setTempResumeC(context: Context, value: Int) {
+        serverPrefs(context).edit()
+            .putInt(KEY_TEMP_RESUME_C, value.coerceIn(MIN_TEMP_C, MAX_TEMP_C)).apply()
+    }
+}

@@ -30,6 +30,8 @@
         android:protectionLevel="signature" />
 
     <uses-permission android:name="cn.yangrq.weixuan.permission.CONTROL_ACCESSIBILITY_PROTECTION" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- 服务器模式保活：引擎运行期间持 PartialWakeLock（带超时，非 24/7） -->
 
     <queries>
         <package android:name="com.google.android.googlequicksearchbox" />

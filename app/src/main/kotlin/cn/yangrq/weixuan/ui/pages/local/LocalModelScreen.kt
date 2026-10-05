@@ -51,7 +51,6 @@ import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import cn.yangrq.weixuan.ui.design.XuanGlyph
 
 /**
  * 本地模型（GenieX NPU/GPU）配置页 —— 三段式布局：
@@ -66,6 +65,7 @@ import cn.yangrq.weixuan.ui.design.XuanGlyph
 internal fun LocalModelScreen(
     onBack: () -> Unit,
     onOpenMarket: () -> Unit,
+    onOpenServer: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
@@ -121,6 +121,11 @@ internal fun LocalModelScreen(
     var catalogFiles by remember { mutableStateOf(listOf<File>()) }
     var catalogStatus by remember { mutableStateOf(mapOf<String, ModelDownloadStatus>()) }
     var actionFile by remember { mutableStateOf<File?>(null) }
+
+    // 注：本地推理服务器（2026-10-05）的配置已**剥离**为独立二级页 LocalServerScreen，
+    // 从「设置 → 本地推理服务器」进入（本页只保留一个入口，见下方「模型」分节旁边）。
+    // 原先的 srvEnabled/srvLan/srvPort/srvSlots/srvApiKey/端口弹窗/Key 弹窗全部迁走，
+    // 避免两处重复配置。
 
     fun reloadCatalogFiles() {
         catalogFiles = LocalModelCatalog.downloadedFiles(appContext)
@@ -470,6 +475,28 @@ internal fun LocalModelScreen(
                         autoLoad = enabled
                         LocalSettings.autoLoad = enabled
                     },
+                )
+            }
+        }
+
+        // ── 本地推理服务器入口（2026-10-05 已剥离为独立二级页 LocalServerScreen）──
+        // 原先服务器模式的配置塞在本页里，用户反馈"藏得太深"，现已单独成页；本页只留入口。
+        item {
+            EtaPreferenceGroupTitle("本地推理服务器")
+        }
+        item {
+            EtaPreferenceGroup {
+                EtaArrowPreference(
+                    title = "本地推理服务器（把手机当成私有 AI 服务器）",
+                    summary = if (LocalSettings.localServerEnabled) {
+                        "已开启 · ${LocalSettings.localServerHost()}:${LocalSettings.localServerPort} · 点此管理"
+                    } else {
+                        "已关闭 · 配置绑定范围 / 端口 / 并发槽数 / API Key"
+                    },
+                    startAction = {
+                        EtaPreferenceIcon(glyph = XuanGlyphType.Globe, tint = EtaPreferenceColors.Blue)
+                    },
+                    onClick = onOpenServer,
                 )
             }
         }
