@@ -263,25 +263,45 @@ internal object AgentConversationCodec {
         return sanitized.toString()
     }
 
+    /**
+     * 清洗数组形式的内容块。
+     *
+     * ★ 2026-10-05 行为变更：**不再剥离图片**。
+     *
+     * 旧实现把 `image_url` / `input_image` / `image`（以及任何带 `source` 的块）**一律丢弃**，
+     * 只塞一句「图片已被省略」。后果是：**所有 VL 模型的视觉能力从未真正生效** ——
+     * 实测 Qwen3-VL-4B 与 MAI-UI-2B 都只能如实回答"我无法看到屏幕内容"，因为模型
+     * 收到的请求里压根没有图。（该剥离是无条件的，连 data/model/Model.kt:44 的
+     * `supportsVision` 能力位都没读——那个字段全工程无人引用。）
+     *
+     * 现在**原样透传**图片块。理由：图片块只会在上游确实要发图时才出现，
+     * 纯文本模型本来也不会被塞图片；而 VL 模型终于能收到图。
+     *
+     * 若将来某个**云端** provider 因收到图片而报错，正确做法不是恢复"无条件剥离"，
+     * 而是**按 provider 的 `supportsVision` 能力位**决定（该字段已存在，接上即可）。
+     */
     private fun sanitizeContentArray(source: JSONArray): JSONArray {
         val target = JSONArray()
-        var omittedImage = false
         for (index in 0 until source.length()) {
             val item = source.optJSONObject(index) ?: continue
-            if (item.optString("type") in setOf("image_url", "input_image", "image") || item.has("source")) {
-                omittedImage = true
+            if (isImagePart(item)) {
+                // 图片块原样保留（不要再走 sanitizeContentObject，否则会被 remove 掉）
+                target.put(JSONObject(item.toString()))
                 continue
             }
             target.put(sanitizeContentObject(item))
         }
-        if (omittedImage) {
-            target.put(JSONObject().put("type", "text").put("text", IMAGE_OMITTED_TEXT))
-        }
         return target
     }
 
+    /** 是否图片内容块（OpenAI 的 `image_url`、Anthropic 的 `source`、通用的 `input_image`/`image`）。 */
+    private fun isImagePart(item: JSONObject): Boolean =
+        item.optString("type") in setOf("image_url", "input_image", "image") || item.has("source")
+
     private fun sanitizeContentObject(source: JSONObject): JSONObject =
         JSONObject(source.toString()).also { target ->
+            // 图片块整体放行（2026-10-05：不再 remove 掉 image_url / source）
+            if (isImagePart(target)) return@also
             target.remove("image_url")
             target.remove("source")
             if (target.has("text")) {
