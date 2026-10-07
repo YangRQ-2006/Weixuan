@@ -216,9 +216,16 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
      * 压缩后 ~2500 tokens，工具能力完整保留。
      */
     /**
-     * 本地模型思考开关：llama-server 不支持 reasoning_effort 参数，改用 Qwen3 原生的
-     * `/no_think` 软开关（追加到 system 消息末尾）。关闭思考后本地推理显著加速
-     * （思考 token 常占生成量的大头）。云端模型走标准 reasoning_effort，不受影响。
+     * 本地模型思考开关 —— **文本软开关路径，只对 Qwen3 系有效**。
+     *
+     * Qwen3 系用其原生 `/no_think` 文本软开关：追加到**最后一条 user 消息**末尾
+     * （放 system 里不生效）。注意 Qwen3 的 chat template 里**并没有** `/no_think` 这个标记
+     * —— 它能生效靠的是**模型本身被训练过**识别这段文本，属模型级开关。
+     *
+     * ⚠️ 该文本对**其它模型族无效**：例如 Spark-X2.5 的模板不解析它、只当普通文本，
+     * 那类模型的思考由模板变量 `enable_thinking` 决定 → 见 [applyLocalThinkingTemplateKwargs]。
+     *
+     * 关闭思考后本地推理显著加速（思考 token 常占生成量的大头）。云端模型走标准 reasoning_effort。
      */
     private fun applyLocalThinkingSwitch(
         messages: JSONArray,
@@ -237,6 +244,43 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
             }
         }
         return messages
+    }
+
+    /**
+     * 本地模型思考开关 —— **聊天模板变量路径**（Spark-X2.5 等模型族）。
+     *
+     * 背景：Spark-X2.5 的 chat template 开头就是
+     * `{%- set enable_thinking = enable_thinking | default(true) %}` ——
+     * 思考由模板变量控制，**且模板默认值就是 true**。它既不认 Qwen3 的 `/no_think` 文本，
+     * 也拿不到 reasoning_effort，所以「思考开关」在它身上完全失效、永远在思考。
+     *
+     * 修法：把开关值经 `chat_template_kwargs` 显式下发。已核对我们自建 runtime 的
+     * server-common.cpp：该字段会被并入模板的 extra_context，并被**特别解析**
+     * （enable_thinking → inputs.enable_thinking）。
+     *
+     * ⚠️ 必须传**布尔**量：server-common.cpp 对字符串类型的 enable_thinking 会直接抛
+     * invalid_argument（"expected boolean, got string"）。
+     *
+     * 为什么不改用标准 `reasoning_effort`：我们这版 server 确实支持它（`"none"` 同样会映射为
+     * enable_thinking=false），但 Qwen3VL 与 Spark-X2.5 的模板里 `reasoning_effort` 出现 0 次，
+     * 传了也是空转，故本地统一用布尔量表达开/关。
+     *
+     * 对不使用该变量的模板多传一个变量是安全的：llama.cpp 自己就会**无条件**向所有模板注入
+     * extra_context（common_chat_extra_context 里的 datetime / date_string），可见未使用的
+     * 变量不会导致模板求值失败。
+     *
+     * 仅在本地回环地址下发：云端 OpenAI 兼容端点不认识该字段，可能直接 400。
+     */
+    private fun applyLocalThinkingTemplateKwargs(
+        request: JSONObject,
+        config: AgentModelClient.ModelConfig,
+    ) {
+        val url = config.baseUrl
+        if (!url.contains("127.0.0.1") && !url.contains("localhost")) return
+        request.put(
+            "chat_template_kwargs",
+            JSONObject().put("enable_thinking", LocalSettings.thinkingEnabled),
+        )
     }
 
     /**
@@ -490,6 +534,7 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
                 if (sourceType != ProviderSourceTypes.OPENROUTER) {
                     request.put("stream_options", JSONObject().put("include_usage", true))
                 }
+                applyLocalThinkingTemplateKwargs(request, config)
                 mergeExtraBody(request, config.extraBodyJson)
                 RequestBodyMerge.mergeCustomBody(request, config.customBody)
                 ProviderReasoning.applyOpenAiCompatibleRequest(request, config)
