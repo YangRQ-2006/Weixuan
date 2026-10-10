@@ -30,6 +30,7 @@ import cn.yangrq.weixuan.agent.skill.GitHubSkillRepositoryParser
 import cn.yangrq.weixuan.agent.skill.GitHubSkillInspection
 import cn.yangrq.weixuan.agent.skill.GitHubSkillRepository
 import cn.yangrq.weixuan.agent.skill.GitHubSkillSourceException
+import cn.yangrq.weixuan.local.ImageGenerationEngine
 import cn.yangrq.weixuan.agent.skill.PublicGitHubSkillSource
 import cn.yangrq.weixuan.agent.terminal.AlpineEnvironmentPaths
 import cn.yangrq.weixuan.agent.terminal.DetachedTaskSupervisor
@@ -49,6 +50,7 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.runBlocking
@@ -199,6 +201,7 @@ internal class AgentLocalTools(
                     structuredDeviceTools.execute(toolCall.name, args)
                         ?: textResult(errorResult("UNKNOWN_TOOL", "未知设备工具"))
                 "read_image" -> fileVisionTool { imageTools.readImage(args) }
+                "generate_image" -> textResult(generateImage(args))
                 "terminal" -> textResult(terminalTool { terminal(args) })
                 "run_command" -> textResult(terminalTool { runCommand(args) })
                 "read_file" -> textResult(terminalTool { readFile(args) })
@@ -1324,6 +1327,87 @@ internal class AgentLocalTools(
         val appName: String,
         val isSystemApp: Boolean = false
     )
+
+    // ---- 本地图像生成（GPU / Vulkan 后端）──────────────────────────────
+
+    private val imageGenEngine by lazy { ImageGenerationEngine(context) }
+
+    private sealed interface ImageOutcome {
+        data class Success(val png: ByteArray) : ImageOutcome
+        data class Failure(val reason: String) : ImageOutcome
+    }
+
+    /**
+     * generate_image 工具实现。
+     *
+     * 内存仲裁：SD1.5（fp16 约 1.7GB）与 LLM 服务（约 3.4GB）在本机
+     * 16GB 内存中**不能同时驻留**。agent 的工具调用发生在两次 LLM
+     * 请求之间（此时 LLM 空闲），所以「停 LLM → 出图 → 恢复 LLM →
+     * 返回结果」这条链路是安全的；恢复在返回前完成，agent 下一轮
+     * 请求不受影响。
+     */
+    private fun generateImage(args: JSONObject): String {
+        if (!Prefs.isEnabled(Prefs.Keys.AGENT_IMAGE_TOOLS)) {
+            return errorResult("IMAGE_DISABLED", "本地图像生成未开启（设置 → 工具能力 → 本地图像生成）")
+        }
+        val prompt = args.optString("prompt", "").trim()
+        if (prompt.isEmpty()) {
+            return errorResult("INVALID_ARGUMENTS", "prompt 不能为空")
+        }
+
+        // 模型发现：<filesDir>/models/sd/ 下最大的 .gguf
+        val modelDir = ImageGenerationEngine.modelDir(context)
+        val modelFile = modelDir.listFiles { f -> f.isFile && f.name.endsWith(".gguf", true) }
+            ?.maxByOrNull { it.length() }
+        if (modelFile == null) {
+            return errorResult(
+                "MODEL_MISSING",
+                "尚未下载图像模型。请把 SD1.5 的 .gguf 模型放到 ${modelDir.absolutePath}",
+            )
+        }
+
+        val cfg = ImageGenerationEngine.GenConfig(
+            prompt = prompt,
+            negativePrompt = args.optString("negative_prompt", "").ifBlank { null },
+            width = args.optInt("width", 512),
+            height = args.optInt("height", 512),
+            steps = args.optInt("steps", 20).coerceIn(4, 30),
+            cfgScale = args.optDouble("cfg_scale", 7.0).toFloat().coerceIn(1f, 20f),
+            seed = args.optLong("seed", -1L),
+        )
+
+        val t0 = SystemClock.elapsedRealtime()
+        val outcome: ImageOutcome = runBlocking {
+            val err = imageGenEngine.prepare(modelFile)
+            if (err != null) {
+                ImageOutcome.Failure(err)
+            } else {
+                val png = imageGenEngine.generate(cfg)
+                if (png == null) ImageOutcome.Failure("生成失败（详见日志 tag WeiXuanSD）")
+                else ImageOutcome.Success(png)
+            }
+        }
+        // 无论成败都恢复 LLM（agent 下一轮请求依赖它）
+        runBlocking { imageGenEngine.release(restoreLlama = true) }
+
+        return when (outcome) {
+            is ImageOutcome.Failure -> errorResult("IMAGE_ERROR", outcome.reason)
+            is ImageOutcome.Success -> {
+                val dir = File(context.filesDir, "images").also { it.mkdirs() }
+                val out = File(dir, "img-${System.currentTimeMillis()}.png")
+                out.writeBytes(outcome.png)
+                val seconds = (SystemClock.elapsedRealtime() - t0) / 1000f
+                JSONObject()
+                    .put("ok", true)
+                    .put("path", out.absolutePath)
+                    .put("width", cfg.width)
+                    .put("height", cfg.height)
+                    .put("seconds", "%.1f".format(seconds))
+                    .put("note", "图像已保存，LLM 服务已恢复。可用 read_image 查看该图。")
+                    .toString()
+            }
+        }
+    }
 
     private companion object {
         val DEVICE_DIRECT_TOOL_NAMES = setOf(
