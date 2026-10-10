@@ -55,6 +55,19 @@ internal object AgentPromptBuilder {
             )
             return plainMessages
         }
+        // ── 生命自感知（2026-10-10，借鉴 OkHuman「生命」块）────────────
+        // 约 60 token/轮（≈0.1s prefill），防 agent 用终端工具杀掉自己的
+        // llama-server 引擎（它有这个能力）。PID/端口动态（引擎重启会换），
+        // 故声明事实而非写死 PID。
+        messages.put(
+            systemMessage(
+                "【你的生命】你运行在 Android 应用微玄（cn.yangrq.weixuan）内，" +
+                    "推理由本机启动的 llama-server 进程提供（引擎重启会换 PID 与端口）。" +
+                    "不要查找、结束、重启任何 llama-server / weixuan / cn.yangrq 相关进程，" +
+                    "也不要读写 /proc 下与推理引擎相关的目录——那会中断你自己的推理。" +
+                    "需要等待引擎或结果时，耐心等待即可。"
+            )
+        )
         if (roleplayContext == null && config.systemPrompt.isNotBlank()) {
             messages.put(systemMessage(config.systemPrompt))
         }

@@ -26,7 +26,11 @@ internal class RootShellTerminalController(
         const val DEFAULT_CWD = "/data/local/tmp/eta"
         const val LINUX_DEFAULT_CWD = "/workspace"
         const val USER_STORAGE = "/storage/emulated/0"
-        const val DEFAULT_TIMEOUT_SECONDS = 30
+        // ★ 2026-10-10：30s → 120s（借鉴 OkHuman tools.timeout_ms，默认 600s）。
+        // 依据：日志实测 agent 执行 41 字符命令被 30s 掐断（exitCode=127/1）；
+        // grep 大目录、日志分析、批量操作等长命令经常需要 >30s。
+        // 120s 仍是有界等待（不会无限挂死），方向与 OkHuman 的 600s 一致。
+        const val DEFAULT_TIMEOUT_SECONDS = 120
         const val MAX_TIMEOUT_SECONDS = 180
         const val MAX_COMMAND_CHARS = 4_000
         const val MAX_OUTPUT_CHARS = 16_000

@@ -56,6 +56,15 @@ internal class AgentLoop(
     )
 
     private var toolCallValidator = AgentToolCallValidator(tools)
+
+    // ── 死循环检测（2026-10-10，借鉴 OkHuman doom 检测）────────
+    // 手机每轮都贵（整轮 prefill + decode），死循环 = 白烧电。
+    // 连续【完全相同】（工具名 + 参数逐字一致）的调用才算重复：
+    // 参数变化自动排除；中间穿插任何其他调用也会重置计数，
+    // 因此合法的「轮询 / 换参数重试」不会被误杀。
+    // 策略：警告 3 次、强停 5 次（OkHuman 为 3/3，这里提高容忍）。
+    private var doomStreak = 0
+    private var lastDoomKey = ""
     private val accumulatedReasoning = StringBuilder()
     private val sensitiveToolCallIds = linkedSetOf<String>()
     private var pendingToolImageMessage: JSONObject? = null
@@ -184,8 +193,7 @@ internal class AgentLoop(
             runController.throwIfCancelled()
             val assistantMessage = providerResponse.assistantMessage
             val toolCalls = AgentConversationCodec.parseToolCalls(assistantMessage)
-            if (!purpose.allowsTools && toolCalls.isNotEmpty()) {
-                throw AgentModelFailure("REPLY_REWRITE_TOOL_CALL", false, "改写回复时模型请求了工具，已停止；原回复未改变。")
+            if (!purpose.allowsTools && toolCalls.isNotEmpty()) {                throw AgentModelFailure("REPLY_REWRITE_TOOL_CALL", false, "改写回复时模型请求了工具，已停止；原回复未改变。")
             }
             if (purpose == ProviderRequestPurpose.REPLY_REWRITE && providerResponse.stopReason != AssistantStopReason.END_TURN) {
                 throw AgentModelFailure("REPLY_REWRITE_INCOMPLETE", false, "模型未返回完整的改写回复；原回复未改变。")
@@ -215,6 +223,33 @@ internal class AgentLoop(
 
             if (toolCalls.isNotEmpty()) {
                 noteToolCallsAndMaybeWarn(toolCalls)
+                // ── 死循环检测（警告 3 次 / 强停 5 次）────────────
+                // 键 = 工具名 + 参数逐字一致；参数变化或中间穿插
+                // 任何其他调用都会重置计数（见上方字段注释）。
+                val doomKey = toolCalls.joinToString("§") { "${it.name}⇥${it.argumentsJson}" }
+                if (doomKey == lastDoomKey) doomStreak += 1 else {
+                    doomStreak = 0
+                    lastDoomKey = doomKey
+                }
+                if (doomStreak + 1 >= 5) {
+                    val names = toolCalls.joinToString { it.name }
+                    onEvent(AgentEvent.RunFinished(round = round, contentChars = 0))
+                    return Result(
+                        content = "⚠️ 已停止：连续 ${doomStreak + 1} 轮发起完全相同的工具调用" +
+                            "（$names），疑似死循环。重复执行相同调用不会产生新结果；" +
+                            "请换一种方式拆解任务，或直接告诉我你想达成的目标。",
+                        reasoningContent = reasoningSnapshot(),
+                        sensitiveToolCallIds = sensitiveToolCallIds.toSet(),
+                    )
+                }
+                if (doomStreak + 1 >= 3) {
+                    appendMessage(steeringMessage(
+                        "检测到连续 ${doomStreak + 1} 轮发起完全相同的工具调用" +
+                            "（${toolCalls.joinToString { it.name }}）。" +
+                            "重复执行相同调用不会产生新结果；请更换工具、参数或策略。"
+                    ))
+                    context.userAppended()
+                }
                 val outcomes = toolCalls.map { call ->
                     val outcome = when (providerResponse.stopReason) {
                         AssistantStopReason.TOOL_USE ->
