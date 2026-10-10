@@ -84,7 +84,11 @@ internal object Prefs {
             AGENT_DEVICE_SENSITIVE_ACTION_TOOLS to true,
             AGENT_THINKING_ENABLED to true,
             AGENT_PLAIN_TEXT to false,
-            AGENT_TOOL_DISCOVERY to false
+            // ★ 2026-10-07 默认开启（原为 false）。
+            // 依据（2026-10-05 生产实测）：开启后 decode 4.2 → 14.5 t/s（+245%）、
+            // 首字 0.51s、prefill 5140 → 117 token；代价仅冷门工具多 +1~2s 往返。
+            // 不开则 57 个工具常驻 prompt（≈5900 token），简单任务也每轮几秒满载 → 发热。
+            AGENT_TOOL_DISCOVERY to true
         )
 
         /** 由 Eta Runtime 最终裁决、不要求 Xposed 框架在线的开关。 */
