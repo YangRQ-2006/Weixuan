@@ -57,7 +57,16 @@ internal object AgentModelImageEncoder {
         mimeType = "image/jpeg",
         quality = PREVIEW_JPEG_QUALITY,
     )
+    // ★ 2026-10-07：工具视觉档必须限尺寸。
+    // 实测（logcat 捕获 10-07 08:45:33→08:47:10）：整屏截图（全分辨率 JPEG-95）→
+    // 引擎 task 跑了 97 秒且【无 prompt eval / eval time】→ 卡在图片预处理/视觉塔前向
+    // → 应用等不到结果停引擎 → 用户看到「模型请求重试」。
+    // 视觉塔输入本就是 768×768（GGUF: clip.vision.image_size=768, patch=16），
+    // 送更大的图纯属浪费：负载更大、解码更慢，塔的算力还落在 CPU（HTP 无 ViT 算子）。
+    // 上限取长边 768 / 60 万像素，与视觉塔输入对齐。
     private val toolVisionProfile = EncodingProfile(
+        maxLongEdge = 768,
+        maxPixels = 600_000L,
         format = Bitmap.CompressFormat.JPEG,
         mimeType = "image/jpeg",
         quality = MODEL_JPEG_QUALITY,
