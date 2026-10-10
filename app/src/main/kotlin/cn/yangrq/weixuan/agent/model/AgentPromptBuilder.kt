@@ -68,6 +68,19 @@ internal object AgentPromptBuilder {
                     "需要等待引擎或结果时，耐心等待即可。"
             )
         )
+        // ── 读屏幕指引（2026-10-11）──────────────────────
+        // 实测：MAI-UI-2B 把「读取屏幕内容」理解成网页搜索
+        // 任务（开浏览器上谷歌）—— GUI Agent 的训练惯性。
+        // explicit 指引：读屏幕 = observe_screen，浏览器看到的
+        // 是网页、不是这台手机当前的屏幕。
+        messages.put(
+            systemMessage(
+                "【读屏幕】需要当前屏幕内容时，直接调用 observe_screen 工具" +
+                    "（它返回当前屏幕的截图与 UI 节点树）。" +
+                    "不要用浏览器搜索来获取屏幕内容——浏览器看到的是网页，" +
+                    "不是这台手机当前的屏幕。"
+            )
+        )
         if (roleplayContext == null && config.systemPrompt.isNotBlank()) {
             messages.put(systemMessage(config.systemPrompt))
         }
