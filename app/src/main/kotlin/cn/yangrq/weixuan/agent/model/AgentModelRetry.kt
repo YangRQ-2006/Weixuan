@@ -55,7 +55,13 @@ internal class AgentModelRetry(
                     )
                 }
                 retries += 1
-                val delayMs = BASE_DELAY_MS shl (retries - 1)
+                // ★ 2026-10-11：引擎崩溃后重启约需 20s（进程起到
+                // 模型加载完 13s+）。原 2/4/8s（累计 14s）等不到
+                // 重启完成 → 三次重试全失败 → 用户看到「连接中断」。
+                // 延长到 5 次并封顶 10s（累计 34s）：崩溃后大概率
+                // 自愈成「慢几秒」而不是失败。代价：真正不可恢复的
+                // 请求多等 ~20s 才报错（用户可随时取消）。
+                val delayMs = (BASE_DELAY_MS shl (retries - 1)).coerceAtMost(MAX_DELAY_MS)
                 onEvent(
                     AgentEvent.ModelRetryScheduled(
                         round, retries, MAX_RETRIES, delayMs.toInt(), classified.code,
@@ -72,8 +78,9 @@ internal class AgentModelRetry(
     }
 
     companion object {
-        private const val MAX_RETRIES = 3
+        private const val MAX_RETRIES = 5
         private const val BASE_DELAY_MS = 2_000L
+        private const val MAX_DELAY_MS = 10_000L
 
         /** 本地模型冷启动等待上限与轮询间隔。 */
         /**
