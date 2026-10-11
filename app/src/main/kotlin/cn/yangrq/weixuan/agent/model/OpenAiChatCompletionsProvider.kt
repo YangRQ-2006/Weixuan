@@ -484,12 +484,36 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
     private fun toolTokenBudget(messages: JSONArray, config: AgentModelClient.ModelConfig): Int {
         // 云端 provider 上下文大得多，沿用原来的固定上限，避免误伤。
         if (!ProviderUrls.isLoopbackUrl(config.baseUrl)) return LOCAL_TOOLS_TOKEN_BUDGET
-        val avail = localPromptBudget(localCtx()) - messages.toString().length / 3
+        val avail = localPromptBudget(localCtx()) - estimateHistoryTokens(messages)
         // 向下取到最近的档位：同档内多轮工具集**字节稳定** → llama-server 前缀缓存可命中
         // （见 LOCAL_TOOLS_BUDGET_TIERS；跨档才付一次重算）。
         // 连最小档都不够（历史异常膨胀）时退回原来的连续裁剪，保证请求一定进得去上下文。
         return LOCAL_TOOLS_BUDGET_TIERS.firstOrNull { it <= avail }
             ?: avail.coerceIn(LOCAL_TOOLS_MIN_BUDGET, LOCAL_TOOLS_TOKEN_BUDGET)
+    }
+
+    /**
+     * 历史消息 token 估算 —— **图片 base64 不按字节折算**。
+     * 视觉塔把整张图压缩成约 500 token（GGUF: image_size=768,
+     * patch=16 → 48×48 patch → merger 后约 500）；按字节折算
+     * 会把 ~200KB 的 base64 算成 ~6.6 万 token → 预算塌到最低
+     * 档（600）→ 但精选工具集【无条件保留】（实测 13 个 ≈ 1803
+     * token）照常进请求 → 历史 + 工具 + 图片 > ctx → HTTP 400
+     * （「模型请求参数无效」，2026-10-11 读屏幕一轮后复现）。
+     * 修正后预算回到真实档位，工具集与实际体积匹配，请求进得去。
+     */
+    private fun estimateHistoryTokens(messages: JSONArray): Int {
+        val raw = messages.toString()
+        var chars = raw.length
+        var i = raw.indexOf("data:image/")
+        while (i >= 0) {
+            val end = raw.indexOf('"', i)
+            if (end <= i) break
+            // 扣除该段 base64 的字节数，改按 500 token（≈1500 字符）计
+            chars -= (end - i) - 500 * 3
+            i = raw.indexOf("data:image/", end)
+        }
+        return chars / 3
     }
 
     /**
