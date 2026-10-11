@@ -394,9 +394,15 @@ internal class AgentLocalTools(
                 "image=${observation.image?.bytes ?: 0} elapsed_ms=${SystemClock.elapsedRealtime() - startedAt} " +
                 "coordinate=${observation.coordinateSpace?.summary()}"
         }
+        // ★ 2026-10-11：读屏幕默认【纯文本】——截图不进请求。
+        // 实测：带截图的请求（视觉塔）在 HTP 上会 abort/wedge
+        // （15:44 SIGABRT / 16:46 请求挂死、引擎 0 CPU）。
+        // UI 树已含全部文本与元素坐标：读屏用它，点击用
+        // tap_element（索引）/ tap（坐标），都不需要像素图。
+        // 需要像素级视觉定位时再单独恢复截图。
         return AgentModelClient.ToolResult(
             content = observation.content,
-            images = listOfNotNull(observation.image)
+            images = emptyList()
         )
     }
 
@@ -1355,14 +1361,16 @@ internal class AgentLocalTools(
             return errorResult("INVALID_ARGUMENTS", "prompt 不能为空")
         }
 
-        // 模型发现：<filesDir>/models/sd/ 下最大的 .gguf
+        // 模型发现：<filesDir>/models/sd/ 下最大的模型文件
+        // sd.cpp 支持 .gguf / .safetensors / .ckpt / .pth / .pt
         val modelDir = ImageGenerationEngine.modelDir(context)
-        val modelFile = modelDir.listFiles { f -> f.isFile && f.name.endsWith(".gguf", true) }
-            ?.maxByOrNull { it.length() }
+        val modelFile = modelDir.listFiles { f ->
+            f.isFile && SD_MODEL_EXTENSIONS.any { ext -> f.name.endsWith(ext, true) }
+        }?.maxByOrNull { it.length() }
         if (modelFile == null) {
             return errorResult(
                 "MODEL_MISSING",
-                "尚未下载图像模型。请把 SD1.5 的 .gguf 模型放到 ${modelDir.absolutePath}",
+                "尚未下载图像模型。请把 SD1.5 模型（.gguf 或 .safetensors）放到 ${modelDir.absolutePath}",
             )
         }
 
@@ -1410,6 +1418,9 @@ internal class AgentLocalTools(
     }
 
     private companion object {
+        /** sd.cpp 支持的图像模型格式（模型发现用） */
+        val SD_MODEL_EXTENSIONS = listOf(".gguf", ".safetensors", ".ckpt", ".pth", ".pt")
+
         val DEVICE_DIRECT_TOOL_NAMES = setOf(
             "set_alarm",
             "set_timer",
