@@ -30,6 +30,9 @@ import kotlinx.coroutines.flow.asStateFlow
 object LlamaServerProcess {
     private const val TAG = "LlamaServer"
 
+    /** 含原生 MTP 头（blk.32.nextn 块）的 GGUF 架构 —— draft-mtp 投机解码仅对其启用。 */
+    private const val MTP_ARCH = "qwen35"
+
     @Volatile
     private var process: Process? = null
 
@@ -109,6 +112,12 @@ object LlamaServerProcess {
     }
 
     fun isRunning(): Boolean = process?.isAlive == true
+
+    /** 当前服务的模型路径（供图像生成引擎做 LLM 恢复用；未启动返回 null） */
+    fun currentModelPath(): String? = lastModelPath
+
+    /** 当前服务端口（未启动返回 -1） */
+    fun currentPort(): Int = activePort
 
     /**
      * 启动 llama-server。参数（全部来自官方 llama.cpp，2026-09-25 源码确认）：
@@ -296,14 +305,27 @@ object LlamaServerProcess {
         val kvType = plan.kvType
         activeContextSize = ctx
         Log.i(TAG, "内存预检通过：${plan.summary} [$kind]")
-        // 投机解码（draft 0.6B，2026-09-27）：同词表小模型草拟 → 4B 并行验证，
-        // decode 吞吐可提升 2-3x，且输出与目标模型一致（无损）。draft 与 target 同为
-        // Qwen3 系列，词表相同（都是 151936）。
-        val draftFile = File(modelPath).parentFile?.let { File(it, "Qwen3-0.6B-Q4_K_M.gguf") }
-        // 实测（2026-09-27）：在 Hexagon NPU 后端上投机解码**无收益**——
-        // decode 11.0 vs 12.0 tok/s（持平），prefill 107.8 vs 254 tok/s（腰斩，draft 抢占
-        // NPU 算力），且多占 380MB 内存。故默认禁用；代码保留以备 CPU 后端场景启用。
-        val speculativeArgs = emptyList<String>()
+        // MTP 投机解码（2026-10-11 启用 draft-mtp）────────────────────────
+        // 旧方案（同词表小模型 draft，2026-09-27）在 NPU 上无收益（decode 持平、
+        // prefill 腰斩、draft 抢占 NPU 算力）而禁用。现改用 **MTP 投机解码**：
+        // Qwen3.5 GGUF 自带 blk.32.nextn.* MTP 头，草稿上下文直接建在目标模型上
+        // （native 字符串 "creating MTP draft context against the target model"），
+        // 不另载 draft 模型、不占额外权重内存；vocab/BOS/EOS 与目标天然一致
+        // （native 校验 "draft model vocab type must match target model" 自引用恒过）。
+        // 仅对含原生 MTP 头的架构启用（当前 = qwen35）；其余模型保持禁用，
+        // 命令行与改动前逐字节一致。native 初始化失败会回退纯解码（不影响加载）。
+        val speculativeArgs = if (footprint.arch == MTP_ARCH) {
+            Log.i(TAG, "MTP 投机解码：arch=${footprint.arch}，draft=目标模型自身（nextn 头），n_max=1")
+            listOf(
+                "--spec-type", "draft-mtp",
+                "--spec-draft-model", modelPath,
+                "--spec-draft-n-max", "1",
+                "--spec-draft-n-min", "1",
+                "--spec-draft-p-min", "0.5",
+            )
+        } else {
+            emptyList()
+        }
 
         val threads = threadCount()
         // Qwen3-VL 这类视觉模型的视觉塔走独立的 mtmd 图（不是主 GGUF 的一部分）。

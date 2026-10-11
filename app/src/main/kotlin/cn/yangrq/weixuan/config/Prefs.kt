@@ -64,6 +64,7 @@ internal object Prefs {
          * 代价是冷门工具多一轮往返（+1~2s）。实现见 `AgentToolDiscovery`。
          */
         const val AGENT_TOOL_DISCOVERY = "agent_tool_discovery"
+        const val AGENT_IMAGE_TOOLS = "agent_image_tools"
         const val AGENT_RUNTIME_CONFIG_JSON = "agent_runtime_config_json"
 
         /** 全部布尔开关及其默认值。 */
@@ -88,7 +89,10 @@ internal object Prefs {
             // 依据（2026-10-05 生产实测）：开启后 decode 4.2 → 14.5 t/s（+245%）、
             // 首字 0.51s、prefill 5140 → 117 token；代价仅冷门工具多 +1~2s 往返。
             // 不开则 57 个工具常驻 prompt（≈5900 token），简单任务也每轮几秒满载 → 发热。
-            AGENT_TOOL_DISCOVERY to true
+            AGENT_TOOL_DISCOVERY to true,
+            // ★ 本地图像生成（GPU/Vulkan）。默认关：
+            // ① 需要先下载 SD 模型（约 2GB）才有意义；② 出图期间会暂停 LLM 服务。
+            AGENT_IMAGE_TOOLS to false
         )
 
         /** 由 Eta Runtime 最终裁决、不要求 Xposed 框架在线的开关。 */
@@ -101,6 +105,7 @@ internal object Prefs {
             AGENT_THINKING_ENABLED,
             AGENT_PLAIN_TEXT,
             AGENT_TOOL_DISCOVERY,
+            AGENT_IMAGE_TOOLS,
         )
     }
 
