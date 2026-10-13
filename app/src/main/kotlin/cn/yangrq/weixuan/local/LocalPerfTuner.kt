@@ -20,11 +20,20 @@ object LocalPerfTuner {
 
     const val DRAFT_MODEL_NAME = "Qwen/Qwen3-0.6B"
     const val DRAFT_MODEL_PRECISION = "Q8_0"
-    /** 推测解码类型：2026-09-25 实测 ngram-cache 在多轮请求后出现服务线程挂死
-     *  （TCP 可连但无响应、连接排队），已回滚禁用；eagle/draft 类需专用模型（普通 GGUF 崩溃）。
-     *  待 SDK 后续版本修复后再评估。 */
-    const val SPEC_TYPE = ""
-    const val SPEC_N_MAX = 8
+    /** 推测解码类型（2026-10-11 启用 **draft-mtp**）：
+     *  GenieX v0.7.0 的推测解码是多实现注册制（libllama-common.so 实证注册了
+     *  draft-mtp / eagle3 / ngram-mod / ngram-map-k / ngram-simple 五个实现）。
+     *  2026-09-25 崩溃的是 `draft`（通用 draft，**未注册** → unknown speculative
+     *  type: draft → libc++abi 终止）；`draft-mtp` 是已注册的另一实现，且 MTP
+     *  草稿上下文直接建在目标模型上（"creating MTP draft context against the
+     *  target model"），无需独立 draft 模型——Qwen3.5 GGUF 自带 nextn MTP 头。
+     *  仅对 arch=qwen35 的模型启用（见 [GenieXLocalEngine.resolveDraftModelPath]），
+     *  其余模型 draftPath=null → spec_type="" → 配置与禁用时逐字节一致。
+     *  native 侧 MTP 初始化失败会 "speculative decoding setup failed; falling
+     *  back to plain decoding"，最坏退回纯解码。 */
+    const val SPEC_TYPE = "draft-mtp"
+    /** Qwen3.5 只有 1 个 MTP 头（blk.32.nextn），草拟 1 token/步。 */
+    const val SPEC_N_MAX = 1
     const val SWA_N_KEEP = 512
     const val BASE_MAX_TOKENS = 1024
     const val COMPUTE_UNIT_HYBRID = "hybrid"

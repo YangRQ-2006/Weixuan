@@ -29,8 +29,16 @@ class ImageGenerationEngine(private val context: Context) {
         /** 热闸门：出图前温度高于此值拒绝开始（与 LLM 热保护一致的保守值） */
         const val TEMP_GATE_C = 40f
 
-        /** 模型目录（<filesDir>/models/sd/） */
-        fun modelDir(context: Context): File = File(context.filesDir, "models/sd")
+        /**
+         * 模型目录（<外部 App 专属目录>/models/sd/）。
+         *
+         * 2026-10-12 从 filesDir（内部存储）迁到 getExternalFilesDir：实测内部
+         * /data/user/0/<pkg> 会被系统/MIUI 清除数据整个删除（SD 模型与开关一起
+         * 丢），而外部 App 目录在同次清除中完好。sd.cpp 在 FUSE 上 O_DIRECT 会读到
+         * 错误数据，引擎自动退回 buffered I/O（正确，仅加载慢几秒）。
+         */
+        fun modelDir(context: Context): File =
+            File(context.getExternalFilesDir(null) ?: context.filesDir, "models/sd")
 
         /** 模型下载基址（HF 在国内不可达，默认走镜像；可在设置里改） */
         const val MODEL_BASE_URL = "https://hf-mirror.com"

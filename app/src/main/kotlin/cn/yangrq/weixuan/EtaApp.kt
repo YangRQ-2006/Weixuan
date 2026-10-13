@@ -3,6 +3,10 @@ package cn.yangrq.weixuan
 import android.app.Application
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import cn.yangrq.weixuan.agent.model.AgentToolResultBudget
 import cn.yangrq.weixuan.agent.skill.SkillRuntime
 import cn.yangrq.weixuan.agent.device.RootAccess
@@ -64,6 +68,18 @@ class EtaApp : Application(), XposedServiceHelper.OnServiceListener {
         AgentMemoryRepository.init(this)
         ProviderRepository.init(this)
         LocalSettings.init(this)
+        // P0 修复（2026-10-11）：未开服务器模式时，App 退后台立即卸载引擎。
+        // 根因：llama-server 进程常驻 + slot 轮询保存任务周期唤醒 CPU
+        // → 待机仅 3 小时。服务器模式开启时保持常驻（设计用途：常驻推理服务器）。
+        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStop(owner: LifecycleOwner) {
+                if (LocalSettings.localServerEnabled) return
+                applicationScope.launch {
+                    runCatching { GenieXLocalEngine.unload() }
+                        .onFailure { Log.w("EtaApp", "后台卸载引擎失败：${it.message}") }
+                }
+            }
+        })
         // 本地模型（GenieX NPU/GPU）：仅在用户开启时启动回环 OpenAI 兼容服务；
         // 未开启则完全不初始化 SDK、不占用内存。
         // 顺序约束：先 bind 端口再 initialize SDK——SDK 原生初始化可能耗时数十秒，

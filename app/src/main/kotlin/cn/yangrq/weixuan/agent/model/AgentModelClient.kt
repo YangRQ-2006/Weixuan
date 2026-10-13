@@ -150,6 +150,7 @@ internal object AgentModelClient {
                 skillGitHubInstall = true,
                 memoryTools = memoryContext.enabled,
                 memoryWritable = roleplayContext == null,
+                imageTools = Prefs.isEnabled(Prefs.Keys.AGENT_IMAGE_TOOLS),
                 capabilities = capabilities,
             )
             for (index in 0 until additionalTools.length()) {

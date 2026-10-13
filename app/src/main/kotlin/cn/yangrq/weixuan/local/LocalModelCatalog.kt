@@ -195,7 +195,9 @@ object LocalModelCatalog {
             fileName = "Spark-X2.5-4B-Q4_K_M.gguf",
             sizeMb = 2480,
             urls = linksFrom("XHToken", "Spark-X2.5-4B-GGUF", "Spark-X2.5-4B-Q4_K_M.gguf") +
-                listOf("$MS/XHToken/Spark-X2.5-4B-GGUF/resolve/master/Spark-X2.5-4B-Q4_K_M.gguf"),
+                // modelscope 备份必须用 XHToken 命名空间：$MS 已含 "unsloth" 前缀，
+                // 拼出来会是 unsloth/XHToken/... 的非法路径（实测 404）。
+                listOf("https://modelscope.cn/models/XHToken/Spark-X2.5-4B-GGUF/resolve/master/Spark-X2.5-4B-Q4_K_M.gguf"),
             tier = ModelTier.MAIN,
         ),
         LocalCatalogModel(
@@ -205,6 +207,22 @@ object LocalModelCatalog {
             fileName = "Qwen3-4B-Q4_K_M.gguf",
             sizeMb = 2382,
             urls = links("Qwen3-4B-GGUF", "Qwen3-4B-Q4_K_M.gguf"),
+            tier = ModelTier.MAIN,
+        ),
+        // Qwen3.5 系（2026-10-11 新增）：必须用 unsloth 的 **-MTP- 仓库** ——
+        // 普通仓库的 GGUF 没有 MTP 头，MTP 仓库多出一个 blk.32.nextn.* 头块
+        // （eh_proj / enorm / hnorm / shared_head_norm），正是 GenieX v0.7.0
+        // draft-mtp 投机解码实现要加载的 MTP 头（见 LocalPerfTuner）。
+        LocalCatalogModel(
+            id = "qwen3.5-4b-mtp-q4km",
+            title = "Qwen3.5-4B · Q4_K_M（MTP 投机解码）",
+            summary = "2.70GB｜Qwen3.5 混合架构（24 层 SSM 增强注意力 + 8 层标准注意力）；" +
+                "GGUF 含 MTP 头（nextn 块），GenieX v0.7.0 已内置 draft-mtp 投机解码实现，" +
+                "HTP 后端已注册 op_gated_delta_net / op_ssm_conv 算子；同代 SoC（骁龙 8 Elite）" +
+                "第三方实测 MTP 档 18.9 t/s。⚠️ 本机未实测，如遇加载失败请回报 issue",
+            fileName = "Qwen3.5-4B-Q4_K_M.gguf",
+            sizeMb = 2704,
+            urls = links("Qwen3.5-4B-MTP-GGUF", "Qwen3.5-4B-Q4_K_M.gguf"),
             tier = ModelTier.MAIN,
         ),
         LocalCatalogModel(
@@ -270,6 +288,18 @@ object LocalModelCatalog {
             urls = links("Qwen3-8B-GGUF", "Qwen3-8B-Q4_K_M.gguf"),
             tier = ModelTier.FLAGSHIP,
         ),
+        LocalCatalogModel(
+            id = "qwen3.5-9b-mtp-q4km",
+            title = "Qwen3.5-9B · Q4_K_M（MTP 投机解码）",
+            summary = "5.60GB｜Qwen3.5 9B 混合架构（24 层 SSM 增强注意力 + 8 层标准注意力）；" +
+                "含 MTP 头（nextn 块）可启用 draft-mtp 投机解码——同代 SoC（骁龙 8 Elite）" +
+                "第三方实测 4B 档 MTP 18.9 t/s。需约 6GB 可用内存。" +
+                "⚠️ 本机未实测，如遇加载失败请回报 issue",
+            fileName = "Qwen3.5-9B-Q4_K_M.gguf",
+            sizeMb = 5597,
+            urls = links("Qwen3.5-9B-MTP-GGUF", "Qwen3.5-9B-Q4_K_M.gguf"),
+            tier = ModelTier.FLAGSHIP,
+        ),
         // ── 已下架条目（2026-10-04 开源整理，勿再加回）───────────────
         // · Qwen3-30B-A3B（MoE，17.7GB）：本机实测 MoE 流式不可行——专家扫描范围不受
         //   --ubatch 控制，长 prompt 每轮触达近乎全部专家，实测 139GB 读取 / 0 token；
@@ -283,6 +313,15 @@ object LocalModelCatalog {
         //   ③ hf-mirror 上文件真实存在（HEAD 200 / Range 206 实测）。
         // 许可证：Qwen2.5 / InternLM2.5 为 Apache-2.0，DeepSeek-R1 蒸馏为 MIT，
         //   Gemma-3 适用 Google Gemma 条款 —— 均只提供**下载链接**，不随本仓库分发模型权重。
+        // ── 2026-10-11 新增 Qwen3.5 系（4B/9B，均走 unsloth 的 -MTP- 仓库）──────
+        // 验证依据：① hf-mirror API 实测文件存在（4B=2,834,975,040 B /
+        //   9B=5,868,826,976 B），hf-mirror + modelscope 双源 Range 206 实测可下载；
+        //   ② 解析 GGUF 头确认 general.architecture=qwen35 且含 blk.32.nextn.*
+        //   MTP 头块（eh_proj/enorm/hnorm/shared_head_norm，普通仓库无此块）；
+        //   ③ fork（GenieX v0.7.0）libllama.so 含 qwen35 架构实现 + nextn MTP 图
+        //   （llama_model_qwen35::graph_mtp），HTP 后端（libggml-htp-v79/v81）
+        //   已注册 op_gated_delta_net / op_ssm_conv 算子——Qwen3.5 的 24 个
+        //   SSM 增强层结构性可跑（8 层标准注意力为普通 GQA，全额 NPU 卸载）。
         // ⚠️ 诚实标注：新增条目**未逐个在本机 NPU 上做过加载实测**（每次需下载 1~5GB 才能验），
         //   架构上与已实测通过的模型同类，但如遇加载失败请回报 issue。
     )

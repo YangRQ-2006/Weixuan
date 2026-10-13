@@ -50,6 +50,9 @@ object GenieXLocalEngine : LocalChatEngine {
 
     private const val TAG = "EtaLocalEngine"
 
+    /** 含原生 MTP 头（blk.32.nextn 块）的 GGUF 架构 —— draft-mtp 投机解码仅对其启用。 */
+    private const val MTP_ARCH = "qwen35"
+
     private val _state = MutableStateFlow(LocalEngineState())
     override val state: StateFlow<LocalEngineState> = _state.asStateFlow()
 
@@ -262,6 +265,10 @@ object GenieXLocalEngine : LocalChatEngine {
         // "Qwen/Qwen3-8B"→估算 5600MB），导致 378MB 的 0.6B 被误判拒载（2026-09-25 终极根因）。
         val fileMb = (java.io.File(resolved.modelPath).length() / 1024 / 1024).toInt()
         val estimateMb = if (fileMb > 0) fileMb else estimateModelMb(target)
+        // MTP 投机解码门控（2026-10-11）：解析 GGUF 架构，仅含原生 MTP 头的
+        // 架构（当前 = qwen35）启用 draft-mtp；其余模型 draftPath=null →
+        // spec_type="" → ModelConfig 与禁用时逐字节一致，零回归风险。
+        val modelArch = LocalMemoryModel.probe(java.io.File(resolved.modelPath))?.arch ?: ""
         // 安全边界一：温度（设备过热时禁止加载，防止热失控卡死，2026-09-25 事故）
         // 温控按用户要求解除拦截（2026-09-25）：仅记录温度供观测，不再拒绝加载。
         // 防卡死核心防线保留：内存边界、重试上限、冷却期、前台租约。
@@ -290,7 +297,7 @@ object GenieXLocalEngine : LocalChatEngine {
             precision = resolved.precision,
             message = "正在加载模型（首次加载较慢）…",
         )
-        val draftPath = resolveDraftModelPath(target)
+        val draftPath = resolveDraftModelPath(target, resolved.modelPath, modelArch)
         val config = LocalPerfTuner.buildModelConfig(guard, draftPath, estimateMb)
         val units = when (LocalSettings.computeUnit) {
             // npu 优先（实测最快），失败回退 cpu 保可用
@@ -640,14 +647,29 @@ object GenieXLocalEngine : LocalChatEngine {
         )
     }
 
-    /** 推测解码 draft 模型：优先用户导入的本地文件，其次本机已存在的 GenieX 模型。 */
     /**
-     * 【已禁用 2026-09-25】推测解码（draft）不可用：
-     * GenieX v0.7.0 的推测解码是 EAGLE 专用实现（需要含 draft_embed/draft_feat_* 等张量的
-     * EAGLE draft 模型）；普通 GGUF 小模型（如 Qwen3-0.6B）传入会触发 native 异常
-     * `unknown speculative type: draft`（libc++abi 终止 → 进程崩溃）。
-     * 待 SDK 支持通用 draft 或引入 EAGLE 模型后再启用。
+     * MTP 投机解码的 draft 模型解析（2026-10-11 启用 draft-mtp）：
+     *
+     * GenieX v0.7.0 的推测解码实为多实现注册制（libllama-common.so 字符串实证）：
+     * draft-mtp / eagle3 / ngram-mod / ngram-map-k / ngram-simple 五个实现。
+     * 2026-09-25 崩溃的是 `draft`（通用 draft，**未注册** → unknown speculative
+     * type: draft → libc++abi 终止）；`draft-mtp` 是已注册的另一实现，且 MTP
+     * 草稿上下文直接建在目标模型上（fork 字符串 "creating MTP draft context
+     * against the target model"），无需独立 draft 模型——Qwen3.5 GGUF 自带
+     * blk.32.nextn.* MTP 头（eh_proj/enorm/hnorm/shared_head_norm）。
+     * 自引用还天然通过 native 的 vocab/BOS/EOS 一致性校验
+     * （"draft model vocab type must match target model"）。
+     *
+     * 仅对架构含 MTP 头的模型启用（当前 = qwen35）；其余模型返回 null →
+     * spec_type="" → 配置与禁用时逐字节一致，零回归风险。
      */
-    @Suppress("UNUSED_PARAMETER")
-    private suspend fun resolveDraftModelPath(target: String): String? = null
+    private suspend fun resolveDraftModelPath(
+        target: String,
+        modelPath: String,
+        arch: String,
+    ): String? {
+        if (arch != MTP_ARCH) return null
+        Log.i(TAG, "MTP 投机解码：$target（arch=$arch），draft=目标模型自身（nextn 头）")
+        return modelPath
+    }
 }

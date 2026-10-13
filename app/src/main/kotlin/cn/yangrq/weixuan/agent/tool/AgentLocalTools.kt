@@ -1361,7 +1361,7 @@ internal class AgentLocalTools(
             return errorResult("INVALID_ARGUMENTS", "prompt 不能为空")
         }
 
-        // 模型发现：<filesDir>/models/sd/ 下最大的模型文件
+        // 模型发现：<外部 App 专属目录>/models/sd/ 下最大的模型文件
         // sd.cpp 支持 .gguf / .safetensors / .ckpt / .pth / .pt
         val modelDir = ImageGenerationEngine.modelDir(context)
         val modelFile = modelDir.listFiles { f ->
