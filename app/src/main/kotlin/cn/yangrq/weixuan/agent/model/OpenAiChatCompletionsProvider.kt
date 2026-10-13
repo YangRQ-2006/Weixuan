@@ -24,6 +24,15 @@ import org.json.JSONObject
 private const val TAG = "OpenAiTools"
 
 /**
+ * 单轮输出 token 上限（2026-10-11，压运行时功耗）。
+ *
+ * decode 每 token 都要过完整权重 + KV，是持续满载的主要来源；
+ * 正常回答 200~800 token 不受影响，上限只在失控长生成时介入
+ * （此前不设 max_tokens，由服务端默认值决定，失控时可占满整个 ctx）。
+ */
+private const val MAX_OUTPUT_TOKENS = 2048
+
+/**
  * 本地工具 schema 的 token 预算（2026-10-04 按实测重定）。
  *
  * **实测数据**（脚本见 `scripts/bench/agent_eval.py`，服务端 `usage.prompt_tokens`）：
@@ -549,6 +558,8 @@ internal object OpenAiChatCompletionsProvider : AgentProviderClient {
         return JSONObject()
             .put("model", config.model)
             .put("stream", true)
+            // 单轮输出上限：decode 是持续满载，限制失控长生成（见 MAX_OUTPUT_TOKENS）
+            .put("max_tokens", MAX_OUTPUT_TOKENS)
             // 让 llama.cpp 在流式结束时返回 usage（含 completion_tokens），供计算实际速率
             .put("stream_options", JSONObject().put("include_usage", true))
             .put("messages", finalMessages)

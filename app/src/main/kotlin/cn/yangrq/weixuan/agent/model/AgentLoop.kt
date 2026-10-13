@@ -17,11 +17,21 @@ private const val TOOL_REPEAT_STOP = 5
 private const val TOOL_SIGNATURE_WINDOW = 12
 
 /**
+ * 单次 Agent run 的总轮数上限（2026-10-11 新增，压运行时功耗）。
+ *
+ * doom 检测只能抓住「逐字相同」的重复调用；模型若每轮换用不同工具
+ * （探索式调用）即可无限循环——每轮都是 prefill + decode 满载，
+ * 持续几十秒就会让机身发烫、待机骤降。达到上限后优雅停止并提示
+ * 用户拆分任务，而不是让循环无界跑下去。
+ */
+private const val MAX_ROUNDS = 16
+
+/**
  * 单次 Agent run 的纯编排循环。
  *
  * 一次 assistant 响应及其完整工具批次构成一个 turn；
- * steering 只在 turn 结束后注入，不能用取消网络或关闭工具资源来模拟。循环不设置本地轮次上限，
- * 由模型自然结束、取消或错误终止。
+ * steering 只在 turn 结束后注入，不能用取消网络或关闭工具资源来模拟。
+ * 循环由模型自然结束、达到 [MAX_ROUNDS] 上限、取消或错误终止。
  */
 internal class AgentLoop(
     private val config: AgentModelClient.ModelConfig,
@@ -115,6 +125,18 @@ internal class AgentLoop(
 
         while (true) {
             runController.throwIfCancelled()
+            // 总轮数上限：探索式工具调用（每轮不同）不受 doom 检测约束，
+            // 无界循环 = 持续满载发热。超限后优雅停止，提示拆分任务。
+            if (round > MAX_ROUNDS) {
+                onEvent(AgentEvent.RunFinished(round = round, contentChars = 0))
+                return Result(
+                    content = "⚠️ 已停止：达到本轮任务轮数上限（$MAX_ROUNDS 轮）。" +
+                        "继续执行会持续占用 CPU 并使机身发热；" +
+                        "请把任务拆成更小的子任务分次进行，或直接告诉我你想达成的目标。",
+                    reasoningContent = reasoningSnapshot(),
+                    sensitiveToolCallIds = sensitiveToolCallIds.toSet(),
+                )
+            }
             if (purpose.allowsTools) appendPendingSteeringMessage()
 
             val baseTools = if (purpose.allowsTools && !toolUseSuppressed) toolsForRound?.invoke() ?: tools else JSONArray()
